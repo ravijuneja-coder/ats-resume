@@ -1851,7 +1851,7 @@ function AuthPage({ mode, setPage, setUser }) {
   const googleAuth = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      setError("Add VITE_GOOGLE_CLIENT_ID to your .env file to enable Google Sign-In.");
+      setError("Google Sign-In is not configured. Please contact support.");
       return;
     }
     if (!window.google?.accounts?.oauth2) {
