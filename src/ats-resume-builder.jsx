@@ -1712,12 +1712,6 @@ function HomePage({ setPage }) {
                     })`,
                     pointerEvents: "none",
                   }} />
-                  <div style={{
-                    position: "absolute", top: 12, left: 12,
-                    background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
-                    color: "#fff", fontSize: 11, fontWeight: 700,
-                    padding: "3px 10px", borderRadius: 99, letterSpacing: "0.04em",
-                  }}>{t.name}</div>
                 </div>
                 <div style={{
                   padding: "13px 16px 15px", borderTop: "1px solid var(--c-border)",
