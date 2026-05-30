@@ -4025,10 +4025,15 @@ function PricingPage({ setPage, user, onUpgrade, onDowngrade, onStripeCheckout }
                 onClick={onDowngrade}>
                 Downgrade to Free
               </button>
-            ) : (
+            ) : user ? (
               <button className="btn btn-secondary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15, border: "2px solid var(--c-accent2)", color: "var(--c-accent2)" }}
                 disabled>
                 ✓ Your current plan
+              </button>
+            ) : (
+              <button className="btn btn-secondary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15 }}
+                onClick={() => setPage(PAGES.REGISTER)}>
+                Get Started Free
               </button>
             )}
             <div>
