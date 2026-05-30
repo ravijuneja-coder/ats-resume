@@ -2206,7 +2206,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const removeExp = (id) => setResume({ ...resume, experience: resume.experience.filter(e => e.id !== id) });
 
   const handleExportPDF = () => {
-    if (!premium) { onNeedUpgrade?.("pdf_export"); return; }
+    if (!premium && !FREE_TEMPLATES.includes(template)) { onNeedUpgrade?.("pdf_export"); return; }
     window.print();
   };
 
@@ -3788,7 +3788,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
             const MiniPreview = MINI_PREVIEWS[t.id];
             const isSelected = selected === t.id;
             const isHovered = hovered === t.id;
-            const locked = false;
+            const isPremiumTemplate = !FREE_TEMPLATES.includes(t.id);
             return (
               <div key={t.id}
                 onMouseEnter={() => setHovered(t.id)}
@@ -3817,7 +3817,17 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                     background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" ? "#0F172A" : t.bg === "#F0F9FF" ? "#F0F9FF" : t.bg === "#FAFAF9" ? "#FAFAF9" : "#ffffff"})`,
                     pointerEvents: "none",
                   }} />
-                  {/* Crown badge for premium templates (free users) */}
+                  {isPremiumTemplate && (
+                    <div style={{
+                      position: "absolute", top: 10, left: 10,
+                      background: "linear-gradient(135deg,#F59E0B,#D97706)",
+                      borderRadius: 99, padding: "3px 9px",
+                      display: "flex", alignItems: "center", gap: 4,
+                      boxShadow: "0 2px 8px rgba(217,119,6,0.35)",
+                    }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
+                    </div>
+                  )}
                   {isSelected && (
                     <div style={{
                       position: "absolute", top: 12, right: 12,
