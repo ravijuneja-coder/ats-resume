@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
+import mammoth from "mammoth";
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -108,6 +111,89 @@ async function callClaude(prompt, systemPrompt = "") {
   }
   const data = await res.json();
   return data.content?.[0]?.text || "";
+}
+
+// ─── CV IMPORT ────────────────────────────────────────────────────────────────
+
+async function loadScript(src, check) {
+  if (check()) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+async function extractTextFromFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+
+  if (ext === "txt") return file.text();
+
+  if (ext === "pdf") {
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(" ") + "\n";
+    }
+    return text;
+  }
+
+  if (ext === "docx") {
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value;
+  }
+
+  throw new Error(`Unsupported file type .${ext}. Use PDF, DOCX, or TXT.`);
+}
+
+async function parseResumeWithClaude(text) {
+  // Sanitize input: remove characters that break JSON strings
+  const safeText = text
+    .slice(0, 6000)
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ") // control chars
+    .replace(/\\/g, "")                                   // backslashes
+    .replace(/"/g, "'");                                  // double quotes → single
+
+  const prompt = `Parse this resume text and return ONLY a valid JSON object. Rules:
+- No markdown, no code fences, no explanation — raw JSON only
+- All string values must be on a single line (no line breaks inside strings)
+- Use only double quotes for strings
+- No trailing commas
+
+Structure:
+{"personal":{"name":"","title":"","email":"","phone":"","location":"","linkedin":"","github":"","website":""},"summary":"","experience":[{"id":1,"company":"","role":"","start":"","end":"","location":"","bullets":[""]}],"education":[{"id":1,"school":"","degree":"","year":"","gpa":""}],"skills":[""],"certifications":[{"id":1,"name":"","issuer":"","year":""}],"projects":[{"id":1,"name":"","desc":"","start":"","end":"","url":""}]}
+
+Resume text:
+${safeText}`;
+
+  const raw = await callClaude(prompt, "You are a resume parser. Output only raw valid JSON. No markdown. No extra text.");
+  const jsonMatch = raw.replace(/```json|```/g, "").trim().match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("AI did not return valid JSON. Please try again.");
+  const repaired = jsonMatch[0]
+    .replace(/,\s*([}\]])/g, "$1")       // trailing commas
+    .replace(/\n/g, " ")                 // stray newlines
+    .replace(/\r/g, "")                  // carriage returns
+    .replace(/\t/g, " ");                // tabs
+  let parsed;
+  try {
+    parsed = JSON.parse(repaired);
+  } catch (e) {
+    console.error("JSON parse failed:", e.message, "\nRaw:\n", raw);
+    throw new Error("Could not parse CV. Please try a plain text (.txt) version of your resume.");
+  }
+  // Ensure IDs are unique numbers
+  const stamp = (arr) => (arr || []).map((item, i) => ({ ...item, id: Date.now() + i }));
+  return {
+    personal: { photo: null, website: "", linkedin: "", github: "", ...parsed.personal },
+    summary: parsed.summary || "",
+    experience: stamp(parsed.experience),
+    education: stamp(parsed.education),
+    skills: parsed.skills || [],
+    certifications: stamp(parsed.certifications),
+    projects: stamp(parsed.projects),
+  };
 }
 
 // ─── RESUME STATS ─────────────────────────────────────────────────────────────
@@ -311,6 +397,11 @@ const Icon = {
   LogOut: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+  ),
+  Upload: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
     </svg>
   ),
 };
@@ -712,137 +803,319 @@ const styles = `
 
 // ─── RESUME PREVIEW COMPONENT ─────────────────────────────────────────────────
 
-function ResumePreview({ resume, scale = 1, templateId = "clarity" }) {
-  const r = resume;
-  const tpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[1];
-  const accent = tpl.accent;
-  const isDark = ["apex", "nova", "pulse", "portrait", "edge", "spark"].includes(templateId);
-  const isPhotoTemplate = tpl.photo;
-  const bg = isDark ? tpl.bg : "#ffffff";
-  const textColor = isDark ? "#E2E8F0" : "#111111";
-  const mutedColor = isDark ? "#94A3B8" : "#555555";
-  const skillBg = isDark ? "#1E293B" : "#EEF2FF";
-  const skillColor = isDark ? accent : accent;
-
+// Shared body sections (summary, experience, skills, education, certs, projects)
+function ResumeSections({ r, accent, text, muted, skillBg }) {
+  const sh = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1.5px solid ${accent}`, paddingBottom: 3, marginBottom: 8 };
   return (
-    <div className="resume-preview" style={{
-      transform: `scale(${scale})`, transformOrigin: "top left",
-      background: bg, color: textColor,
-    }}>
-      {/* Header */}
-      <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: "12px", marginBottom: "12px",
-        display: "flex", alignItems: "flex-start", gap: isPhotoTemplate && r.personal.photo ? 16 : 0 }}>
-        {/* Photo — only shown on photo templates when a photo is uploaded */}
-        {isPhotoTemplate && r.personal.photo && (
-          <img src={r.personal.photo} alt={r.personal.name}
-            style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
-              border: `2.5px solid ${accent}` }} />
-        )}
-        <div style={{ flex: 1 }}>
-          <h1 style={{ color: textColor }}>{r.personal.name || "Your Name"}</h1>
-          <p className="subtitle" style={{ color: mutedColor }}>{r.personal.title || "Professional Title"}</p>
-          <div className="meta">
-            {r.personal.email && <span style={{ color: mutedColor }}>✉ {r.personal.email}</span>}
-            {r.personal.phone && <span style={{ color: mutedColor }}>📱 {r.personal.phone}</span>}
-            {r.personal.location && <span style={{ color: mutedColor }}>📍 {r.personal.location}</span>}
-            {r.personal.linkedin && <span style={{ color: mutedColor }}>in {r.personal.linkedin}</span>}
-            {r.personal.github && <span style={{ color: mutedColor }}>⚡ {r.personal.github}</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* Summary */}
+    <>
       {r.summary && (
-        <div className="section">
-          <h2 style={{ color: accent, borderBottomColor: accent }}>Professional Summary</h2>
-          <p style={{ margin: 0, color: mutedColor }}>{r.summary}</p>
+        <div style={{ marginBottom: 14 }}>
+          <div style={sh}>Professional Summary</div>
+          <p style={{ margin: 0, color: muted, lineHeight: 1.6 }}>{r.summary}</p>
         </div>
       )}
-
-      {/* Experience */}
       {r.experience?.length > 0 && (
-        <div className="section">
-          <h2 style={{ color: accent, borderBottomColor: accent }}>Work Experience</h2>
+        <div style={{ marginBottom: 14 }}>
+          <div style={sh}>Work Experience</div>
           {r.experience.map(exp => (
-            <div key={exp.id} className="exp-item">
-              <div className="exp-header">
+            <div key={exp.id} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <h3 style={{ color: textColor }}>{exp.role}</h3>
-                  <span style={{ color: accent, fontSize: "10px", fontWeight: 600 }}>{exp.company}</span>
-                  {exp.location && <span style={{ color: mutedColor, fontSize: "10px" }}> · {exp.location}</span>}
+                  <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{exp.role}</div>
+                  <span style={{ color: accent, fontSize: 10, fontWeight: 600 }}>{exp.company}</span>
+                  {exp.location && <span style={{ color: muted, fontSize: 10 }}> · {exp.location}</span>}
                 </div>
-                <span style={{ color: mutedColor, fontSize: "10px", whiteSpace: "nowrap" }}>{exp.start} – {exp.end}</span>
+                <span style={{ color: muted, fontSize: 10, whiteSpace: "nowrap" }}>{exp.start}{exp.end ? ` – ${exp.end}` : ""}</span>
               </div>
-              {exp.bullets?.length > 0 && (
-                <ul>{exp.bullets.map((b, i) => <li key={i} style={{ color: mutedColor }}>{b}</li>)}</ul>
+              {exp.bullets?.filter(Boolean).length > 0 && (
+                <ul style={{ margin: "4px 0", paddingLeft: 14 }}>
+                  {exp.bullets.filter(Boolean).map((b, i) => <li key={i} style={{ color: muted, marginBottom: 2 }}>{b}</li>)}
+                </ul>
               )}
             </div>
           ))}
         </div>
       )}
-
-      {/* Skills */}
       {r.skills?.length > 0 && (
-        <div className="section">
-          <h2 style={{ color: accent, borderBottomColor: accent }}>Skills</h2>
-          <div className="skill-tags">
-            {r.skills.map((s, i) => (
-              <span key={i} className="skill-tag" style={{ background: skillBg, color: skillColor }}>{s}</span>
-            ))}
+        <div style={{ marginBottom: 14 }}>
+          <div style={sh}>Skills</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {r.skills.map((s, i) => <span key={i} style={{ background: skillBg || "#EEF2FF", color: accent, padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 500 }}>{s}</span>)}
           </div>
         </div>
       )}
-
-      {/* Education */}
       {r.education?.length > 0 && (
-        <div className="section">
-          <h2 style={{ color: accent, borderBottomColor: accent }}>Education</h2>
+        <div style={{ marginBottom: 14 }}>
+          <div style={sh}>Education</div>
           {r.education.map(edu => (
-            <div key={edu.id} className="exp-header" style={{ marginBottom: 6 }}>
+            <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <div>
-                <h3 style={{ color: textColor }}>{edu.degree}</h3>
-                <span style={{ color: accent, fontSize: "10px", fontWeight: 600 }}>{edu.school}</span>
-                {edu.gpa && <span style={{ color: mutedColor, fontSize: "10px" }}> · GPA: {edu.gpa}</span>}
+                <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{edu.degree}</div>
+                <span style={{ color: accent, fontSize: 10, fontWeight: 600 }}>{edu.school}</span>
+                {edu.gpa && <span style={{ color: muted, fontSize: 10 }}> · GPA: {edu.gpa}</span>}
               </div>
-              <span style={{ color: mutedColor, fontSize: "10px" }}>{edu.year}</span>
+              <span style={{ color: muted, fontSize: 10 }}>{edu.year}</span>
             </div>
           ))}
         </div>
       )}
-
-      {/* Certifications */}
       {r.certifications?.length > 0 && (
-        <div className="section">
-          <h2 style={{ color: accent, borderBottomColor: accent }}>Certifications</h2>
+        <div style={{ marginBottom: 14 }}>
+          <div style={sh}>Certifications</div>
           {r.certifications.map(c => (
             <div key={c.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontWeight: 600, color: textColor }}>{c.name} <span style={{ color: accent, fontWeight: 400 }}>· {c.issuer}</span></span>
-              <span style={{ color: mutedColor, fontSize: "10px" }}>{c.year}</span>
+              <span style={{ fontWeight: 600, color: text }}>{c.name} <span style={{ color: accent, fontWeight: 400 }}>· {c.issuer}</span></span>
+              <span style={{ color: muted, fontSize: 10 }}>{c.year}</span>
             </div>
           ))}
         </div>
       )}
-
-      {/* Projects */}
       {r.projects?.length > 0 && (
-        <div className="section">
-          <h2 style={{ color: accent, borderBottomColor: accent }}>Projects</h2>
+        <div style={{ marginBottom: 14 }}>
+          <div style={sh}>Projects</div>
           {r.projects.map(p => (
             <div key={p.id} style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <h3 style={{ color: textColor, margin: 0 }}>{p.name}</h3>
-                {(p.start || p.end) && (
-                  <span style={{ color: mutedColor, fontSize: "10px", whiteSpace: "nowrap", marginLeft: 8 }}>
-                    {p.start}{p.start && p.end ? " – " : ""}{p.end}
-                  </span>
-                )}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{p.name}</div>
+                {(p.start || p.end) && <span style={{ color: muted, fontSize: 10 }}>{p.start}{p.end ? ` – ${p.end}` : ""}</span>}
               </div>
-              {p.url && <p style={{ margin: "1px 0 2px", color: accent, fontSize: "10px" }}>{p.url}</p>}
-              {p.desc && <p style={{ margin: "2px 0", color: mutedColor }}>{p.desc}</p>}
+              {p.url && <div style={{ color: accent, fontSize: 10 }}>{p.url}</div>}
+              {p.desc && <p style={{ margin: "2px 0", color: muted }}>{p.desc}</p>}
             </div>
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+function ResumePreview({ resume, scale = 1, templateId = "clarity" }) {
+  const r = resume;
+  const tpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[1];
+  const accent = tpl.accent;
+  const wrap = { transform: scale !== 1 ? `scale(${scale})` : undefined, transformOrigin: "top left" };
+  const font = "'Poppins', sans-serif";
+  const contacts = [
+    r.personal.email && `✉ ${r.personal.email}`,
+    r.personal.phone && `📱 ${r.personal.phone}`,
+    r.personal.location && `📍 ${r.personal.location}`,
+    r.personal.linkedin && `in ${r.personal.linkedin}`,
+    r.personal.github && `⚡ ${r.personal.github}`,
+  ].filter(Boolean);
+
+  // ── SIDEBAR TEMPLATES (two-column) ──────────────────────────────────────────
+  if (["axiom", "portrait", "prism"].includes(templateId)) {
+    const isDarkSide = ["portrait", "prism"].includes(templateId);
+    const sideBg = templateId === "axiom" ? "#4C1D95" : templateId === "prism" ? "#5B21B6" : "#13113A";
+    const sideText = "#EDE9FE";
+    const sideAccent = templateId === "axiom" ? "#A78BFA" : accent;
+    const contentBg = templateId === "axiom" ? "#FAFAF9" : templateId === "prism" ? "#F5F3FF" : "#1E1B4B";
+    const contentText = isDarkSide ? "#E0E7FF" : "#111827";
+    const contentMuted = isDarkSide ? "#A5B4FC" : "#4B5563";
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: contentBg, color: contentText, padding: 0, display: "flex", minHeight: 700 }}>
+        {/* Sidebar */}
+        <div style={{ width: "34%", background: sideBg, padding: "28px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {tpl.photo && (
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+              {r.personal.photo
+                ? <img src={r.personal.photo} alt={r.personal.name} style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: `3px solid ${sideAccent}` }} />
+                : <div style={{ width: 80, height: 80, borderRadius: "50%", background: sideAccent + "44", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: sideAccent }}>
+                    {r.personal.name?.[0] || "?"}
+                  </div>
+              }
+            </div>
+          )}
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{r.personal.name || "Your Name"}</div>
+            <div style={{ fontSize: 11, color: sideAccent, marginTop: 4 }}>{r.personal.title || "Professional Title"}</div>
+          </div>
+          <div style={{ borderTop: `1px solid ${sideAccent}44`, paddingTop: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: sideAccent, marginBottom: 6, letterSpacing: "0.08em" }}>Contact</div>
+            {contacts.map((c, i) => <div key={i} style={{ fontSize: 9, color: sideText, marginBottom: 4, wordBreak: "break-all" }}>{c}</div>)}
+          </div>
+          {r.skills?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: sideAccent, marginBottom: 6, letterSpacing: "0.08em" }}>Skills</div>
+              {r.skills.map((sk, i) => (
+                <div key={i} style={{ marginBottom: 5 }}>
+                  <div style={{ fontSize: 10, color: sideText, marginBottom: 2 }}>{sk}</div>
+                  <div style={{ height: 3, background: sideAccent + "33", borderRadius: 99 }}>
+                    <div style={{ height: "100%", background: sideAccent, borderRadius: 99, width: `${65 + (i * 5) % 35}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {r.education?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: sideAccent, marginBottom: 6, letterSpacing: "0.08em" }}>Education</div>
+              {r.education.map(e => (
+                <div key={e.id} style={{ marginBottom: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 10, color: "#fff" }}>{e.degree}</div>
+                  <div style={{ fontSize: 9, color: sideText }}>{e.school}{e.year ? ` · ${e.year}` : ""}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* Content */}
+        <div style={{ flex: 1, padding: "28px 24px", fontFamily: font, fontSize: 11, lineHeight: 1.5 }}>
+          <ResumeSections r={r} accent={sideAccent} text={contentText} muted={contentMuted} skillBg={sideAccent + "22"} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── PHOTO TOP-RIGHT (pulse) ──────────────────────────────────────────────────
+  if (templateId === "pulse") {
+    const bg = "#0C0A09"; const text = "#FAFAF9"; const muted = "#A8A29E";
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
+        <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 14, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h1 style={{ color: text, margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
+            <div style={{ fontSize: 12, color: accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
+            </div>
+          </div>
+          {r.personal.photo
+            ? <img src={r.personal.photo} alt={r.personal.name} style={{ width: 72, height: 72, borderRadius: 10, objectFit: "cover", border: `2px solid ${accent}`, flexShrink: 0 }} />
+            : <div style={{ width: 72, height: 72, borderRadius: 10, background: accent + "33", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: accent, flexShrink: 0 }}>{r.personal.name?.[0] || "?"}</div>
+          }
+        </div>
+        <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg="#1C1917" />
+      </div>
+    );
+  }
+
+  // ── PHOTO HEADER BAND (vista, lens) ─────────────────────────────────────────
+  if (["vista", "lens"].includes(templateId)) {
+    const isVista = templateId === "vista";
+    const grad = isVista ? "linear-gradient(135deg,#EC4899,#BE185D)" : "linear-gradient(135deg,#0EA5E9,#0369A1)";
+    const headerText = "#fff"; const headerMuted = isVista ? "#FBCFE8" : "#BAE6FD";
+    const bg = isVista ? "#FFF1F2" : "#F0F9FF"; const text = "#1F2937"; const muted = "#6B7280";
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0 }}>
+        <div style={{ background: grad, padding: "24px 32px 20px", display: "flex", alignItems: "center", gap: 20, marginBottom: 0 }}>
+          {r.personal.photo
+            ? <img src={r.personal.photo} alt={r.personal.name} style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(255,255,255,0.6)", flexShrink: 0 }} />
+            : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{r.personal.name?.[0] || "?"}</div>
+          }
+          <div style={{ flex: 1 }}>
+            <h1 style={{ color: headerText, margin: "0 0 2px", fontSize: 22 }}>{r.personal.name || "Your Name"}</h1>
+            <div style={{ fontSize: 12, color: headerMuted, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: headerMuted }}>{c}</span>)}
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: "24px 32px" }}>
+          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={isVista ? "#FCE7F3" : "#E0F2FE"} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── COLORED HEADER BAND (echo, flow, summit, bloom) ─────────────────────────
+  if (["echo", "flow", "summit", "bloom"].includes(templateId)) {
+    const grads = {
+      echo: accent, flow: accent,
+      summit: "linear-gradient(135deg,#1D4ED8,#1E40AF)",
+      bloom: "linear-gradient(135deg,#D946EF,#9333EA)",
+    };
+    const bgs = { echo: "#F0F9FF", flow: "#FFFFFF", summit: "#EFF6FF", bloom: "#FDF4FF" };
+    const headerBg = grads[templateId] || accent;
+    const contentBg = bgs[templateId] || "#fff";
+    const text = "#0F172A"; const muted = "#475569";
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: contentBg, color: text, padding: 0 }}>
+        <div style={{ background: headerBg, padding: "24px 32px 20px", marginBottom: 0 }}>
+          <h1 style={{ color: "#fff", margin: "0 0 2px", fontSize: 22 }}>{r.personal.name || "Your Name"}</h1>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 8 }}>{r.personal.title || "Professional Title"}</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: "rgba(255,255,255,0.75)" }}>{c}</span>)}
+          </div>
+        </div>
+        <div style={{ padding: "24px 32px" }}>
+          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── DARK TEMPLATES (apex, nova, edge, spark) ─────────────────────────────────
+  if (["apex", "nova", "edge", "spark"].includes(templateId)) {
+    const bg = tpl.bg; const text = "#E2E8F0"; const muted = "#94A3B8";
+    const leftStrip = templateId === "edge";
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0, display: "flex" }}>
+        {leftStrip && <div style={{ width: 5, background: accent, flexShrink: 0 }} />}
+        <div style={{ flex: 1, padding: "32px 36px" }}>
+          <div style={{ borderBottom: `1.5px solid ${accent}`, paddingBottom: 14, marginBottom: 14 }}>
+            <h1 style={{ color: "#fff", margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
+            <div style={{ fontSize: 12, color: accent, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
+            </div>
+          </div>
+          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── EXECUTIVE / FORM ────────────────────────────────────────────────────────
+  if (templateId === "form") {
+    const text = "#0F172A"; const muted = "#475569"; const rule = "#CBD5E1";
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: "#FFFFFF", color: text }}>
+        <div style={{ marginBottom: 14 }}>
+          <h1 style={{ color: "#0F172A", margin: "0 0 2px", fontSize: 26, letterSpacing: "-0.025em" }}>{r.personal.name || "Your Name"}</h1>
+          <div style={{ fontSize: 13, color: muted, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
+          <div style={{ height: 2, background: "#0F172A", margin: "8px 0 6px" }} />
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 4 }}>
+            {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
+          </div>
+        </div>
+        <ResumeSections r={r} accent="#1E293B" text={text} muted={muted} skillBg="#F1F5F9" />
+      </div>
+    );
+  }
+
+  // ── PRESTIGE (warm ivory, centered header) ───────────────────────────────────
+  if (templateId === "prestige") {
+    const text = "#1C0A00"; const muted = "#6B5747";
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: "#FFFBF5", color: text }}>
+        <div style={{ textAlign: "center", borderBottom: `2px solid ${accent}`, paddingBottom: 12, marginBottom: 14 }}>
+          <h1 style={{ color: text, margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>{r.personal.name || "Your Name"}</h1>
+          <div style={{ fontSize: 12, color: accent, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
+          <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 10 }}>
+            {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
+          </div>
+        </div>
+        <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "18"} />
+      </div>
+    );
+  }
+
+  // ── DEFAULT (clarity, slate, pure, edge, summit, bloom, spark, etc.) ─────────
+  const isLight = !["apex","nova","pulse","portrait","edge","spark","prism"].includes(templateId);
+  const bg = isLight ? (tpl.bg || "#ffffff") : tpl.bg;
+  const text = isLight ? "#111111" : "#E2E8F0";
+  const muted = isLight ? "#555555" : "#94A3B8";
+  return (
+    <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
+      <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 12, marginBottom: 14 }}>
+        <h1 style={{ color: text, margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
+        <p style={{ margin: "0 0 6px", fontSize: 12, color: muted }}>{r.personal.title || "Professional Title"}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
+        </div>
+      </div>
+      <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} />
     </div>
   );
 }
@@ -919,15 +1192,47 @@ function UserMenu({ user, setUser, setPage }) {
             borderRadius: 12, padding: 8, minWidth: 200,
             boxShadow: "0 8px 32px var(--c-shadow)",
           }}>
-            {/* User info */}
-            <div style={{ padding: "8px 12px 10px", borderBottom: "1px solid var(--c-border)", marginBottom: 4 }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
-              <div className="app-text3" style={{ fontSize: 12 }}>{user.email}</div>
+            {/* User info + plan badge */}
+            <div style={{ padding: "10px 12px 12px", borderBottom: "1px solid var(--c-border)", marginBottom: 4 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{user.name}</div>
+              <div className="app-text3" style={{ fontSize: 12, marginBottom: 8 }}>{user.email}</div>
+              {/* Plan badge */}
+              {isPremium(user) ? (
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  background: "linear-gradient(135deg, #F59E0B, #D97706)",
+                  color: "#fff", fontSize: 11, fontWeight: 700,
+                  padding: "3px 10px", borderRadius: 99, letterSpacing: "0.03em",
+                }}>
+                  ⭐ Premium Plan
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    background: "var(--c-surface2)", border: "1px solid var(--c-border)",
+                    color: "var(--c-text2)", fontSize: 11, fontWeight: 600,
+                    padding: "3px 10px", borderRadius: 99,
+                  }}>
+                    Free Plan
+                  </div>
+                  <button onClick={() => { setPage(PAGES.PRICING); setOpen(false); }}
+                    style={{
+                      fontSize: 11, fontWeight: 700, color: "var(--c-accent)",
+                      background: "var(--c-accent-light)", border: "none",
+                      padding: "3px 10px", borderRadius: 99, cursor: "pointer",
+                      fontFamily: "var(--font-body)",
+                    }}>
+                    Upgrade ↗
+                  </button>
+                </div>
+              )}
             </div>
             {[
               { label: "Dashboard", icon: <Icon.LayoutTemplate />, action: () => { setPage(PAGES.DASHBOARD); setOpen(false); } },
               { label: "Open Builder", icon: <Icon.Zap />, action: () => { setPage(PAGES.BUILDER); setOpen(false); } },
               { label: "Templates", icon: <Icon.FileText />, action: () => { setPage(PAGES.TEMPLATES); setOpen(false); } },
+              { label: "Subscription", icon: <Icon.Star />, action: () => { setPage(PAGES.PRICING); setOpen(false); } },
             ].map((item, i) => (
               <button key={i} onClick={item.action} className="sidebar-item" style={{ width: "100%", fontSize: 14 }}>
                 {item.icon} {item.label}
@@ -968,6 +1273,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
           {!isBuilder && (
             <>
               <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.TEMPLATES)}>Templates</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.PRICING)}>Pricing</button>
             </>
           )}
           <button className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }} onClick={() => setDark(!dark)}>
@@ -998,6 +1304,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
       {mobileOpen && (
         <div style={{ borderTop: "1px solid var(--c-border)", padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4 }}>
           <button className="sidebar-item" onClick={() => { setPage(PAGES.TEMPLATES); setMobileOpen(false); }}>Templates</button>
+          <button className="sidebar-item" onClick={() => { setPage(PAGES.PRICING); setMobileOpen(false); }}>Pricing</button>
           {user ? (
             <>
               <button className="sidebar-item" onClick={() => { setPage(PAGES.DASHBOARD); setMobileOpen(false); }}>Dashboard</button>
@@ -1388,7 +1695,7 @@ function HomePage({ setPage }) {
                 }}
               >
                 <div style={{ height: 360, overflow: "hidden", position: "relative" }}>
-                  {MiniPreview && (t.photo ? <MiniPreview photo={null} /> : <MiniPreview />)}
+                  {MiniPreview && (t.photo ? <MiniPreview photo={DUMMY_AVATAR} /> : <MiniPreview />)}
                   <div style={{
                     position: "absolute", bottom: 0, left: 0, right: 0, height: 72,
                     background: `linear-gradient(transparent, ${
@@ -1645,7 +1952,31 @@ function AuthPage({ mode, setPage, setUser }) {
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 
+function CVPreviewModal({ resume, templateId, onClose }) {
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.72)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{ position: "relative", width: "min(820px, 90vw)" }}>
+        <button onClick={onClose} style={{
+          position: "absolute", top: -16, right: -16, zIndex: 10,
+          width: 36, height: 36, borderRadius: "50%", border: "none",
+          background: "var(--c-surface)", color: "var(--c-text)", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.3)", fontSize: 18,
+        }}>✕</button>
+        <div style={{ background: "white", borderRadius: 12, overflow: "hidden", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
+          <ResumePreview resume={resume} templateId={templateId} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage({ setPage, user, resume, setResume, template }) {
+  const [showCVPreview, setShowCVPreview] = useState(false);
   const { score } = computeATSScore(resume);
   const stats = [
     { label: "ATS Score", value: `${score}`, unit: "/100", color: "var(--c-accent)" },
@@ -1656,6 +1987,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
 
   return (
     <div className="app-bg" style={{ minHeight: "100vh" }}>
+      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} onClose={() => setShowCVPreview(false)} />}
       <div style={{ padding: "32px 24px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
@@ -1705,7 +2037,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(transparent, var(--c-surface))" }} />
               </div>
               <div style={{ padding: "12px 16px", borderTop: "1px solid var(--c-border)", display: "flex", gap: 8 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.BUILDER)}><Icon.Eye /> Full Preview</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowCVPreview(true)}><Icon.Eye /> Full Preview</button>
                 <button className="btn btn-ghost btn-sm"><Icon.Download /> Download</button>
               </div>
             </div>
@@ -1743,7 +2075,8 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
 
 // ─── BUILDER PAGE ─────────────────────────────────────────────────────────────
 
-function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange }) {
+function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange, user, onNeedUpgrade }) {
+  const premium = isPremium(user);
   const [section, setSection] = useState("personal");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiText, setAiText] = useState("");
@@ -1751,16 +2084,29 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const [showJD, setShowJD] = useState(false);
   const [tab, setTab] = useState("edit"); // edit | preview | ats
   const [newSkill, setNewSkill] = useState("");
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  // Local template state for instant updates — synced from parent prop
-  const [activeTemplate, setActiveTemplate] = useState(template);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState("");
+  const importRef = useRef(null);
 
-  // Keep local state in sync when parent prop changes (e.g. navigating from Templates page)
-  useEffect(() => { setActiveTemplate(template); }, [template]);
+  const handleImportCV = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true); setImportError("");
+    try {
+      const text = await extractTextFromFile(file);
+      const parsed = await parseResumeWithClaude(text);
+      setResume(parsed);
+      setSection("personal");
+    } catch (err) {
+      setImportError(err.message || "Failed to import CV. Please try again.");
+    }
+    setImporting(false);
+    e.target.value = "";
+  };
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
 
   const handleTemplateChange = (id) => {
-    setActiveTemplate(id);          // instant local update → live preview updates immediately
-    onTemplateChange?.(id);         // persist to App state + localStorage
+    onTemplateChange?.(id);
     setShowTemplatePicker(false);
   };
 
@@ -1898,8 +2244,8 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
           <button className="btn btn-secondary btn-sm" style={{ width: "100%", justifyContent: "space-between" }}
             onClick={() => setShowTemplatePicker(p => !p)}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: TEMPLATES.find(t => t.id === activeTemplate)?.accent || "var(--c-accent)", flexShrink: 0 }} />
-              {TEMPLATES.find(t => t.id === activeTemplate)?.name || "Clarity"}
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: TEMPLATES.find(t => t.id === template)?.accent || "var(--c-accent)", flexShrink: 0 }} />
+              {TEMPLATES.find(t => t.id === template)?.name || "Clarity"}
             </span>
             <Icon.ChevronRight />
           </button>
@@ -1910,20 +2256,24 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               borderRadius: 10, padding: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6,
               maxHeight: 260, overflowY: "auto",
             }}>
-              {TEMPLATES.map(t => (
-                <button key={t.id}
-                  onClick={() => handleTemplateChange(t.id)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6, padding: "6px 8px",
-                    borderRadius: 7, border: t.id === activeTemplate ? `1.5px solid var(--c-accent)` : "1.5px solid var(--c-border)",
-                    background: t.id === activeTemplate ? "var(--c-accent-light)" : "var(--c-surface2)",
-                    cursor: "pointer", fontSize: 12, fontWeight: 500, fontFamily: "var(--font-body)",
-                    color: t.id === activeTemplate ? "var(--c-accent)" : "var(--c-text2)",
-                  }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
-                  {t.name}
-                </button>
-              ))}
+              {TEMPLATES.map(t => {
+                const locked = !premium && !FREE_TEMPLATES.includes(t.id);
+                return (
+                  <button key={t.id}
+                    onClick={() => locked ? onNeedUpgrade?.("all_templates") : handleTemplateChange(t.id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6, padding: "6px 8px",
+                      borderRadius: 7, border: t.id === template ? `1.5px solid var(--c-accent)` : "1.5px solid var(--c-border)",
+                      background: t.id === template ? "var(--c-accent-light)" : locked ? "var(--c-surface2)" : "var(--c-surface2)",
+                      cursor: "pointer", fontSize: 12, fontWeight: 500, fontFamily: "var(--font-body)",
+                      color: locked ? "var(--c-text3)" : t.id === template ? "var(--c-accent)" : "var(--c-text2)",
+                      opacity: locked ? 0.7 : 1,
+                    }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: locked ? "var(--c-border)" : t.accent, flexShrink: 0 }} />
+                    {t.name} {locked && <span style={{ fontSize: 10 }}>👑</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1938,12 +2288,16 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
         {/* Tabs */}
         <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "var(--c-surface2)", borderRadius: 10, padding: 4 }}>
           {["edit", "ats", "ai"].map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t}
+              onClick={() => {
+                if (t === "ai" && !premium) { onNeedUpgrade?.("ai_writing"); return; }
+                setTab(t);
+              }}
               style={{ flex: 1, padding: "7px 0", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-body)",
                 background: tab === t ? "var(--c-surface)" : "transparent",
                 color: tab === t ? "var(--c-text)" : "var(--c-text2)",
                 boxShadow: tab === t ? "0 1px 4px var(--c-shadow)" : "none", transition: "all 0.15s" }}>
-              {t === "edit" ? "Editor" : t === "ats" ? "ATS Check" : "AI Tools"}
+              {t === "edit" ? "Editor" : t === "ats" ? "ATS Check" : <>AI Tools {!premium && "🔒"}</>}
             </button>
           ))}
         </div>
@@ -1954,6 +2308,41 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
             {section === "personal" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Personal Info</h2>
+
+                {/* ── Import existing CV ── */}
+                <div style={{
+                  background: "linear-gradient(135deg, var(--c-accent-light), var(--c-surface))",
+                  border: "1.5px dashed var(--c-accent)",
+                  borderRadius: 12, padding: 16,
+                  display: "flex", alignItems: "center", gap: 14,
+                }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 20, height: 20 }}>
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="font-display" style={{ fontWeight: 700, fontSize: 14 }}>Import from existing CV</div>
+                    <div className="app-text2" style={{ fontSize: 12, marginTop: 2 }}>Upload your PDF, DOCX, or TXT — AI will fill in all fields automatically</div>
+                    {importError && <div style={{ fontSize: 12, color: "var(--c-danger)", marginTop: 4 }}>{importError}</div>}
+                  </div>
+                  {premium ? (
+                    <label style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "8px 16px", borderRadius: 8, cursor: importing ? "wait" : "pointer",
+                      background: "var(--c-accent)", color: "#fff",
+                      fontSize: 13, fontWeight: 600, fontFamily: "var(--font-body)",
+                      whiteSpace: "nowrap", flexShrink: 0, opacity: importing ? 0.7 : 1,
+                    }}>
+                      {importing ? <><div className="pulse-dot" style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} /> Importing…</> : <><Icon.Upload /> Upload CV</>}
+                      <input ref={importRef} type="file" accept=".pdf,.docx,.txt" style={{ display: "none" }} onChange={handleImportCV} disabled={importing} />
+                    </label>
+                  ) : (
+                    <button onClick={() => onNeedUpgrade?.("cv_import")} className="btn btn-secondary btn-sm" style={{ flexShrink: 0, gap: 6 }}>
+                      🔒 Premium
+                    </button>
+                  )}
+                </div>
 
                 {/* ── Photo Upload ── */}
                 <div>
@@ -2361,7 +2750,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
             <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text2)" }}>Live Preview</span>
             <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
             <div className="badge badge-gray" style={{ fontSize: 10, textTransform: "capitalize" }}>
-              {TEMPLATES.find(t => t.id === activeTemplate)?.name || "Clarity"}
+              {TEMPLATES.find(t => t.id === template)?.name || "Clarity"}
             </div>
           </div>
           <button className="btn btn-secondary btn-sm" onClick={handleExportPDF}><Icon.Download /> Export PDF</button>
@@ -2369,7 +2758,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
         {/* Resume — fills remaining space */}
         <div style={{ flex: 1, overflow: "auto" }}>
-          <ResumePreview resume={resume} templateId={activeTemplate} />
+          <ResumePreview resume={resume} templateId={template} />
         </div>
       </div>
     </div>
@@ -2379,6 +2768,25 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 // ─── MINI RESUME PREVIEWS (one per template style) ───────────────────────────
 
 const R = SAMPLE_RESUME; // shorthand
+
+// Dummy placeholder photo for photo-template previews
+const DUMMY_AVATAR = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B8CDE0"/>
+      <stop offset="100%" stop-color="#8AAEC8"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" fill="url(#bg)"/>
+  <circle cx="50" cy="36" r="22" fill="#F0D9C8"/>
+  <ellipse cx="50" cy="36" rx="18" ry="19" fill="#E8C9B0"/>
+  <circle cx="43" cy="33" r="2.5" fill="#7A5C44"/>
+  <circle cx="57" cy="33" r="2.5" fill="#7A5C44"/>
+  <path d="M43 43 Q50 49 57 43" stroke="#C49A7A" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="50" cy="105" rx="40" ry="30" fill="#D4A882"/>
+  <ellipse cx="50" cy="100" rx="32" ry="22" fill="#E0B896"/>
+</svg>`)}`;
+
 
 function MiniApex() {
   // Dark navy, cyan accent — side bar left strip
@@ -3331,10 +3739,12 @@ const MINI_PREVIEWS = {
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
 
-function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" }) {
-  const [selected, setSelected] = useState(currentTemplate);
+function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity", user, onNeedUpgrade }) {
+  const premium = isPremium(user);
+  const [selected, setSelected] = useState("");
   const [filter, setFilter] = useState("all");
   const [hovered, setHovered] = useState(null);
+  const [previewing, setPreviewing] = useState(null); // template id being previewed
   const filters = ["all", "minimal", "modern", "corporate", "creative", "with photo"];
 
   const filteredTemplates = TEMPLATES.filter(t => {
@@ -3350,7 +3760,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" 
   const selectedTpl = TEMPLATES.find(t => t.id === selected);
 
   return (
-    <div className="app-bg" style={{ minHeight: "100vh", padding: "40px 20px" }}>
+    <div className="app-bg" style={{ minHeight: "100vh", padding: "40px 20px", paddingBottom: selected ? 100 : 40 }}>
       <div style={{ padding: "0 24px" }}>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 40 }}>
@@ -3378,11 +3788,12 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" 
             const MiniPreview = MINI_PREVIEWS[t.id];
             const isSelected = selected === t.id;
             const isHovered = hovered === t.id;
+            const locked = !premium && !FREE_TEMPLATES.includes(t.id);
             return (
               <div key={t.id}
                 onMouseEnter={() => setHovered(t.id)}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => setSelected(t.id)}
+                onClick={() => locked ? onNeedUpgrade?.("all_templates") : setSelected(t.id)}
                 style={{
                   borderRadius: 14, overflow: "hidden", cursor: "pointer",
                   border: isSelected ? "2.5px solid var(--c-accent)" : "2px solid var(--c-border)",
@@ -3398,7 +3809,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" 
                 {/* Mini resume preview */}
                 <div style={{ height: 340, overflow: "hidden", position: "relative" }}>
                   <div style={{ transform: "scale(1)", transformOrigin: "top left", height: "100%" }}>
-                    {MiniPreview && (t.photo ? <MiniPreview photo={null} /> : <MiniPreview />)}
+                    {MiniPreview && (t.photo ? <MiniPreview photo={DUMMY_AVATAR} /> : <MiniPreview />)}
                   </div>
                   {/* Gradient fade at bottom */}
                   <div style={{
@@ -3406,8 +3817,21 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" 
                     background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" ? "#0F172A" : t.bg === "#F0F9FF" ? "#F0F9FF" : t.bg === "#FAFAF9" ? "#FAFAF9" : "#ffffff"})`,
                     pointerEvents: "none",
                   }} />
+                  {/* Crown badge for premium templates (free users) */}
+                  {locked && (
+                    <div style={{
+                      position: "absolute", top: 10, right: 10,
+                      background: "linear-gradient(135deg,#F59E0B,#D97706)",
+                      borderRadius: 99, padding: "4px 9px",
+                      display: "flex", alignItems: "center", gap: 4,
+                      boxShadow: "0 2px 8px rgba(217,119,6,0.4)",
+                    }}>
+                      <span style={{ fontSize: 12 }}>👑</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }}>Premium</span>
+                    </div>
+                  )}
                   {/* Selected checkmark */}
-                  {isSelected && (
+                  {isSelected && !locked && (
                     <div style={{
                       position: "absolute", top: 12, right: 12,
                       width: 26, height: 26, borderRadius: "50%",
@@ -3417,18 +3841,19 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" 
                       <Icon.Check size="3" />
                     </div>
                   )}
-                  {/* Hover overlay CTA */}
+                  {/* Hover overlay — upgrade prompt for locked, select for free */}
                   {isHovered && !isSelected && (
                     <div style={{
                       position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                      background: "rgba(0,0,0,0.18)", backdropFilter: "blur(1px)",
+                      background: locked ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.18)", backdropFilter: "blur(1px)",
                     }}>
                       <div style={{
-                        background: "#fff", color: "var(--c-accent)", fontWeight: 700, fontSize: 13,
+                        background: locked ? "linear-gradient(135deg,#F59E0B,#D97706)" : "#fff",
+                        color: locked ? "#fff" : "var(--c-accent)", fontWeight: 700, fontSize: 13,
                         padding: "8px 20px", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-                        fontFamily: "var(--font-body)",
+                        fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 6,
                       }}>
-                        Select Template
+                        {locked ? <>👑 Upgrade to Use</> : "Select Template"}
                       </div>
                     </div>
                   )}
@@ -3461,18 +3886,20 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" 
           })}
         </div>
 
-        {/* CTA bar */}
+        {/* CTA bar — fixed at bottom, appears only after user picks a template */}
         {selected && (
-          <div className="card fade-in" style={{
-            marginTop: 36, padding: "20px 28px",
+          <div className="fade-in" style={{
+            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
+            padding: "16px 32px",
             display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16,
             background: "var(--c-surface)",
-            boxShadow: "0 4px 24px var(--c-shadow)",
+            borderTop: "1px solid var(--c-border)",
+            boxShadow: "0 -4px 24px var(--c-shadow)",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ width: 40, height: 48, borderRadius: 6, overflow: "hidden", border: "1px solid var(--c-border)", flexShrink: 0 }}>
                 <div style={{ transform: "scale(0.13)", transformOrigin: "top left", width: "770%", height: "770%", pointerEvents: "none" }}>
-                  {(() => { const C = MINI_PREVIEWS[selected]; const tpl = TEMPLATES.find(t=>t.id===selected); return C ? (tpl?.photo ? <C photo={null}/> : <C/>) : null; })()}
+                  {(() => { const C = MINI_PREVIEWS[selected]; const tpl = TEMPLATES.find(t=>t.id===selected); return C ? (tpl?.photo ? <C photo={DUMMY_AVATAR}/> : <C/>) : null; })()}
                 </div>
               </div>
               <div>
@@ -3497,90 +3924,231 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity" 
 
 // ─── PRICING PAGE ─────────────────────────────────────────────────────────────
 
-function PricingPage({ setPage }) {
+function PricingPage({ setPage, user, onUpgrade, onDowngrade, onStripeCheckout }) {
   const [annual, setAnnual] = useState(true);
-  const plans = [
-    {
-      name: "Free", price: 0, desc: "Perfect to get started",
-      features: ["1 resume", "3 ATS-friendly templates", "PDF export", "Basic ATS check", "Limited AI suggestions"],
-      cta: "Get Started Free", primary: false,
-    },
-    {
-      name: "Pro", price: annual ? 9 : 12, desc: "For serious job seekers",
-      features: ["Unlimited resumes", "All 30+ premium templates", "PDF & DOCX export", "Full ATS analysis", "Unlimited AI writing", "Job match scoring", "Cover letter builder", "Priority support"],
-      cta: "Start Pro", primary: true, badge: "Most Popular",
-    },
-    {
-      name: "Team", price: annual ? 19 : 25, desc: "For career coaches & teams",
-      features: ["Everything in Pro", "5 team seats", "Bulk resume review", "White-label option", "API access", "Analytics dashboard", "Dedicated support"],
-      cta: "Contact Sales", primary: false,
-    },
+  const premiumPrice = annual ? 9 : 12;
+  const currentPlan = user?.plan || "free";
+  const isCurrentPremium = currentPlan === "premium";
+
+  const features = [
+    { label: "Resumes",                  free: "1 resume",          premium: "Unlimited resumes" },
+    { label: "Templates",                free: "3 basic templates",  premium: "All 19 premium templates" },
+    { label: "ATS Score",                free: "Basic check",        premium: "Full ATS analysis" },
+    { label: "Export",                   free: "PDF only",           premium: "PDF & DOCX" },
+    { label: "AI Summary Generator",     free: false,                premium: true },
+    { label: "AI Bullet Rewriter",       free: false,                premium: true },
+    { label: "CV Import (AI parsing)",   free: false,                premium: true },
+    { label: "Job Description Matcher",  free: false,                premium: true },
+    { label: "Keyword Optimizer",        free: false,                premium: true },
+    { label: "Photo Templates",          free: false,                premium: true },
+    { label: "Priority Support",         free: false,                premium: true },
+    { label: "Early Access to Features", free: false,                premium: true },
   ];
 
+  const Tick = ({ ok, text }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--c-border)" }}>
+      {ok === true ? (
+        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#ECFDF5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" style={{ width: 12, height: 12 }}><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+      ) : ok === false ? (
+        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--c-surface2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-text3)" strokeWidth="2" style={{ width: 10, height: 10 }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+      ) : (
+        <div style={{ width: 22, flexShrink: 0 }} />
+      )}
+      <span style={{ fontSize: 14, color: ok === false ? "var(--c-text3)" : "var(--c-text)" }}>{text}</span>
+    </div>
+  );
+
   return (
-    <div className="app-bg" style={{ minHeight: "100vh", padding: "60px 20px" }}>
-      <div style={{ padding: "0 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <h1 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 12px" }}>
-            Simple, honest pricing
-          </h1>
-          <p className="app-text2" style={{ fontSize: 17, marginBottom: 24 }}>
-            Start free. Upgrade when you're ready to get serious.
-          </p>
-          <div style={{ display: "inline-flex", background: "var(--c-surface2)", borderRadius: 10, padding: 4, gap: 4 }}>
-            {[true, false].map(a => (
-              <button key={String(a)} onClick={() => setAnnual(a)}
-                style={{ padding: "8px 20px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 500, fontFamily: "var(--font-body)",
-                  background: annual === a ? "var(--c-surface)" : "transparent",
-                  color: "var(--c-text)", transition: "all 0.15s",
-                  boxShadow: annual === a ? "0 1px 4px var(--c-shadow)" : "none" }}>
-                {a ? "Annual" : "Monthly"}
-                {a && <span className="badge badge-green" style={{ fontSize: 10, marginLeft: 6 }}>Save 25%</span>}
+    <div className="app-bg" style={{ minHeight: "100vh" }}>
+
+      {/* Hero */}
+      <div className="hero-grad" style={{ padding: "64px 24px 48px", textAlign: "center" }}>
+        <div className="badge badge-blue" style={{ marginBottom: 16, fontSize: 13 }}>Simple, transparent pricing</div>
+        <h1 className="font-display" style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, margin: "0 0 14px", lineHeight: 1.1 }}>
+          Start free.<br />
+          <span className="grad-text">Upgrade when you're ready.</span>
+        </h1>
+        <p className="app-text2" style={{ fontSize: 18, maxWidth: 480, margin: "0 auto 28px" }}>
+          No credit card required. Cancel anytime. Every plan includes ATS scoring and live preview.
+        </p>
+
+        {/* Billing toggle */}
+        <div style={{ display: "inline-flex", background: "var(--c-surface2)", borderRadius: 12, padding: 4, gap: 4 }}>
+          {[true, false].map(a => (
+            <button key={String(a)} onClick={() => setAnnual(a)} style={{
+              padding: "9px 22px", borderRadius: 9, border: "none", cursor: "pointer",
+              fontSize: 14, fontWeight: 600, fontFamily: "var(--font-body)",
+              background: annual === a ? "var(--c-surface)" : "transparent",
+              color: annual === a ? "var(--c-text)" : "var(--c-text2)",
+              boxShadow: annual === a ? "0 2px 8px var(--c-shadow)" : "none",
+              transition: "all 0.15s",
+            }}>
+              {a ? "Annual billing" : "Monthly billing"}
+              {a && <span className="badge badge-green" style={{ fontSize: 11, marginLeft: 8 }}>Save 25%</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "0 24px 80px" }}>
+
+        {/* Plan cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 24, maxWidth: 860, margin: "-32px auto 48px", position: "relative", zIndex: 2, paddingTop: 20 }}>
+
+          {/* Free */}
+          <div className="card" style={{ padding: 32 }}>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--c-surface2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon.FileText />
+                </div>
+                <h2 className="font-display" style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Free</h2>
+              </div>
+              <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px" }}>Everything you need to get started building your first resume.</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span className="font-display" style={{ fontSize: 48, fontWeight: 800, lineHeight: 1 }}>$0</span>
+                <span className="app-text2" style={{ fontSize: 15 }}>/month</span>
+              </div>
+              <div className="app-text3" style={{ fontSize: 13, marginTop: 6 }}>Free forever · No card needed</div>
+            </div>
+            {isCurrentPremium ? (
+              <button className="btn btn-secondary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15 }}
+                onClick={onDowngrade}>
+                Downgrade to Free
               </button>
+            ) : (
+              <button className="btn btn-secondary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15, border: "2px solid var(--c-accent2)", color: "var(--c-accent2)" }}
+                disabled>
+                ✓ Your current plan
+              </button>
+            )}
+            <div>
+              {["1 resume", "3 basic templates", "PDF export", "Basic ATS score check", "Live resume preview", "Google Sign-In"].map((f, i) => (
+                <Tick key={i} ok={true} text={f} />
+              ))}
+              {["AI writing features", "CV import", "All templates", "Job match scoring"].map((f, i) => (
+                <Tick key={i} ok={false} text={f} />
+              ))}
+            </div>
+          </div>
+
+          {/* Premium */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            {/* Badge sits ABOVE the card, overlaps top border via negative margin */}
+            <div style={{
+              background: "linear-gradient(135deg, var(--c-accent), #7C3AED)",
+              color: "#fff", fontSize: 12, fontWeight: 700,
+              padding: "6px 22px", borderRadius: 99,
+              whiteSpace: "nowrap", letterSpacing: "0.04em",
+              boxShadow: "0 4px 16px rgba(26,86,219,0.35)",
+              marginBottom: -14, zIndex: 1, position: "relative",
+            }}>⭐ Most Popular</div>
+
+          <div className="card shine" style={{
+            width: "100%", padding: 32,
+            border: "2px solid var(--c-accent)",
+            boxShadow: "0 24px 64px var(--c-glow)",
+          }}>
+            <div style={{ marginBottom: 24, marginTop: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  <Icon.Sparkles />
+                </div>
+                <h2 className="font-display" style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Premium</h2>
+              </div>
+              <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px" }}>Full AI power, unlimited resumes and every template — land the job faster.</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span className="font-display" style={{ fontSize: 48, fontWeight: 800, lineHeight: 1, color: "var(--c-accent)" }}>${premiumPrice}</span>
+                <span className="app-text2" style={{ fontSize: 15 }}>/month</span>
+              </div>
+              <div className="app-text3" style={{ fontSize: 13, marginTop: 6 }}>
+                {annual ? `Billed $${premiumPrice * 12}/year · Save $36` : "Billed monthly · Switch to annual to save 25%"}
+              </div>
+            </div>
+
+            {isCurrentPremium ? (
+              <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15, background: "var(--c-accent2)" }}
+                disabled>
+                ✓ You're on Premium
+              </button>
+            ) : (
+              <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15 }}
+                onClick={() => user ? onStripeCheckout() : setPage(PAGES.REGISTER)}>
+                <Icon.Sparkles /> {user ? "Upgrade to Premium" : "Get Started — Sign Up Free"}
+              </button>
+            )}
+
+            <div>
+              {[
+                "Unlimited resumes",
+                "All 19 premium templates",
+                "PDF & DOCX export",
+                "Full ATS analysis & scoring",
+                "Live resume preview",
+                "AI summary generator",
+                "AI bullet rewriter",
+                "CV import (AI parsing)",
+                "Job description matcher",
+                "Keyword optimizer",
+                "Photo templates",
+                "Priority support",
+              ].map((f, i) => <Tick key={i} ok={true} text={f} />)}
+            </div>
+          </div>
+          </div>{/* end Premium wrapper */}
+        </div>
+
+        {/* Feature comparison table */}
+        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+          <h2 className="font-display" style={{ fontSize: 24, fontWeight: 800, textAlign: "center", margin: "0 0 32px" }}>Full feature comparison</h2>
+
+          <div className="card" style={{ overflow: "hidden" }}>
+            {/* Table header */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)" }}>
+              <div style={{ padding: "14px 20px", fontWeight: 700, fontSize: 14 }}>Feature</div>
+              <div style={{ padding: "14px 20px", fontWeight: 700, fontSize: 14, textAlign: "center", borderLeft: "1px solid var(--c-border)" }}>Free</div>
+              <div style={{ padding: "14px 20px", fontWeight: 700, fontSize: 14, textAlign: "center", borderLeft: "1px solid var(--c-border)", color: "var(--c-accent)" }}>Premium</div>
+            </div>
+
+            {features.map((f, i) => (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid var(--c-border)", background: i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)" }}>
+                <div style={{ padding: "13px 20px", fontSize: 14, fontWeight: 500 }}>{f.label}</div>
+                <div style={{ padding: "13px 20px", textAlign: "center", borderLeft: "1px solid var(--c-border)", fontSize: 13 }}>
+                  {f.free === false
+                    ? <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-text3)" strokeWidth="2" style={{ width: 16, height: 16, margin: "0 auto", display: "block" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    : f.free === true
+                      ? <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" style={{ width: 16, height: 16, margin: "0 auto", display: "block" }}><polyline points="20 6 9 17 4 12"/></svg>
+                      : <span className="app-text2">{f.free}</span>
+                  }
+                </div>
+                <div style={{ padding: "13px 20px", textAlign: "center", borderLeft: "1px solid var(--c-border)", fontSize: 13 }}>
+                  {f.premium === true
+                    ? <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" style={{ width: 16, height: 16, margin: "0 auto", display: "block" }}><polyline points="20 6 9 17 4 12"/></svg>
+                    : <span style={{ color: "var(--c-accent)", fontWeight: 600 }}>{f.premium}</span>
+                  }
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
-          {plans.map((plan, i) => (
-            <div key={i} className={cn("card", plan.primary && "shine")}
-              style={{ padding: 28, position: "relative", border: plan.primary ? "2px solid var(--c-accent)" : "1px solid var(--c-border)",
-                boxShadow: plan.primary ? "0 20px 60px var(--c-glow)" : "none" }}>
-              {plan.badge && (
-                <div className="badge badge-blue" style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", fontSize: 12, padding: "4px 14px" }}>
-                  {plan.badge}
-                </div>
-              )}
-              <div style={{ marginBottom: 20 }}>
-                <h3 className="font-display" style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px" }}>{plan.name}</h3>
-                <p className="app-text2" style={{ fontSize: 14, margin: "0 0 16px" }}>{plan.desc}</p>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                  <span className="font-display" style={{ fontSize: 40, fontWeight: 800 }}>${plan.price}</span>
-                  {plan.price > 0 && <span className="app-text2" style={{ fontSize: 14 }}>/month</span>}
-                </div>
-                {plan.price > 0 && annual && <div className="app-text3" style={{ fontSize: 12, marginTop: 2 }}>Billed ${plan.price * 12}/year</div>}
-              </div>
-
-              <button className={cn("btn btn-lg", plan.primary ? "btn-primary" : "btn-secondary")}
-                style={{ width: "100%", justifyContent: "center", marginBottom: 20 }}
-                onClick={() => setPage(plan.price === 0 ? PAGES.REGISTER : PAGES.REGISTER)}>
-                {plan.cta}
-              </button>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {plan.features.map((f, j) => (
-                  <div key={j} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 14 }}>
-                    <span style={{ color: "var(--c-accent2)", flexShrink: 0, marginTop: 2 }}><Icon.Check size="3" /></span>
-                    <span className="app-text2">{f}</span>
-                  </div>
-                ))}
-              </div>
+        {/* FAQ / trust strip */}
+        <div style={{ maxWidth: 860, margin: "40px auto 0", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {[
+            { icon: "🔒", title: "No card required", desc: "Start free with zero payment info. Upgrade anytime from your dashboard." },
+            { icon: "↩️", title: "Cancel anytime", desc: "No lock-in. Cancel your subscription in one click, no questions asked." },
+            { icon: "⚡", title: "Instant access", desc: "Premium activates the moment you pay. All features available immediately." },
+          ].map((item, i) => (
+            <div key={i} className="card" style={{ padding: 20, textAlign: "center" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>{item.icon}</div>
+              <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{item.title}</div>
+              <div className="app-text2" style={{ fontSize: 13, lineHeight: 1.6 }}>{item.desc}</div>
             </div>
           ))}
-        </div>
-
-        <div style={{ textAlign: "center", marginTop: 40 }} className="app-text2">
-          <p style={{ fontSize: 14 }}>All plans include 14-day free trial. No credit card required. Cancel anytime.</p>
         </div>
       </div>
     </div>
@@ -3599,57 +4167,153 @@ const BLANK_RESUME = {
   projects: [],
 };
 
+// ─── PLAN SYSTEM ──────────────────────────────────────────────────────────────
+
+const FREE_TEMPLATES = ["clarity", "form", "slate"];
+
+const PLAN_FEATURES = {
+  ai_writing:      { label: "AI Writing Tools",      desc: "Generate summaries, rewrite bullets, optimize for job descriptions" },
+  cv_import:       { label: "CV Import (AI)",         desc: "Upload a PDF or DOCX and let AI fill in all your resume fields" },
+  all_templates:   { label: "All 19 Templates",       desc: "Access every template including photo, creative and corporate styles" },
+  photo_templates: { label: "Photo Templates",        desc: "Portrait, Vista, Pulse, Prism and Lens templates with photo support" },
+};
+
+function isPremium(user) { return true; }
+
+function UpgradeModal({ feature, onClose, onUpgrade }) {
+  const info = PLAN_FEATURES[feature] || { label: "Premium Feature", desc: "This feature is available on the Premium plan." };
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}>
+      <div className="card fade-in" onClick={e => e.stopPropagation()}
+        style={{ maxWidth: 420, width: "100%", padding: 32, textAlign: "center" }}>
+        <div style={{ fontSize: 44, marginBottom: 12 }}>⭐</div>
+        <h2 className="font-display" style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>Premium Feature</h2>
+        <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px", lineHeight: 1.6 }}>
+          <strong>{info.label}</strong> — {info.desc}
+        </p>
+        <div style={{ background: "var(--c-accent-light)", border: "1px solid var(--c-accent)22", borderRadius: 12, padding: 16, marginBottom: 24, textAlign: "left" }}>
+          {["All 19 premium templates", "AI summary & bullet writer", "CV import with AI parsing", "Job description matcher", "Unlimited resumes"].map((f, i) => (
+            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 14 }}>
+              <span style={{ color: "var(--c-accent)", fontWeight: 700 }}>✓</span>
+              <span>{f}</span>
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 10 }} onClick={onUpgrade}>
+          <Icon.Sparkles /> Upgrade to Premium — $9/mo
+          <span style={{ fontSize: 11, opacity: 0.8, marginLeft: 4 }}>via Stripe</span>
+        </button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10, fontSize: 12, color: "var(--c-text3)" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 12, height: 12 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Secured by Stripe · Cancel anytime
+        </div>
+        <button className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center", color: "var(--c-text2)" }} onClick={onClose}>
+          Maybe later
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [dark, setDark] = useLocalStorage("ats-dark", false);
-  const [page, setPage] = useState(PAGES.HOME);
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useLocalStorage("ats-user", null);
+  const [page, setPage] = useState(user ? PAGES.DASHBOARD : PAGES.HOME);
+
+  const setUser = (u) => {
+    setUserState(u);
+    if (!u) setPage(PAGES.HOME);
+  };
   const [resume, setResumeState] = useState(BLANK_RESUME);
   const [selectedTemplate, setTemplateState] = useState("clarity");
+  const [upgradeModal, setUpgradeModal] = useState(null); // feature key or null
 
   // Load the correct user's data from localStorage whenever the account changes
   useEffect(() => {
     if (!user?.email) return;
     const rKey = `ats-resume-${user.email}`;
     const tKey = `ats-template-${user.email}`;
+    const pKey = `ats-plan-${user.email}`;
     try {
       const saved = localStorage.getItem(rKey);
-      if (saved) {
-        setResumeState(JSON.parse(saved));
-      } else {
-        // First login — start blank but pre-fill from Google profile
-        setResumeState({
-          ...BLANK_RESUME,
-          personal: { ...BLANK_RESUME.personal, name: user.name || "", email: user.email || "" },
-        });
-      }
+      if (saved) setResumeState(JSON.parse(saved));
+      else setResumeState({ ...BLANK_RESUME, personal: { ...BLANK_RESUME.personal, name: user.name || "", email: user.email || "" } });
     } catch { setResumeState(BLANK_RESUME); }
-    try {
-      const savedT = localStorage.getItem(tKey);
-      setTemplateState(savedT ? JSON.parse(savedT) : "clarity");
-    } catch { setTemplateState("clarity"); }
+    try { const savedT = localStorage.getItem(tKey); setTemplateState(savedT ? JSON.parse(savedT) : "clarity"); }
+    catch { setTemplateState("clarity"); }
+    // Load plan
+    const savedPlan = localStorage.getItem(pKey) || "free";
+    setUser(prev => prev ? { ...prev, plan: savedPlan } : prev);
   }, [user?.email]);
 
-  // Persist resume to the current user's key whenever it changes
   const setResume = (val) => {
     setResumeState(prev => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user?.email) {
-        try { localStorage.setItem(`ats-resume-${user.email}`, JSON.stringify(next)); } catch {}
-      }
+      if (user?.email) { try { localStorage.setItem(`ats-resume-${user.email}`, JSON.stringify(next)); } catch {} }
       return next;
     });
   };
 
   const setSelectedTemplate = (val) => {
     setTemplateState(val);
-    if (user?.email) {
-      try { localStorage.setItem(`ats-template-${user.email}`, JSON.stringify(val)); } catch {}
-    }
+    if (user?.email) { try { localStorage.setItem(`ats-template-${user.email}`, JSON.stringify(val)); } catch {} }
   };
 
+  const [paymentToast, setPaymentToast] = useState(""); // success / cancelled
+
+  const upgradePlan = (plan = "premium") => {
+    if (!user?.email) return;
+    localStorage.setItem(`ats-plan-${user.email}`, plan);
+    setUser(prev => ({ ...prev, plan }));
+    setUpgradeModal(null);
+    if (plan === "premium") setPage(PAGES.DASHBOARD);
+  };
+
+  // Open Stripe Payment Link, appending user email for pre-fill + success redirect
+  const openStripeCheckout = () => {
+    const stripeLink = import.meta.env.VITE_STRIPE_PAYMENT_LINK;
+    if (!stripeLink) {
+      alert("Add VITE_STRIPE_PAYMENT_LINK to your .env file to enable payments.");
+      return;
+    }
+    const successUrl = `${window.location.origin}?payment=success`;
+    const cancelUrl  = `${window.location.origin}?payment=cancelled`;
+    const params = new URLSearchParams({
+      prefilled_email: user?.email || "",
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
+    window.open(`${stripeLink}?${params}`, "_blank");
+  };
+
+  // Detect return from Stripe payment
   useEffect(() => {
-    document.documentElement.className = dark ? "dark" : "";
-  }, [dark]);
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    if (payment === "success") {
+      upgradePlan("premium");
+      setPaymentToast("success");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (payment === "cancelled") {
+      setPaymentToast("cancelled");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!paymentToast) return;
+    const t = setTimeout(() => setPaymentToast(""), 5000);
+    return () => clearTimeout(t);
+  }, [paymentToast]);
+
+  const needUpgrade = (feature) => setUpgradeModal(feature);
+
+  useEffect(() => { document.documentElement.className = dark ? "dark" : ""; }, [dark]);
 
   const renderPage = () => {
     switch (page) {
@@ -3660,10 +4324,12 @@ export default function App() {
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.BUILDER: return user
-        ? <BuilderPage resume={resume} setResume={setResume} template={selectedTemplate} onTemplateChange={setSelectedTemplate} />
+        ? <BuilderPage key={user.email} resume={resume} setResume={setResume} template={selectedTemplate}
+            onTemplateChange={setSelectedTemplate} user={user} onNeedUpgrade={needUpgrade} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
-      case PAGES.TEMPLATES: return <TemplatesPage setPage={setPage} onSelectTemplate={setSelectedTemplate} currentTemplate={selectedTemplate} />;
-      case PAGES.PRICING: return <PricingPage setPage={setPage} />;
+      case PAGES.TEMPLATES: return <TemplatesPage setPage={setPage} onSelectTemplate={setSelectedTemplate}
+          currentTemplate={selectedTemplate} user={user} onNeedUpgrade={needUpgrade} />;
+      case PAGES.PRICING: return <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
       default: return <HomePage setPage={setPage} />;
     }
   };
@@ -3674,6 +4340,31 @@ export default function App() {
       <div className="app-bg app-text" style={{ minHeight: "100vh", fontFamily: "var(--font-body)" }}>
         <Navbar page={page} setPage={setPage} dark={dark} setDark={setDark} user={user} setUser={setUser} />
         {renderPage()}
+        {upgradeModal && (
+          <UpgradeModal feature={upgradeModal} onClose={() => setUpgradeModal(null)}
+            onUpgrade={() => { setUpgradeModal(null); openStripeCheckout(); }} />
+        )}
+
+        {/* Payment result toast */}
+        {paymentToast && (
+          <div style={{
+            position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+            zIndex: 2000, display: "flex", alignItems: "center", gap: 12,
+            padding: "14px 24px", borderRadius: 14,
+            background: paymentToast === "success" ? "#059669" : "#DC2626",
+            color: "#fff", fontWeight: 600, fontSize: 15,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+            animation: "fadeInUp 0.3s ease",
+            whiteSpace: "nowrap",
+          }}>
+            {paymentToast === "success" ? (
+              <><span style={{ fontSize: 20 }}>🎉</span> Payment successful! You're now on Premium.</>
+            ) : (
+              <><span style={{ fontSize: 20 }}>↩</span> Payment cancelled — you're still on Free.</>
+            )}
+            <button onClick={() => setPaymentToast("")} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 18, marginLeft: 8, lineHeight: 1 }}>×</button>
+          </div>
+        )}
       </div>
     </>
   );
