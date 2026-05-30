@@ -67,7 +67,7 @@ const SAMPLE_RESUME = {
   projects: [{ id: 1, name: "OpenTelemetry Contrib", desc: "Contributor to CNCF project with 3k+ GitHub stars, added Go SDK instrumentation" }],
 };
 
-const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing" };
+const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription" };
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 
@@ -1238,7 +1238,7 @@ function UserMenu({ user, setUser, setPage }) {
               { label: "Dashboard", icon: <Icon.LayoutTemplate />, action: () => { setPage(PAGES.DASHBOARD); setOpen(false); } },
               { label: "Open Builder", icon: <Icon.Zap />, action: () => { setPage(PAGES.BUILDER); setOpen(false); } },
               { label: "Templates", icon: <Icon.FileText />, action: () => { setPage(PAGES.TEMPLATES); setOpen(false); } },
-              ...(!isPremium(user) ? [{ label: "Subscription", icon: <Icon.Star />, action: () => { setPage(PAGES.PRICING); setOpen(false); } }] : []),
+              { label: "Subscription", icon: <Icon.Star />, action: () => { setPage(PAGES.SUBSCRIPTION); setOpen(false); } },
             ].map((item, i) => (
               <button key={i} onClick={item.action} className="sidebar-item" style={{ width: "100%", fontSize: 14 }}>
                 {item.icon} {item.label}
@@ -4185,6 +4185,70 @@ const PLAN_FEATURES = {
 
 function isPremium(user) { return true; }
 
+function SubscriptionPage({ user, setPage }) {
+  const premium = isPremium(user);
+  const planStart = user?.planStart ? new Date(user.planStart) : null;
+  const validTill = planStart ? new Date(new Date(planStart).setFullYear(planStart.getFullYear() + 1)) : null;
+  const nextBilling = planStart ? new Date(new Date(planStart).setMonth(planStart.getMonth() + 1)) : null;
+
+  const fmt = (d) => d ? d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—";
+
+  return (
+    <div className="app-bg" style={{ minHeight: "100vh", padding: "40px 24px" }}>
+      <div style={{ maxWidth: 560, margin: "0 auto" }}>
+        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 24 }} onClick={() => setPage(PAGES.DASHBOARD)}>
+          ← Back to Dashboard
+        </button>
+        <h1 className="font-display" style={{ fontSize: 26, fontWeight: 800, margin: "0 0 24px" }}>Subscription</h1>
+
+        <div className="card" style={{ padding: 28, marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 13, color: "var(--c-text3)", marginBottom: 4 }}>Current Plan</div>
+              <div className="font-display" style={{ fontSize: 22, fontWeight: 800 }}>
+                {premium ? "Premium" : "Free"}
+              </div>
+            </div>
+            <div style={{
+              background: premium ? "linear-gradient(135deg, #F59E0B, #D97706)" : "var(--c-surface2)",
+              color: premium ? "#fff" : "var(--c-text2)",
+              padding: "6px 16px", borderRadius: 99, fontSize: 13, fontWeight: 700,
+            }}>
+              {premium ? "⭐ Active" : "Free Tier"}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[
+              { label: "Account", value: user?.email },
+              { label: "Plan started", value: planStart ? fmt(planStart) : "—" },
+              { label: "Next billing", value: nextBilling ? fmt(nextBilling) : "—" },
+              { label: "Valid till", value: validTill ? fmt(validTill) : "—" },
+              { label: "Price", value: premium ? "$9 / month" : "Free forever" },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--c-border)" }}>
+                <span style={{ fontSize: 14, color: "var(--c-text3)" }}>{label}</span>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {premium ? (
+          <div className="card" style={{ padding: 20, background: "var(--c-accent-light)", border: "1px solid var(--c-accent)22" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>✓ You have full Premium access</div>
+            <div style={{ fontSize: 13, color: "var(--c-text2)" }}>All templates, AI features, unlimited resumes and CV import are unlocked.</div>
+          </div>
+        ) : (
+          <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center" }} onClick={() => setPage(PAGES.PRICING)}>
+            <Icon.Sparkles /> Upgrade to Premium — $9/mo
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UpgradeModal({ feature, onClose, onUpgrade }) {
   const info = PLAN_FEATURES[feature] || { label: "Premium Feature", desc: "This feature is available on the Premium plan." };
   return (
@@ -4258,7 +4322,8 @@ export default function App() {
     catch { setTemplateState("clarity"); }
     // Load plan
     const savedPlan = localStorage.getItem(pKey) || "free";
-    setUser(prev => prev ? { ...prev, plan: savedPlan } : prev);
+    const savedPlanStart = localStorage.getItem(`ats-plan-start-${user.email}`) || null;
+    setUser(prev => prev ? { ...prev, plan: savedPlan, planStart: savedPlanStart } : prev);
   }, [user?.email]);
 
   const setResume = (val) => {
@@ -4279,7 +4344,13 @@ export default function App() {
   const upgradePlan = (plan = "premium") => {
     if (!user?.email) return;
     localStorage.setItem(`ats-plan-${user.email}`, plan);
-    setUser(prev => ({ ...prev, plan }));
+    if (plan === "premium") {
+      const start = user.planStart || new Date().toISOString();
+      localStorage.setItem(`ats-plan-start-${user.email}`, start);
+      setUser(prev => ({ ...prev, plan, planStart: start }));
+    } else {
+      setUser(prev => ({ ...prev, plan, planStart: null }));
+    }
     setUpgradeModal(null);
     if (plan === "premium") setPage(PAGES.DASHBOARD);
   };
@@ -4343,6 +4414,9 @@ export default function App() {
       case PAGES.PRICING: return isPremium(user)
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
         : <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
+      case PAGES.SUBSCRIPTION: return user
+        ? <SubscriptionPage user={user} setPage={setPage} />
+        : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       default: return <HomePage setPage={setPage} />;
     }
   };
