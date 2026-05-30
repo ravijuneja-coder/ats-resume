@@ -828,9 +828,17 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity" }) {
         <div className="section">
           <h2 style={{ color: accent, borderBottomColor: accent }}>Projects</h2>
           {r.projects.map(p => (
-            <div key={p.id} style={{ marginBottom: 6 }}>
-              <h3 style={{ color: textColor }}>{p.name}</h3>
-              <p style={{ margin: "2px 0", color: mutedColor }}>{p.desc}</p>
+            <div key={p.id} style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <h3 style={{ color: textColor, margin: 0 }}>{p.name}</h3>
+                {(p.start || p.end) && (
+                  <span style={{ color: mutedColor, fontSize: "10px", whiteSpace: "nowrap", marginLeft: 8 }}>
+                    {p.start}{p.start && p.end ? " – " : ""}{p.end}
+                  </span>
+                )}
+              </div>
+              {p.url && <p style={{ margin: "1px 0 2px", color: accent, fontSize: "10px" }}>{p.url}</p>}
+              {p.desc && <p style={{ margin: "2px 0", color: mutedColor }}>{p.desc}</p>}
             </div>
           ))}
         </div>
@@ -1744,6 +1752,17 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const [tab, setTab] = useState("edit"); // edit | preview | ats
   const [newSkill, setNewSkill] = useState("");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  // Local template state for instant updates — synced from parent prop
+  const [activeTemplate, setActiveTemplate] = useState(template);
+
+  // Keep local state in sync when parent prop changes (e.g. navigating from Templates page)
+  useEffect(() => { setActiveTemplate(template); }, [template]);
+
+  const handleTemplateChange = (id) => {
+    setActiveTemplate(id);          // instant local update → live preview updates immediately
+    onTemplateChange?.(id);         // persist to App state + localStorage
+    setShowTemplatePicker(false);
+  };
 
   useEffect(() => {
     setTab(section === "ai" ? "ai" : "edit");
@@ -1879,8 +1898,8 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
           <button className="btn btn-secondary btn-sm" style={{ width: "100%", justifyContent: "space-between" }}
             onClick={() => setShowTemplatePicker(p => !p)}>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: TEMPLATES.find(t => t.id === template)?.accent || "var(--c-accent)", flexShrink: 0 }} />
-              {TEMPLATES.find(t => t.id === template)?.name || "Clarity"}
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: TEMPLATES.find(t => t.id === activeTemplate)?.accent || "var(--c-accent)", flexShrink: 0 }} />
+              {TEMPLATES.find(t => t.id === activeTemplate)?.name || "Clarity"}
             </span>
             <Icon.ChevronRight />
           </button>
@@ -1893,13 +1912,13 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
             }}>
               {TEMPLATES.map(t => (
                 <button key={t.id}
-                  onClick={() => { onTemplateChange?.(t.id); setShowTemplatePicker(false); }}
+                  onClick={() => handleTemplateChange(t.id)}
                   style={{
                     display: "flex", alignItems: "center", gap: 6, padding: "6px 8px",
-                    borderRadius: 7, border: t.id === template ? `1.5px solid var(--c-accent)` : "1.5px solid var(--c-border)",
-                    background: t.id === template ? "var(--c-accent-light)" : "var(--c-surface2)",
+                    borderRadius: 7, border: t.id === activeTemplate ? `1.5px solid var(--c-accent)` : "1.5px solid var(--c-border)",
+                    background: t.id === activeTemplate ? "var(--c-accent-light)" : "var(--c-surface2)",
                     cursor: "pointer", fontSize: 12, fontWeight: 500, fontFamily: "var(--font-body)",
-                    color: t.id === template ? "var(--c-accent)" : "var(--c-text2)",
+                    color: t.id === activeTemplate ? "var(--c-accent)" : "var(--c-text2)",
                   }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
                   {t.name}
@@ -2184,20 +2203,44 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                 <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Projects</h2>
                 {resume.projects.map(proj => (
                   <div key={proj.id} className="card" style={{ padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                      <span className="font-display" style={{ fontWeight: 600, fontSize: 14 }}>Project</span>
+                      <button className="btn btn-ghost btn-sm" style={{ color: "var(--c-danger)" }}
+                        onClick={() => setResume({ ...resume, projects: resume.projects.filter(p => p.id !== proj.id) })}>
+                        <Icon.Trash />
+                      </button>
+                    </div>
                     <div style={{ marginBottom: 10 }}>
                       <label className="label">Project Name</label>
-                      <input className="input" value={proj.name || ""}
+                      <input className="input" placeholder="My Awesome Project" value={proj.name || ""}
                         onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, name: e.target.value } : p) })} />
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                      <div>
+                        <label className="label">Start Date</label>
+                        <input className="input" placeholder="Jan 2023" value={proj.start || ""}
+                          onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, start: e.target.value } : p) })} />
+                      </div>
+                      <div>
+                        <label className="label">End Date</label>
+                        <input className="input" placeholder="Present" value={proj.end || ""}
+                          onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, end: e.target.value } : p) })} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 10 }}>
+                      <label className="label">URL <span className="app-text3" style={{ fontWeight: 400 }}>(optional)</span></label>
+                      <input className="input" placeholder="github.com/you/project" value={proj.url || ""}
+                        onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, url: e.target.value } : p) })} />
                     </div>
                     <div>
                       <label className="label">Description</label>
-                      <textarea className="input" rows={3} value={proj.desc || ""}
+                      <textarea className="input" rows={3} placeholder="What did you build? What technologies? What was the impact?" value={proj.desc || ""}
                         onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, desc: e.target.value } : p) })} />
                     </div>
                   </div>
                 ))}
                 <button className="btn btn-secondary btn-sm"
-                  onClick={() => setResume({ ...resume, projects: [...resume.projects, { id: Date.now(), name: "", desc: "" }] })}>
+                  onClick={() => setResume({ ...resume, projects: [...resume.projects, { id: Date.now(), name: "", desc: "", start: "", end: "", url: "" }] })}>
                   <Icon.Plus /> Add Project
                 </button>
               </div>
@@ -2318,7 +2361,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
             <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text2)" }}>Live Preview</span>
             <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
             <div className="badge badge-gray" style={{ fontSize: 10, textTransform: "capitalize" }}>
-              {TEMPLATES.find(t => t.id === template)?.name || "Clarity"}
+              {TEMPLATES.find(t => t.id === activeTemplate)?.name || "Clarity"}
             </div>
           </div>
           <button className="btn btn-secondary btn-sm" onClick={handleExportPDF}><Icon.Download /> Export PDF</button>
@@ -2326,7 +2369,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
         {/* Resume — fills remaining space */}
         <div style={{ flex: 1, overflow: "auto" }}>
-          <ResumePreview resume={resume} templateId={template} />
+          <ResumePreview resume={resume} templateId={activeTemplate} />
         </div>
       </div>
     </div>
