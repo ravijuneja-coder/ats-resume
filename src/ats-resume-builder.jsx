@@ -1666,91 +1666,105 @@ function HomePage({ setPage }) {
         </div>
       </section>
 
-      {/* Templates showcase — actual resume previews */}
-      <section style={{ padding: "90px 0", borderTop: "1px solid var(--c-border)", borderBottom: "1px solid var(--c-border)", background: "var(--c-bg)", overflow: "hidden" }}>
-        <div style={{ textAlign: "center", marginBottom: 52, padding: "0 24px" }}>
-          <div className="badge badge-blue" style={{ marginBottom: 14, fontSize: 13 }}>
-            <Icon.LayoutTemplate /> 19 professional templates
-          </div>
-          <h2 className="font-display" style={{ fontSize: "clamp(30px, 4vw, 52px)", fontWeight: 800, margin: "0 0 14px", lineHeight: 1.1 }}>
-            Recruiter-approved templates
-          </h2>
-          <p className="app-text2" style={{ fontSize: 18, maxWidth: 480, margin: "0 auto" }}>
-            ATS-safe, beautiful, and fully customizable. Pick a style that fits your industry.
-          </p>
-        </div>
+      {/* Templates showcase */}
+      <section style={{ padding: "90px 24px", borderTop: "1px solid var(--c-border)", borderBottom: "1px solid var(--c-border)", background: "var(--c-bg)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-        <div style={{
-          display: "flex", gap: 24, overflowX: "auto", paddingBottom: 12,
-          paddingLeft: 24, paddingRight: 24,
-          scrollbarWidth: "none",
-          WebkitOverflowScrolling: "touch",
-        }}>
-          {TEMPLATES.map((t, idx) => {
-            const MiniPreview = MINI_PREVIEWS[t.id];
-            return (
-              <div key={t.id}
-                onClick={() => setPage(PAGES.TEMPLATES)}
-                className="card-hover"
-                style={{
-                  flexShrink: 0, width: 280, borderRadius: 16, overflow: "hidden",
-                  border: "1.5px solid var(--c-border)",
-                  boxShadow: "0 4px 24px var(--c-shadow)",
-                  cursor: "pointer",
-                  background: "var(--c-surface)",
-                }}
-              >
-                <div style={{ height: 360, overflow: "hidden", position: "relative" }}>
-                  {MiniPreview && (t.photo ? <MiniPreview photo={DUMMY_AVATAR} /> : <MiniPreview />)}
-                  <div style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0, height: 72,
-                    background: `linear-gradient(transparent, ${
-                      ["#0F172A","#0F0F0F","#0A0A0A"].includes(t.bg) ? t.bg
-                        : t.bg === "#F0F9FF" ? "#F0F9FF"
-                        : t.bg === "#FAFAF9" ? "#FAFAF9"
-                        : "#ffffff"
-                    })`,
-                    pointerEvents: "none",
-                  }} />
-                </div>
-                <div style={{
-                  padding: "13px 16px 15px", borderTop: "1px solid var(--c-border)",
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                      <div className="font-display" style={{ fontWeight: 700, fontSize: 15 }}>{t.name}</div>
-                      {t.photo && <span style={{ fontSize: 12 }}>📸</span>}
-                    </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
-                      {t.photo
-                        ? <span style={{ background: "#FDF4FF", color: "#9333EA", border: "1px solid #E9D5FF", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>📸 Photo</span>
-                        : <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>
-                      }
-                    </div>
-                  </div>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    background: t.accent + "22", border: `1.5px solid ${t.accent}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: t.accent,
-                  }}>
-                    <Icon.ArrowRight />
-                  </div>
-                </div>
+          {/* Header row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 52, flexWrap: "wrap", gap: 16 }}>
+            <div>
+              <div className="badge badge-blue" style={{ marginBottom: 12, fontSize: 12 }}>
+                <Icon.LayoutTemplate /> 19 professional templates
               </div>
-            );
-          })}
-        </div>
+              <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 10px", lineHeight: 1.1 }}>
+                Recruiter-approved designs
+              </h2>
+              <p className="app-text2" style={{ fontSize: 16, margin: 0 }}>
+                ATS-safe, beautiful, and fully customizable.
+              </p>
+            </div>
+            <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)}>
+              Browse All 19 <Icon.ArrowRight />
+            </button>
+          </div>
 
-        <div style={{ textAlign: "center", marginTop: 44, padding: "0 24px" }}>
-          <button className="btn btn-primary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)} style={{ marginRight: 12 }}>
-            Browse All Templates <Icon.ArrowRight />
-          </button>
-          <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.REGISTER)}>
-            Start Building Free
-          </button>
+          {/* Bento grid: 2 creative (tall) left + 3 photo (right column) */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gridTemplateRows: "auto auto", gap: 20 }}>
+
+            {/* Creative 1 — Nova (spans 1 row, tall) */}
+            {["nova", "spark"].map((id, i) => {
+              const t = TEMPLATES.find(x => x.id === id);
+              if (!t) return null;
+              const MiniPreview = MINI_PREVIEWS[t.id];
+              return (
+                <div key={t.id} onClick={() => setPage(PAGES.TEMPLATES)} className="card-hover"
+                  style={{ borderRadius: 18, overflow: "hidden", cursor: "pointer", border: "1.5px solid var(--c-border)", boxShadow: "0 6px 28px var(--c-shadow)", background: "var(--c-surface)", gridRow: i === 0 ? "1 / 3" : "auto" }}>
+                  <div style={{ height: i === 0 ? 540 : 260, overflow: "hidden", position: "relative" }}>
+                    <MiniPreview />
+                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent 55%, ${t.bg})`, pointerEvents: "none" }} />
+                    <div style={{ position: "absolute", top: 12, left: 12, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "4px 11px" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
+                    </div>
+                  </div>
+                  <div style={{ padding: "14px 16px", borderTop: "1px solid var(--c-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t.name}</div>
+                      <div style={{ display: "flex", gap: 5 }}>
+                        <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
+                        <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>
+                      </div>
+                    </div>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: t.accent + "22", border: `1.5px solid ${t.accent}`, display: "flex", alignItems: "center", justifyContent: "center", color: t.accent }}>
+                      <Icon.ArrowRight />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* 3 Photo templates — right column stacked */}
+            {["portrait", "vista", "pulse"].map((id) => {
+              const t = TEMPLATES.find(x => x.id === id);
+              if (!t) return null;
+              const MiniPreview = MINI_PREVIEWS[t.id];
+              return (
+                <div key={t.id} onClick={() => setPage(PAGES.TEMPLATES)} className="card-hover"
+                  style={{ borderRadius: 18, overflow: "hidden", cursor: "pointer", border: "1.5px solid #E9D5FF", boxShadow: "0 6px 28px var(--c-shadow)", background: "var(--c-surface)" }}>
+                  <div style={{ height: 230, overflow: "hidden", position: "relative" }}>
+                    <MiniPreview photo={DUMMY_AVATAR} />
+                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent 50%, ${t.bg})`, pointerEvents: "none" }} />
+                    <div style={{ position: "absolute", top: 10, left: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
+                    </div>
+                    <div style={{ position: "absolute", top: 10, right: 10, background: "#D946EF22", border: "1px solid #D946EF66", borderRadius: 99, padding: "3px 9px" }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "#D946EF" }}>📸 Photo</span>
+                    </div>
+                  </div>
+                  <div style={{ padding: "12px 14px", borderTop: "1px solid #E9D5FF", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div className="font-display" style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.name}</div>
+                      <div style={{ display: "flex", gap: 5 }}>
+                        <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
+                        <span style={{ background: "#FDF4FF", color: "#9333EA", border: "1px solid #E9D5FF", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>With Photo</span>
+                      </div>
+                    </div>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: t.accent + "22", border: `1.5px solid ${t.accent}`, display: "flex", alignItems: "center", justifyContent: "center", color: t.accent }}>
+                      <Icon.ArrowRight />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: 48 }}>
+            <button className="btn btn-primary btn-lg" onClick={() => setPage(PAGES.REGISTER)} style={{ marginRight: 12 }}>
+              <Icon.Sparkles /> Start Building Free
+            </button>
+            <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)}>
+              View All Templates
+            </button>
+          </div>
         </div>
       </section>
 
