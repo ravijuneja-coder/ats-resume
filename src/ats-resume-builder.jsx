@@ -2206,6 +2206,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const removeExp = (id) => setResume({ ...resume, experience: resume.experience.filter(e => e.id !== id) });
 
   const handleExportPDF = () => {
+    if (!premium) { onNeedUpgrade?.("pdf_export"); return; }
     window.print();
   };
 
@@ -2256,7 +2257,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               maxHeight: 260, overflowY: "auto",
             }}>
               {TEMPLATES.map(t => {
-                const locked = !premium && !FREE_TEMPLATES.includes(t.id);
+                const locked = false;
                 return (
                   <button key={t.id}
                     onClick={() => locked ? onNeedUpgrade?.("all_templates") : handleTemplateChange(t.id)}
@@ -3787,12 +3788,12 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
             const MiniPreview = MINI_PREVIEWS[t.id];
             const isSelected = selected === t.id;
             const isHovered = hovered === t.id;
-            const locked = !premium && !FREE_TEMPLATES.includes(t.id);
+            const locked = false;
             return (
               <div key={t.id}
                 onMouseEnter={() => setHovered(t.id)}
                 onMouseLeave={() => setHovered(null)}
-                onClick={() => locked ? onNeedUpgrade?.("all_templates") : setSelected(t.id)}
+                onClick={() => setSelected(t.id)}
                 style={{
                   borderRadius: 14, overflow: "hidden", cursor: "pointer",
                   border: isSelected ? "2.5px solid var(--c-accent)" : "2px solid var(--c-border)",
@@ -3817,20 +3818,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                     pointerEvents: "none",
                   }} />
                   {/* Crown badge for premium templates (free users) */}
-                  {locked && (
-                    <div style={{
-                      position: "absolute", top: 10, right: 10,
-                      background: "linear-gradient(135deg,#F59E0B,#D97706)",
-                      borderRadius: 99, padding: "4px 9px",
-                      display: "flex", alignItems: "center", gap: 4,
-                      boxShadow: "0 2px 8px rgba(217,119,6,0.4)",
-                    }}>
-                      <span style={{ fontSize: 12 }}>👑</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", letterSpacing: "0.02em" }}>Premium</span>
-                    </div>
-                  )}
-                  {/* Selected checkmark */}
-                  {isSelected && !locked && (
+                  {isSelected && (
                     <div style={{
                       position: "absolute", top: 12, right: 12,
                       width: 26, height: 26, borderRadius: "50%",
@@ -3840,19 +3828,17 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                       <Icon.Check size="3" />
                     </div>
                   )}
-                  {/* Hover overlay — upgrade prompt for locked, select for free */}
                   {isHovered && !isSelected && (
                     <div style={{
                       position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                      background: locked ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.18)", backdropFilter: "blur(1px)",
+                      background: "rgba(0,0,0,0.18)", backdropFilter: "blur(1px)",
                     }}>
                       <div style={{
-                        background: locked ? "linear-gradient(135deg,#F59E0B,#D97706)" : "#fff",
-                        color: locked ? "#fff" : "var(--c-accent)", fontWeight: 700, fontSize: 13,
+                        background: "#fff", color: "var(--c-accent)", fontWeight: 700, fontSize: 13,
                         padding: "8px 20px", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-                        fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 6,
+                        fontFamily: "var(--font-body)",
                       }}>
-                        {locked ? <>👑 Upgrade to Use</> : "Select Template"}
+                        Select Template
                       </div>
                     </div>
                   )}
@@ -4180,6 +4166,7 @@ const PLAN_FEATURES = {
   cv_import:       { label: "CV Import (AI)",         desc: "Upload a PDF or DOCX and let AI fill in all your resume fields" },
   all_templates:   { label: "All 19 Templates",       desc: "Access every template including photo, creative and corporate styles" },
   photo_templates: { label: "Photo Templates",        desc: "Portrait, Vista, Pulse, Prism and Lens templates with photo support" },
+  pdf_export:      { label: "PDF Export",             desc: "Download your resume as a print-ready PDF file" },
 };
 
 function isPremium(user) { return user?.plan === "premium"; }
