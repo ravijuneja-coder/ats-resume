@@ -3933,7 +3933,7 @@ function PricingPage({ setPage, user, onUpgrade, onDowngrade, onStripeCheckout }
   const [annual, setAnnual] = useState(true);
   const premiumPrice = annual ? 9 : 12;
   const currentPlan = user?.plan || "free";
-  const isCurrentPremium = currentPlan === "premium";
+  const isCurrentPremium = isPremium(user);
 
   const features = [
     { label: "Resumes",                  free: "1 resume",          premium: "Unlimited resumes" },
