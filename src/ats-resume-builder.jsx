@@ -4228,6 +4228,12 @@ export default function App() {
     setUserState(u);
     if (!u) setPage(PAGES.HOME);
   };
+
+  // Restore page on refresh — if user is logged in, go to dashboard
+  useEffect(() => {
+    if (user?.email && page === PAGES.HOME) setPage(PAGES.DASHBOARD);
+  }, [user?.email]);
+
   const [resume, setResumeState] = useState(BLANK_RESUME);
   const [selectedTemplate, setTemplateState] = useState("clarity");
   const [upgradeModal, setUpgradeModal] = useState(null); // feature key or null
