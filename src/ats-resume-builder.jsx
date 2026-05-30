@@ -1238,7 +1238,7 @@ function UserMenu({ user, setUser, setPage }) {
               { label: "Dashboard", icon: <Icon.LayoutTemplate />, action: () => { setPage(PAGES.DASHBOARD); setOpen(false); } },
               { label: "Open Builder", icon: <Icon.Zap />, action: () => { setPage(PAGES.BUILDER); setOpen(false); } },
               { label: "Templates", icon: <Icon.FileText />, action: () => { setPage(PAGES.TEMPLATES); setOpen(false); } },
-              { label: "Subscription", icon: <Icon.Star />, action: () => { setPage(PAGES.PRICING); setOpen(false); } },
+              ...(!isPremium(user) ? [{ label: "Subscription", icon: <Icon.Star />, action: () => { setPage(PAGES.PRICING); setOpen(false); } }] : []),
             ].map((item, i) => (
               <button key={i} onClick={item.action} className="sidebar-item" style={{ width: "100%", fontSize: 14 }}>
                 {item.icon} {item.label}
@@ -1279,7 +1279,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
           {!isBuilder && (
             <>
               <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.TEMPLATES)}>Templates</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.PRICING)}>Pricing</button>
+              {!isPremium(user) && <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.PRICING)}>Pricing</button>}
             </>
           )}
           <button className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }} onClick={() => setDark(!dark)}>
@@ -1310,7 +1310,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
       {mobileOpen && (
         <div style={{ borderTop: "1px solid var(--c-border)", padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4 }}>
           <button className="sidebar-item" onClick={() => { setPage(PAGES.TEMPLATES); setMobileOpen(false); }}>Templates</button>
-          <button className="sidebar-item" onClick={() => { setPage(PAGES.PRICING); setMobileOpen(false); }}>Pricing</button>
+          {!isPremium(user) && <button className="sidebar-item" onClick={() => { setPage(PAGES.PRICING); setMobileOpen(false); }}>Pricing</button>}
           {user ? (
             <>
               <button className="sidebar-item" onClick={() => { setPage(PAGES.DASHBOARD); setMobileOpen(false); }}>Dashboard</button>
@@ -4340,7 +4340,9 @@ export default function App() {
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.TEMPLATES: return <TemplatesPage setPage={setPage} onSelectTemplate={setSelectedTemplate}
           currentTemplate={selectedTemplate} user={user} onNeedUpgrade={needUpgrade} />;
-      case PAGES.PRICING: return <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
+      case PAGES.PRICING: return isPremium(user)
+        ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
+        : <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
       default: return <HomePage setPage={setPage} />;
     }
   };
