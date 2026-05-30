@@ -4183,7 +4183,7 @@ const PLAN_FEATURES = {
   photo_templates: { label: "Photo Templates",        desc: "Portrait, Vista, Pulse, Prism and Lens templates with photo support" },
 };
 
-function isPremium(user) { return true; }
+function isPremium(user) { return !!user; }
 
 function SubscriptionPage({ user, setPage }) {
   const premium = isPremium(user);
