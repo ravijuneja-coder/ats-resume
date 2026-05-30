@@ -1279,7 +1279,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
           {!isBuilder && (
             <>
               <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.TEMPLATES)}>Templates</button>
-              {!isPremium(user) && <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.PRICING)}>Pricing</button>}
+              {(!user || !isPremium(user)) && <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.PRICING)}>Pricing</button>}
             </>
           )}
           <button className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }} onClick={() => setDark(!dark)}>
@@ -1310,7 +1310,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
       {mobileOpen && (
         <div style={{ borderTop: "1px solid var(--c-border)", padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4 }}>
           <button className="sidebar-item" onClick={() => { setPage(PAGES.TEMPLATES); setMobileOpen(false); }}>Templates</button>
-          {!isPremium(user) && <button className="sidebar-item" onClick={() => { setPage(PAGES.PRICING); setMobileOpen(false); }}>Pricing</button>}
+          {(!user || !isPremium(user)) && <button className="sidebar-item" onClick={() => { setPage(PAGES.PRICING); setMobileOpen(false); }}>Pricing</button>}
           {user ? (
             <>
               <button className="sidebar-item" onClick={() => { setPage(PAGES.DASHBOARD); setMobileOpen(false); }}>Dashboard</button>
@@ -4421,7 +4421,7 @@ export default function App() {
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.TEMPLATES: return <TemplatesPage setPage={setPage} onSelectTemplate={setSelectedTemplate}
           currentTemplate={selectedTemplate} user={user} onNeedUpgrade={needUpgrade} />;
-      case PAGES.PRICING: return isPremium(user)
+      case PAGES.PRICING: return (user && isPremium(user))
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
         : <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
       case PAGES.SUBSCRIPTION: return user
