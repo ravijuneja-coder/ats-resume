@@ -4187,9 +4187,19 @@ function isPremium(user) { return true; }
 
 function SubscriptionPage({ user, setPage }) {
   const premium = isPremium(user);
-  const planStart = user?.planStart ? new Date(user.planStart) : null;
-  const validTill = planStart ? new Date(new Date(planStart).setFullYear(planStart.getFullYear() + 1)) : null;
+
+  // If premium but no planStart saved, use today and persist it
+  const resolvedStart = (() => {
+    if (!premium) return null;
+    if (user?.planStart) return user.planStart;
+    const today = new Date().toISOString();
+    if (user?.email) localStorage.setItem(`ats-plan-start-${user.email}`, today);
+    return today;
+  })();
+
+  const planStart = resolvedStart ? new Date(resolvedStart) : null;
   const nextBilling = planStart ? new Date(new Date(planStart).setMonth(planStart.getMonth() + 1)) : null;
+  const validTill = planStart ? new Date(new Date(planStart).setFullYear(planStart.getFullYear() + 1)) : null;
 
   const fmt = (d) => d ? d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—";
 
