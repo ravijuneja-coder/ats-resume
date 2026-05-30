@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
 import mammoth from "mammoth";
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -115,75 +113,83 @@ async function callClaude(prompt, systemPrompt = "") {
 
 // ─── CV IMPORT ────────────────────────────────────────────────────────────────
 
-async function loadScript(src, check) {
-  if (check()) return;
-  await new Promise((res, rej) => {
-    const s = document.createElement("script");
-    s.src = src; s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
+const JSON_STRUCTURE = `{"personal":{"name":"","title":"","email":"","phone":"","location":"","linkedin":"","github":"","website":""},"summary":"","experience":[{"id":1,"company":"","role":"","start":"","end":"","location":"","bullets":[""]}],"education":[{"id":1,"school":"","degree":"","year":"","gpa":""}],"skills":[""],"certifications":[{"id":1,"name":"","issuer":"","year":""}],"projects":[{"id":1,"name":"","desc":"","start":"","end":"","url":""}]}`;
+
+const PARSE_SYSTEM = "You are a resume parser. Output only raw valid JSON — no markdown, no code fences, no explanation. All string values on one line. No trailing commas.";
+
+function repairAndParse(raw) {
+  const match = raw.replace(/```json|```/g, "").trim().match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("AI did not return valid JSON. Please try again.");
+  const fixed = match[0]
+    .replace(/,\s*([}\]])/g, "$1")
+    .replace(/[\n\r\t]/g, " ");
+  return JSON.parse(fixed);
 }
 
-async function extractTextFromFile(file) {
-  const ext = file.name.split(".").pop().toLowerCase();
+async function parseResumeWithClaude(file) {
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("Add VITE_ANTHROPIC_API_KEY to your .env file to enable AI features.");
 
-  if (ext === "txt") return file.text();
+  const ext = file.name.split(".").pop().toLowerCase();
+  let messages;
 
   if (ext === "pdf") {
-    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result.split(",")[1]);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+    messages = [{
+      role: "user",
+      content: [
+        { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+        { type: "text", text: `Extract all resume data and return ONLY this JSON structure filled in:\n${JSON_STRUCTURE}` },
+      ],
+    }];
+  } else {
     let text = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map(item => item.str).join(" ") + "\n";
+    if (ext === "txt") {
+      text = await file.text();
+    } else if (ext === "docx") {
+      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+      text = result.value;
+    } else {
+      throw new Error(`Unsupported file type .${ext}. Use PDF, DOCX, or TXT.`);
     }
-    return text;
+    const safeText = text.slice(0, 6000).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").replace(/\\/g, "").replace(/"/g, "'");
+    messages = [{
+      role: "user",
+      content: `Parse this resume and return ONLY this JSON structure filled in:\n${JSON_STRUCTURE}\n\nResume:\n${safeText}`,
+    }];
   }
 
-  if (ext === "docx") {
-    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-    return result.value;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "pdfs-2024-09-25",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 2000, system: PARSE_SYSTEM, messages }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
   }
+  const data = await res.json();
+  const raw = data.content?.[0]?.text || "";
 
-  throw new Error(`Unsupported file type .${ext}. Use PDF, DOCX, or TXT.`);
-}
-
-async function parseResumeWithClaude(text) {
-  // Sanitize input: remove characters that break JSON strings
-  const safeText = text
-    .slice(0, 6000)
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ") // control chars
-    .replace(/\\/g, "")                                   // backslashes
-    .replace(/"/g, "'");                                  // double quotes → single
-
-  const prompt = `Parse this resume text and return ONLY a valid JSON object. Rules:
-- No markdown, no code fences, no explanation — raw JSON only
-- All string values must be on a single line (no line breaks inside strings)
-- Use only double quotes for strings
-- No trailing commas
-
-Structure:
-{"personal":{"name":"","title":"","email":"","phone":"","location":"","linkedin":"","github":"","website":""},"summary":"","experience":[{"id":1,"company":"","role":"","start":"","end":"","location":"","bullets":[""]}],"education":[{"id":1,"school":"","degree":"","year":"","gpa":""}],"skills":[""],"certifications":[{"id":1,"name":"","issuer":"","year":""}],"projects":[{"id":1,"name":"","desc":"","start":"","end":"","url":""}]}
-
-Resume text:
-${safeText}`;
-
-  const raw = await callClaude(prompt, "You are a resume parser. Output only raw valid JSON. No markdown. No extra text.");
-  const jsonMatch = raw.replace(/```json|```/g, "").trim().match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("AI did not return valid JSON. Please try again.");
-  const repaired = jsonMatch[0]
-    .replace(/,\s*([}\]])/g, "$1")       // trailing commas
-    .replace(/\n/g, " ")                 // stray newlines
-    .replace(/\r/g, "")                  // carriage returns
-    .replace(/\t/g, " ");                // tabs
   let parsed;
   try {
-    parsed = JSON.parse(repaired);
+    parsed = repairAndParse(raw);
   } catch (e) {
     console.error("JSON parse failed:", e.message, "\nRaw:\n", raw);
-    throw new Error("Could not parse CV. Please try a plain text (.txt) version of your resume.");
+    throw new Error("Could not parse CV. Please try a .txt version of your resume.");
   }
-  // Ensure IDs are unique numbers
+
   const stamp = (arr) => (arr || []).map((item, i) => ({ ...item, id: Date.now() + i }));
   return {
     personal: { photo: null, website: "", linkedin: "", github: "", ...parsed.personal },
@@ -2093,8 +2099,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
     if (!file) return;
     setImporting(true); setImportError("");
     try {
-      const text = await extractTextFromFile(file);
-      const parsed = await parseResumeWithClaude(text);
+      const parsed = await parseResumeWithClaude(file);
       setResume(parsed);
       setSection("personal");
     } catch (err) {
