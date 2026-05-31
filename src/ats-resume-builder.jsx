@@ -2678,37 +2678,66 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                   </button>
                 )}
               </div>
-              {colorRows.map(({ label, value, set, def, presets }) => (
-                <div key={label} style={{ marginBottom: 10, padding: "0 4px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+              {colorRows.map(({ label, value, set, def, presets }) => {
+                const isLight = c => ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#F1F5F9","#E2E8F0","#CBD5E1","#FFFFFF"].includes(c);
+                const active = value || def;
+                return (
+                <div key={label} style={{ marginBottom: 12, padding: "0 4px" }}>
+                  {/* Label + current value */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontSize: 10, color: "var(--c-text3)", fontWeight: 600 }}>{label}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      <div style={{ width: 14, height: 14, borderRadius: 3, background: value || def, border: "1px solid var(--c-border)" }} />
-                      <span style={{ fontSize: 10, color: "var(--c-text3)", fontFamily: "monospace" }}>{value || def}</span>
+                      <div style={{ width: 14, height: 14, borderRadius: 3, background: active, border: "1px solid var(--c-border)" }} />
+                      <span style={{ fontSize: 10, color: "var(--c-text3)", fontFamily: "monospace" }}>{active}</span>
                     </div>
                   </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 5 }}>
-                    {/* Default swatch */}
+
+                  {/* Preset swatches */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 7 }}>
                     <button title="Template default" onClick={() => set("")}
-                      style={{ width: 20, height: 20, borderRadius: 4, background: def, border: "none", cursor: "pointer", position: "relative", outline: !value ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 1, flexShrink: 0 }}>
-                      {!value && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: def === "#FFFFFF" || def === "#F8FAFC" ? "#111" : "#fff", fontSize: 9, fontWeight: 800 }}>✓</span>}
+                      style={{ width: 22, height: 22, borderRadius: 4, background: def, border: "none", cursor: "pointer", position: "relative", outline: !value ? "2.5px solid var(--c-accent)" : "1px solid rgba(0,0,0,0.1)", outlineOffset: 1, flexShrink: 0 }}>
+                      {!value && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: isLight(def) ? "#111" : "#fff", fontSize: 10, fontWeight: 800 }}>✓</span>}
                     </button>
                     {presets.map(c => (
                       <button key={c} title={c} onClick={() => set(c)}
-                        style={{ width: 20, height: 20, borderRadius: 4, background: c, border: "1px solid rgba(0,0,0,0.08)", cursor: "pointer", position: "relative", outline: value === c ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 1, transition: "transform 0.1s", transform: value === c ? "scale(1.2)" : "scale(1)", flexShrink: 0 }}>
-                        {value === c && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: c === "#FFFFFF" || c === "#F8FAFC" || c === "#F0F9FF" || c === "#F5F3FF" || c === "#F0FDF4" || c === "#FFF7ED" || c === "#FFFBF5" || c === "#FDF4FF" ? "#111" : "#fff", fontSize: 9, fontWeight: 800 }}>✓</span>}
+                        style={{ width: 22, height: 22, borderRadius: 4, background: c, border: "1px solid rgba(0,0,0,0.08)", cursor: "pointer", position: "relative", outline: value === c ? "2.5px solid var(--c-accent)" : "1px solid rgba(0,0,0,0.08)", outlineOffset: 1, transition: "transform 0.1s", transform: value === c ? "scale(1.18)" : "scale(1)", flexShrink: 0 }}>
+                        {value === c && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: isLight(c) ? "#111" : "#fff", fontSize: 10, fontWeight: 800 }}>✓</span>}
                       </button>
                     ))}
                   </div>
-                  {/* Custom picker */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 7, padding: "4px 8px" }}>
-                    <input type="color" value={value || def} onChange={e => set(e.target.value)}
-                      style={{ width: 20, height: 20, border: "none", borderRadius: 3, cursor: "pointer", padding: 0, background: "none", flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, color: "var(--c-text2)", fontFamily: "monospace", flex: 1 }}>{value || def}</span>
-                    {value && <button onClick={() => set("")} style={{ fontSize: 10, color: "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>✕</button>}
+
+                  {/* Custom color input row */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "5px 8px" }}>
+                    {/* Large color swatch that opens native picker */}
+                    <label title="Pick custom color" style={{ display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: active, border: "2px solid var(--c-border)", boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)", position: "relative", overflow: "hidden" }}>
+                        <input type="color" value={active} onChange={e => set(e.target.value)}
+                          style={{ position: "absolute", inset: 0, width: "200%", height: "200%", opacity: 0, cursor: "pointer", padding: 0, border: "none" }} />
+                      </div>
+                    </label>
+                    {/* Hex text input */}
+                    <input
+                      value={value || def}
+                      onChange={e => {
+                        const v = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) set(v);
+                      }}
+                      onBlur={e => {
+                        const v = e.target.value;
+                        if (/^#[0-9A-Fa-f]{6}$/.test(v)) set(v); else set(value);
+                      }}
+                      maxLength={7}
+                      placeholder={def}
+                      style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 12, fontFamily: "monospace", color: "var(--c-text)", padding: 0 }}
+                    />
+                    {value && (
+                      <button onClick={() => set("")} title="Reset to default"
+                        style={{ fontSize: 13, color: "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                    )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           );
         })()}
