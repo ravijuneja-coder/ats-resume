@@ -976,7 +976,7 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
   );
 }
 
-function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "" }) {
+function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "", customBg = "", customText = "" }) {
   const r = resume;
   const tpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[1];
   const accent = customAccent || tpl.accent;
@@ -996,8 +996,8 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     const sideBg = templateId === "axiom" ? "#4C1D95" : templateId === "prism" ? "#5B21B6" : "#13113A";
     const sideText = "#EDE9FE";
     const sideAccent = templateId === "axiom" ? "#A78BFA" : accent;
-    const contentBg = templateId === "axiom" ? "#FAFAF9" : templateId === "prism" ? "#F5F3FF" : "#1E1B4B";
-    const contentText = isDarkSide ? "#E0E7FF" : "#111827";
+    const contentBg = customBg || (templateId === "axiom" ? "#FAFAF9" : templateId === "prism" ? "#F5F3FF" : "#1E1B4B");
+    const contentText = customText || (isDarkSide ? "#E0E7FF" : "#111827");
     const contentMuted = isDarkSide ? "#A5B4FC" : "#4B5563";
     return (
       <div className="resume-preview" style={{ ...wrap, background: contentBg, color: contentText, padding: 0, display: "flex", minHeight: 700 }}>
@@ -1056,7 +1056,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── PHOTO TOP-RIGHT (pulse) ──────────────────────────────────────────────────
   if (templateId === "pulse") {
-    const bg = "#0C0A09"; const text = "#FAFAF9"; const muted = "#A8A29E";
+    const bg = customBg || "#0C0A09"; const text = customText || "#FAFAF9"; const muted = "#A8A29E";
     return (
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
         <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 14, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1082,7 +1082,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     const isVista = templateId === "vista";
     const grad = isVista ? "linear-gradient(135deg,#EC4899,#BE185D)" : "linear-gradient(135deg,#0EA5E9,#0369A1)";
     const headerText = "#fff"; const headerMuted = isVista ? "#FBCFE8" : "#BAE6FD";
-    const bg = isVista ? "#FFF1F2" : "#F0F9FF"; const text = "#1F2937"; const muted = "#6B7280";
+    const bg = customBg || (isVista ? "#FFF1F2" : "#F0F9FF"); const text = customText || "#1F2937"; const muted = "#6B7280";
     return (
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0 }}>
         <div style={{ background: grad, padding: "24px 32px 20px", display: "flex", alignItems: "center", gap: 20, marginBottom: 0 }}>
@@ -1114,8 +1114,8 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     };
     const bgs = { echo: "#F0F9FF", flow: "#FFFFFF", summit: "#EFF6FF", bloom: "#FDF4FF" };
     const headerBg = grads[templateId] || accent;
-    const contentBg = bgs[templateId] || "#fff";
-    const text = "#0F172A"; const muted = "#475569";
+    const contentBg = customBg || bgs[templateId] || "#fff";
+    const text = customText || "#0F172A"; const muted = "#475569";
     return (
       <div className="resume-preview" style={{ ...wrap, background: contentBg, color: text, padding: 0 }}>
         <div style={{ background: headerBg, padding: "24px 32px 20px", marginBottom: 0 }}>
@@ -1134,7 +1134,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── DARK TEMPLATES (apex, nova, edge, spark) ─────────────────────────────────
   if (["apex", "nova", "edge", "spark"].includes(templateId)) {
-    const bg = tpl.bg; const text = "#E2E8F0"; const muted = "#94A3B8";
+    const bg = customBg || tpl.bg; const text = customText || "#E2E8F0"; const muted = "#94A3B8";
     const leftStrip = templateId === "edge";
     return (
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0, display: "flex" }}>
@@ -1155,9 +1155,9 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── EXECUTIVE / FORM ────────────────────────────────────────────────────────
   if (templateId === "form") {
-    const text = "#0F172A"; const muted = "#475569"; const rule = "#CBD5E1";
+    const text = customText || "#0F172A"; const muted = "#475569"; const rule = "#CBD5E1";
     return (
-      <div className="resume-preview" style={{ ...wrap, background: "#FFFFFF", color: text }}>
+      <div className="resume-preview" style={{ ...wrap, background: customBg || "#FFFFFF", color: text }}>
         <div style={{ marginBottom: 14 }}>
           <h1 style={{ color: "#0F172A", margin: "0 0 2px", fontSize: 26, letterSpacing: "-0.025em" }}>{r.personal.name || "Your Name"}</h1>
           <div style={{ fontSize: 13, color: muted, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
@@ -1173,9 +1173,9 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── PRESTIGE (warm ivory, centered header) ───────────────────────────────────
   if (templateId === "prestige") {
-    const text = "#1C0A00"; const muted = "#6B5747";
+    const text = customText || "#1C0A00"; const muted = "#6B5747";
     return (
-      <div className="resume-preview" style={{ ...wrap, background: "#FFFBF5", color: text }}>
+      <div className="resume-preview" style={{ ...wrap, background: customBg || "#FFFBF5", color: text }}>
         <div style={{ textAlign: "center", borderBottom: `2px solid ${accent}`, paddingBottom: 12, marginBottom: 14 }}>
           <h1 style={{ color: text, margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>{r.personal.name || "Your Name"}</h1>
           <div style={{ fontSize: 12, color: accent, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
@@ -1190,8 +1190,8 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── DEFAULT (clarity, slate, pure, edge, summit, bloom, spark, etc.) ─────────
   const isLight = !["apex","nova","pulse","portrait","edge","spark","prism"].includes(templateId);
-  const bg = isLight ? (tpl.bg || "#ffffff") : tpl.bg;
-  const text = isLight ? "#111111" : "#E2E8F0";
+  const bg = customBg || (isLight ? (tpl.bg || "#ffffff") : tpl.bg);
+  const text = customText || (isLight ? "#111111" : "#E2E8F0");
   const muted = isLight ? "#555555" : "#94A3B8";
   return (
     <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
@@ -2171,7 +2171,7 @@ function AuthPage({ mode, setPage, setUser }) {
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 
-function CVPreviewModal({ resume, templateId, customAccent = "", onClose }) {
+function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", customText = "", onClose }) {
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 1000,
@@ -2187,7 +2187,7 @@ function CVPreviewModal({ resume, templateId, customAccent = "", onClose }) {
           boxShadow: "0 2px 12px rgba(0,0,0,0.3)", fontSize: 18,
         }}>✕</button>
         <div style={{ background: "white", borderRadius: 12, overflow: "hidden", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
-          <ResumePreview resume={resume} templateId={templateId} customAccent={customAccent} />
+          <ResumePreview resume={resume} templateId={templateId} customAccent={customAccent} customBg={customBg} customText={customText} />
         </div>
       </div>
     </div>
@@ -2206,7 +2206,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
 
   return (
     <div className="app-bg" style={{ minHeight: "100vh" }}>
-      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} onClose={() => setShowCVPreview(false)} />}
+      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} onClose={() => setShowCVPreview(false)} />}
       <div style={{ padding: "32px 24px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
@@ -2323,11 +2323,15 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   };
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [customAccent, setCustomAccent] = useLocalStorage("ats-custom-accent", "");
+  const [customBg, setCustomBg] = useLocalStorage("ats-custom-bg", "");
+  const [customText, setCustomText] = useLocalStorage("ats-custom-text", "");
+
+  const resetColors = () => { setCustomAccent(""); setCustomBg(""); setCustomText(""); };
 
   const handleTemplateChange = (id) => {
     onTemplateChange?.(id);
     setShowTemplatePicker(false);
-    setCustomAccent(""); // reset color when switching templates
+    resetColors();
   };
 
   useEffect(() => {
@@ -2500,43 +2504,67 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
         </div>
 
         {/* ── Color Customizer ── */}
-        <div style={{ marginBottom: 8 }}>
-          <div className="app-text3" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 4px 8px" }}>Accent Color</div>
-
-          {/* Preset swatches */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "0 4px", marginBottom: 8 }}>
-            {/* Default swatch */}
-            <button title="Template default" onClick={() => setCustomAccent("")}
-              style={{ width: 24, height: 24, borderRadius: 5, background: TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0", border: "none", cursor: "pointer", position: "relative", outline: !customAccent ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 2 }}>
-              {!customAccent && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
-            </button>
-            {["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"].map(c => (
-              <button key={c} title={c} onClick={() => setCustomAccent(c)}
-                style={{ width: 24, height: 24, borderRadius: 5, background: c, border: "none", cursor: "pointer", position: "relative", outline: customAccent === c ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 2, transition: "transform 0.1s", transform: customAccent === c ? "scale(1.15)" : "scale(1)" }}>
-                {customAccent === c && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
-              </button>
-            ))}
-          </div>
-
-          {/* Custom color picker row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "5px 8px" }}>
-              <input type="color"
-                value={customAccent || TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0"}
-                onChange={e => setCustomAccent(e.target.value)}
-                style={{ width: 22, height: 22, border: "none", borderRadius: 3, cursor: "pointer", padding: 0, background: "none" }} />
-              <span style={{ fontSize: 11, color: "var(--c-text2)", fontFamily: "monospace" }}>
-                {customAccent || TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0"}
-              </span>
+        {(() => {
+          const tplAccent = TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0";
+          const anyCustom = customAccent || customBg || customText;
+          const colorRows = [
+            {
+              label: "Accent", value: customAccent, set: setCustomAccent, def: tplAccent,
+              presets: ["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"],
+            },
+            {
+              label: "Background", value: customBg, set: setCustomBg, def: "#FFFFFF",
+              presets: ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#0F172A","#111827","#1C1917","#0C0A09"],
+            },
+            {
+              label: "Text", value: customText, set: setCustomText, def: "#111111",
+              presets: ["#111827","#1E293B","#0F172A","#374151","#1D4ED8","#065F46","#4C1D95","#7C2D12","#FFFFFF","#F1F5F9","#E2E8F0","#CBD5E1"],
+            },
+          ];
+          return (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px 8px" }}>
+                <div className="app-text3" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Colors</div>
+                {anyCustom && (
+                  <button onClick={resetColors} style={{ fontSize: 10, color: "var(--c-accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                    Reset all
+                  </button>
+                )}
+              </div>
+              {colorRows.map(({ label, value, set, def, presets }) => (
+                <div key={label} style={{ marginBottom: 10, padding: "0 4px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                    <span style={{ fontSize: 10, color: "var(--c-text3)", fontWeight: 600 }}>{label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <div style={{ width: 14, height: 14, borderRadius: 3, background: value || def, border: "1px solid var(--c-border)" }} />
+                      <span style={{ fontSize: 10, color: "var(--c-text3)", fontFamily: "monospace" }}>{value || def}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 5 }}>
+                    {/* Default swatch */}
+                    <button title="Template default" onClick={() => set("")}
+                      style={{ width: 20, height: 20, borderRadius: 4, background: def, border: "none", cursor: "pointer", position: "relative", outline: !value ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 1, flexShrink: 0 }}>
+                      {!value && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: def === "#FFFFFF" || def === "#F8FAFC" ? "#111" : "#fff", fontSize: 9, fontWeight: 800 }}>✓</span>}
+                    </button>
+                    {presets.map(c => (
+                      <button key={c} title={c} onClick={() => set(c)}
+                        style={{ width: 20, height: 20, borderRadius: 4, background: c, border: "1px solid rgba(0,0,0,0.08)", cursor: "pointer", position: "relative", outline: value === c ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 1, transition: "transform 0.1s", transform: value === c ? "scale(1.2)" : "scale(1)", flexShrink: 0 }}>
+                        {value === c && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: c === "#FFFFFF" || c === "#F8FAFC" || c === "#F0F9FF" || c === "#F5F3FF" || c === "#F0FDF4" || c === "#FFF7ED" || c === "#FFFBF5" || c === "#FDF4FF" ? "#111" : "#fff", fontSize: 9, fontWeight: 800 }}>✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Custom picker */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 7, padding: "4px 8px" }}>
+                    <input type="color" value={value || def} onChange={e => set(e.target.value)}
+                      style={{ width: 20, height: 20, border: "none", borderRadius: 3, cursor: "pointer", padding: 0, background: "none", flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: "var(--c-text2)", fontFamily: "monospace", flex: 1 }}>{value || def}</span>
+                    {value && <button onClick={() => set("")} style={{ fontSize: 10, color: "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>✕</button>}
+                  </div>
+                </div>
+              ))}
             </div>
-            {customAccent && (
-              <button onClick={() => setCustomAccent("")}
-                style={{ fontSize: 11, color: "var(--c-text3)", background: "none", border: "1px solid var(--c-border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
+          );
+        })()}
 
         <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={handleExportPDF}>
           <Icon.Download /> Export PDF
@@ -3018,7 +3046,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
         {/* Resume — fills remaining space */}
         <div style={{ flex: 1, overflow: "auto" }}>
-          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} />
+          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} />
         </div>
       </div>
     </div>
