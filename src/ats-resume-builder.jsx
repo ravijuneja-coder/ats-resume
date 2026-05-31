@@ -125,6 +125,40 @@ const RAVI_RESUME = {
 
 const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription" };
 
+// ─── SKILL SUGGESTIONS DB ────────────────────────────────────────────────────
+
+const SKILL_DB = {
+  design:     { kw: /\b(ui|ux|product designer|visual designer|figma|design system|hci|interaction design|graphic)\b/, skills: ["Figma","Adobe XD","Sketch","Illustrator","Photoshop","Framer","Zeplin","InVision","Design Systems","Component Libraries","High-Fidelity UI","Wireframing","Prototyping","Accessibility (WCAG)","Design Tokens","Miro","Principle","Framer Motion"] },
+  ux:         { kw: /\b(ux|user experience|user research|usability|ux designer|product design)\b/, skills: ["User Research","Usability Testing","Journey Mapping","User Personas","Card Sorting","Heuristic Evaluation","A/B Testing","Information Architecture","Contextual Inquiry","UX Writing","Maze","Hotjar","UserTesting"] },
+  frontend:   { kw: /\b(frontend|front.end|react|vue|angular|javascript|typescript|web developer|ui developer)\b/, skills: ["React","TypeScript","JavaScript","Vue.js","Angular","Next.js","HTML5","CSS3","Tailwind CSS","SASS/SCSS","Webpack","Vite","Storybook","Redux","GraphQL"] },
+  backend:    { kw: /\b(backend|back.end|server|api|node|python|java|golang|ruby|php|django|spring|microservice)\b/, skills: ["Node.js","Python","Java","Go","Express.js","FastAPI","Django","REST APIs","gRPC","PostgreSQL","MongoDB","Redis","Docker","Kubernetes","AWS"] },
+  fullstack:  { kw: /\b(full.stack|full stack|software engineer|software developer|swe)\b/, skills: ["React","Node.js","TypeScript","PostgreSQL","Docker","REST APIs","Git","CI/CD","AWS","System Design","Microservices"] },
+  data:       { kw: /\b(data scientist|data analyst|machine learning|ml|ai|deep learning|nlp|analytics|data engineer)\b/, skills: ["Python","TensorFlow","PyTorch","Pandas","NumPy","Scikit-learn","SQL","Tableau","Power BI","Apache Spark","Machine Learning","Deep Learning","NLP","Jupyter","Hugging Face"] },
+  devops:     { kw: /\b(devops|cloud|aws|gcp|azure|kubernetes|docker|infrastructure|sre|platform engineer|devsecops)\b/, skills: ["Docker","Kubernetes","Terraform","AWS","GCP","Azure","CI/CD","Jenkins","GitHub Actions","Ansible","Linux","Bash","Monitoring","Prometheus","Grafana"] },
+  product:    { kw: /\b(product manager|pm |product management|program manager|product owner)\b/, skills: ["Product Strategy","Roadmapping","Agile","Scrum","JIRA","OKRs","User Stories","Stakeholder Management","A/B Testing","Data Analysis","SQL","Figma","Confluence","Go-to-Market","Prioritization"] },
+  management: { kw: /\b(manager|director|lead|head of|vp |vice president|cto|cpo|engineering manager|team lead)\b/, skills: ["Team Leadership","Strategic Planning","Mentoring","Cross-functional Collaboration","Performance Management","Change Management","Budget Management","Hiring","Agile","OKRs","Stakeholder Management"] },
+  marketing:  { kw: /\b(marketing|seo|content|growth|brand|digital marketing|copywriter|social media)\b/, skills: ["SEO","Google Analytics","Content Strategy","Social Media Marketing","Email Marketing","HubSpot","Copywriting","A/B Testing","PPC","Conversion Optimization","Canva","Mailchimp"] },
+  sales:      { kw: /\b(sales|business development|account manager|crm|revenue|customer success)\b/, skills: ["Salesforce","CRM","Negotiation","Pipeline Management","HubSpot","Cold Outreach","Account Management","B2B Sales","Customer Success","Revenue Growth","Forecasting"] },
+  finance:    { kw: /\b(finance|financial analyst|accountant|cfa|fintech|investment|banking|risk)\b/, skills: ["Financial Modeling","Excel","SQL","Python","Bloomberg","Tableau","Risk Management","Valuation","DCF Analysis","Regulatory Compliance","SAP","QuickBooks"] },
+};
+
+function getRecommendedSkills(title = "", summary = "", existing = []) {
+  const text = (title + " " + summary).toLowerCase();
+  const seen = new Set(existing.map(s => s.toLowerCase()));
+  const suggestions = [];
+  Object.values(SKILL_DB).forEach(({ kw, skills }) => {
+    if (kw.test(text)) {
+      skills.forEach(s => { if (!seen.has(s.toLowerCase()) && !suggestions.includes(s)) suggestions.push(s); });
+    }
+  });
+  // Fallback: generic professional skills if nothing matched
+  if (suggestions.length === 0) {
+    ["Microsoft Office","Google Workspace","Project Management","Communication","Problem Solving","Team Collaboration","Time Management","Agile","Data Analysis","Presentation Skills"]
+      .forEach(s => { if (!seen.has(s.toLowerCase())) suggestions.push(s); });
+  }
+  return suggestions.slice(0, 18);
+}
+
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
@@ -2902,7 +2936,10 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
             )}
 
             {/* Skills */}
-            {section === "skills" && (
+            {section === "skills" && (() => {
+              const recommended = getRecommendedSkills(resume.personal?.title, resume.summary, resume.skills);
+              const hasContext = !!(resume.personal?.title || resume.summary);
+              return (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Skills</h2>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -2919,19 +2956,50 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                     onKeyDown={e => e.key === "Enter" && addSkill()} />
                   <button className="btn btn-primary btn-sm" onClick={addSkill}><Icon.Plus /></button>
                 </div>
+
+                {/* Recommended skills */}
                 <div className="ai-panel">
-                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--c-accent)" }}>💡 Recommended</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {["Docker", "GraphQL", "System Design", "gRPC", "Terraform"].filter(s => !resume.skills.includes(s)).map(s => (
-                      <button key={s} className="badge badge-gray" style={{ cursor: "pointer", border: "1px dashed var(--c-border)" }}
-                        onClick={() => setResume({ ...resume, skills: [...resume.skills, s] })}>
-                        <Icon.Plus /> {s}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-accent)", display: "flex", alignItems: "center", gap: 6 }}>
+                      💡 Recommended
+                      {hasContext && (
+                        <span style={{ fontSize: 11, fontWeight: 400, color: "var(--c-text3)" }}>
+                          based on your {resume.personal?.title ? "title" : ""}{resume.personal?.title && resume.summary ? " & " : ""}{resume.summary ? "summary" : ""}
+                        </span>
+                      )}
+                    </div>
+                    {recommended.length > 0 && (
+                      <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: "3px 8px" }}
+                        onClick={() => {
+                          const toAdd = recommended.filter(s => !resume.skills.includes(s));
+                          setResume({ ...resume, skills: [...resume.skills, ...toAdd] });
+                        }}>
+                        + Add all
                       </button>
-                    ))}
+                    )}
                   </div>
+
+                  {!hasContext ? (
+                    <div style={{ fontSize: 12, color: "var(--c-text3)", fontStyle: "italic" }}>
+                      Add your Professional Title or Summary to get personalised skill suggestions.
+                    </div>
+                  ) : recommended.length === 0 ? (
+                    <div style={{ fontSize: 12, color: "var(--c-text3)" }}>All recommended skills already added! 🎉</div>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {recommended.map(s => (
+                        <button key={s} className="badge badge-gray"
+                          style={{ cursor: "pointer", border: "1px dashed var(--c-border)", fontSize: 12, padding: "4px 10px" }}
+                          onClick={() => setResume({ ...resume, skills: [...resume.skills, s] })}>
+                          <Icon.Plus /> {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* Education */}
             {section === "education" && (
