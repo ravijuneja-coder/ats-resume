@@ -25,6 +25,8 @@ const TEMPLATES = [
   { id: "pulse",    name: "Pulse",    tag: "With Photo",   accent: "#F97316", bg: "#0C0A09", photo: true },
   { id: "prism",    name: "Prism",    tag: "With Photo",   accent: "#8B5CF6", bg: "#F5F3FF", photo: true },
   { id: "lens",     name: "Lens",     tag: "With Photo",   accent: "#0EA5E9", bg: "#F0F9FF", photo: true },
+  // ── Two-column executive with photo ──
+  { id: "chronicle", name: "Chronicle", tag: "With Photo", accent: "#7C2D12", bg: "#FFFFFF", photo: true },
 ];
 
 const SAMPLE_RESUME = {
@@ -1233,6 +1235,19 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0, display: "flex", minHeight: 700 }}>
         {/* ── Left sidebar ── */}
         <div style={{ width: "30%", padding: "28px 16px", borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 16, flexShrink: 0 }}>
+          {/* Photo */}
+          {r.personal.photo ? (
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <img src={r.personal.photo} alt={r.personal.name}
+                style={{ width: 88, height: 88, borderRadius: "50%", objectFit: "cover", border: `3px solid ${accent}` }} />
+            </div>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div style={{ width: 88, height: 88, borderRadius: "50%", background: accent + "22", border: `2px dashed ${accent}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: accent }}>
+                {r.personal.name?.[0] || "?"}
+              </div>
+            </div>
+          )}
           {/* Contact */}
           <div>
             <div style={{ fontSize: 10, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Contact</div>
@@ -4702,12 +4717,99 @@ function MiniRaviAxiom() {
   );
 }
 
+function MiniChronicle({ photo } = {}) {
+  const accent = "#7C2D12"; const muted = "#4B5563"; const text = "#111827";
+  const sh = { fontSize: 7, fontWeight: 800, color: accent, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1.5px solid ${accent}`, paddingBottom: 2, marginBottom: 5 };
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex" }}>
+      {/* Left sidebar */}
+      <div style={{ width: "30%", padding: "12px 9px", borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Photo */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
+          <PhotoAvatar photo={photo} name={R.personal.name} size={44} shape="circle" accent={accent} />
+        </div>
+        <div style={{ textAlign: "center", marginBottom: 2 }}>
+          <div style={{ fontSize: 7.5, fontWeight: 800, color: text, lineHeight: 1.2 }}>{R.personal.name}</div>
+          <div style={{ fontSize: 5.5, color: accent, marginTop: 1 }}>{R.personal.title}</div>
+        </div>
+        <div style={{ height: 1, background: "#E5E7EB" }} />
+        <div>
+          <div style={{ fontSize: 6.5, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Contact</div>
+          {[R.personal.email, R.personal.phone, R.personal.location].map((v, i) => (
+            <div key={i} style={{ fontSize: 5.5, color: muted, marginBottom: 3, wordBreak: "break-all" }}>{v}</div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize: 6.5, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Skills</div>
+          {R.skills.slice(0, 8).map((sk, i) => (
+            <div key={i} style={{ fontSize: 5.5, color: muted, marginBottom: 2.5, display: "flex", alignItems: "center", gap: 3 }}>
+              <span style={{ color: accent }}>•</span>{sk}
+            </div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize: 6.5, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Certification</div>
+          {R.certifications.map(c => (
+            <div key={c.id} style={{ fontSize: 5.5, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize: 6.5, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Portfolio</div>
+          <div style={{ fontSize: 5.5, color: "#2563EB" }}>🌐 {R.personal.website}</div>
+        </div>
+      </div>
+      {/* Right content */}
+      <div style={{ flex: 1, padding: "12px 10px" }}>
+        <SectionBlock label="Summary" accent={accent}>
+          <div style={{ fontSize: 6.5, color: muted, lineHeight: 1.6 }}>{R.summary.slice(0, 130)}…</div>
+        </SectionBlock>
+        <SectionBlock label="Experience" accent={accent}>
+          {R.experience.slice(0, 2).map(exp => (
+            <div key={exp.id} style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 700, fontSize: 7, color: text }}>{exp.role}</span>
+                <span style={{ fontSize: 6, color: muted }}>{exp.start}–{exp.end}</span>
+              </div>
+              <div style={{ fontSize: 6.5, color: accent, fontWeight: 600, marginBottom: 2 }}>{exp.company}</div>
+              {exp.bullets.slice(0, 1).map((b, i) => (
+                <div key={i} style={{ fontSize: 6, color: muted, paddingLeft: 7, position: "relative" }}>
+                  <span style={{ position: "absolute", left: 1, color: accent }}>•</span>{b.slice(0, 65)}…
+                </div>
+              ))}
+            </div>
+          ))}
+        </SectionBlock>
+        <SectionBlock label="Education" accent={accent}>
+          {R.education.map(e => (
+            <div key={e.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 6.5 }}>
+              <span style={{ fontWeight: 700 }}>{e.degree} · <span style={{ color: accent }}>{e.school}</span></span>
+              <span style={{ color: muted }}>{e.year}</span>
+            </div>
+          ))}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0, 1).map(p => (
+            <div key={p.id}>
+              <div style={{ fontWeight: 700, fontSize: 6.5, color: text }}>{p.name}</div>
+              {p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}
+            </div>
+          ))}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
+      </div>
+    </div>
+  );
+}
+
 const MINI_PREVIEWS = {
   apex: MiniApex, clarity: MiniClarity, axiom: MiniAxiom, nova: MiniNova,
   echo: MiniEcho, form: MiniForm,
   slate: MiniSlate, pure: MiniPure, edge: MiniEdge, flow: MiniFlow,
   summit: MiniSummit, prestige: MiniPrestige, spark: MiniSpark, bloom: MiniBloom,
   portrait: MiniPortrait, vista: MiniVista, pulse: MiniPulse, prism: MiniPrism, lens: MiniLens,
+  chronicle: MiniChronicle,
 };
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
