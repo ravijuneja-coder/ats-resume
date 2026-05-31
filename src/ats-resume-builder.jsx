@@ -2162,16 +2162,6 @@ function HomePage({ setPage }) {
               {/* Main content */}
               <div style={{ flex: 1, padding: "16px 20px" }}>
 
-                {/* Key Impact */}
-                <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                  {[["67%", "UI Support Ticket Reduction"], ["60%", "Aviation Workflow Optimization"], ["35%", "SaaS Engagement Increase"], ["700+", "Screens scaled via design system"]].map(([stat, label]) => (
-                    <div key={stat} style={{ flex: 1, background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
-                      <div style={{ fontSize: 15, fontWeight: 900, color: "#4C1D95", fontFamily: "var(--font-display)" }}>{stat}</div>
-                      <div style={{ fontSize: 7.5, color: "#7C3AED", lineHeight: 1.3 }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-
                 {/* Summary */}
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 9, fontWeight: 800, color: "#4C1D95", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1.5px solid #7C3AED", paddingBottom: 3, marginBottom: 6 }}>Summary</div>
@@ -4670,19 +4660,6 @@ function MiniRaviAxiom() {
         <div style={{ marginBottom: 7 }}>
           <div style={sh}>Summary</div>
           <div style={{ fontSize: 6, color: muted, lineHeight: 1.6 }}>{RV.summary.slice(0, 145)}…</div>
-        </div>
-
-        {/* Key Impact stats */}
-        <div style={{ marginBottom: 7 }}>
-          <div style={sh}>Key Impact</div>
-          <div style={{ display: "flex", gap: 4 }}>
-            {[["67%", "UI Ticket Reduction"], ["60%", "Workflow Opt."], ["35%", "Engagement"], ["700+", "Screens"]].map(([stat, lbl]) => (
-              <div key={stat} style={{ flex: 1, border: "1px solid #E5E7EB", borderRadius: 3, padding: "4px 2px", textAlign: "center" }}>
-                <div style={{ fontSize: 9, fontWeight: 900, color: "#111827", lineHeight: 1 }}>{stat}</div>
-                <div style={{ fontSize: 4.5, color: light, marginTop: 1, lineHeight: 1.3 }}>{lbl}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Experience */}
