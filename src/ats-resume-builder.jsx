@@ -4427,14 +4427,11 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                 <MiniRaviAxiom />
               </div>
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 60%, #ffffff)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", top: 10, left: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
+              <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
               </div>
-              <div style={{ position: "absolute", top: 10, right: 10, background: "#EDE9FE", border: "1px solid #7C3AED", borderRadius: 99, padding: "3px 9px" }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED" }}>✦ Real Resume</span>
-              </div>
               {selected === "ravi" && (
-                <div style={{ position: "absolute", top: 12, right: 12, width: 26, height: 26, borderRadius: "50%", background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 2px 8px rgba(26,86,219,0.4)" }}>
+                <div style={{ position: "absolute", top: 10, left: 10, width: 26, height: 26, borderRadius: "50%", background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 2px 8px rgba(26,86,219,0.4)" }}>
                   <Icon.Check size="3" />
                 </div>
               )}
