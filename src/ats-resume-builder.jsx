@@ -25,8 +25,6 @@ const TEMPLATES = [
   { id: "pulse",    name: "Pulse",    tag: "With Photo",   accent: "#F97316", bg: "#0C0A09", photo: true },
   { id: "prism",    name: "Prism",    tag: "With Photo",   accent: "#8B5CF6", bg: "#F5F3FF", photo: true },
   { id: "lens",     name: "Lens",     tag: "With Photo",   accent: "#0EA5E9", bg: "#F0F9FF", photo: true },
-  // ── Two-column executive ──
-  { id: "chronicle", name: "Chronicle", tag: "Executive",  accent: "#7C2D12", bg: "#FFFFFF", photo: false },
 ];
 
 const SAMPLE_RESUME = {
@@ -4710,7 +4708,6 @@ const MINI_PREVIEWS = {
   slate: MiniSlate, pure: MiniPure, edge: MiniEdge, flow: MiniFlow,
   summit: MiniSummit, prestige: MiniPrestige, spark: MiniSpark, bloom: MiniBloom,
   portrait: MiniPortrait, vista: MiniVista, pulse: MiniPulse, prism: MiniPrism, lens: MiniLens,
-  chronicle: MiniRaviAxiom,
 };
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
