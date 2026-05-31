@@ -976,7 +976,7 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
   );
 }
 
-function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "" }) {
+function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "", customNameColor = "" }) {
   const r = resume;
   const tpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[1];
   const accent = customAccent || tpl.accent;
@@ -1014,7 +1014,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             </div>
           )}
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{r.personal.name || "Your Name"}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: customNameColor || "#fff", lineHeight: 1.2 }}>{r.personal.name || "Your Name"}</div>
             <div style={{ fontSize: 11, color: sideAccent, marginTop: 4 }}>{r.personal.title || "Professional Title"}</div>
           </div>
           <div style={{ borderTop: `1px solid ${sideAccent}44`, paddingTop: 12 }}>
@@ -1061,7 +1061,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
         <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 14, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h1 style={{ color: text, margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
+            <h1 style={{ color: customNameColor || text, margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
             <div style={{ fontSize: 12, color: accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
@@ -1091,7 +1091,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{r.personal.name?.[0] || "?"}</div>
           }
           <div style={{ flex: 1 }}>
-            <h1 style={{ color: headerText, margin: "0 0 2px", fontSize: 22 }}>{r.personal.name || "Your Name"}</h1>
+            <h1 style={{ color: customNameColor || headerText, margin: "0 0 2px", fontSize: 22 }}>{r.personal.name || "Your Name"}</h1>
             <div style={{ fontSize: 12, color: headerMuted, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: headerMuted }}>{c}</span>)}
@@ -1119,7 +1119,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     return (
       <div className="resume-preview" style={{ ...wrap, background: contentBg, color: text, padding: 0 }}>
         <div style={{ background: headerBg, padding: "24px 32px 20px", marginBottom: 0 }}>
-          <h1 style={{ color: "#fff", margin: "0 0 2px", fontSize: 22 }}>{r.personal.name || "Your Name"}</h1>
+          <h1 style={{ color: customNameColor || "#fff", margin: "0 0 2px", fontSize: 22 }}>{r.personal.name || "Your Name"}</h1>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginBottom: 8 }}>{r.personal.title || "Professional Title"}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: "rgba(255,255,255,0.75)" }}>{c}</span>)}
@@ -1141,7 +1141,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
         {leftStrip && <div style={{ width: 5, background: accent, flexShrink: 0 }} />}
         <div style={{ flex: 1, padding: "32px 36px" }}>
           <div style={{ borderBottom: `1.5px solid ${accent}`, paddingBottom: 14, marginBottom: 14 }}>
-            <h1 style={{ color: "#fff", margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
+            <h1 style={{ color: customNameColor || "#fff", margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
             <div style={{ fontSize: 12, color: accent, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
@@ -1159,7 +1159,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     return (
       <div className="resume-preview" style={{ ...wrap, background: customBg || "#FFFFFF", color: text }}>
         <div style={{ marginBottom: 14 }}>
-          <h1 style={{ color: "#0F172A", margin: "0 0 2px", fontSize: 26, letterSpacing: "-0.025em" }}>{r.personal.name || "Your Name"}</h1>
+          <h1 style={{ color: customNameColor || "#0F172A", margin: "0 0 2px", fontSize: 26, letterSpacing: "-0.025em" }}>{r.personal.name || "Your Name"}</h1>
           <div style={{ fontSize: 13, color: muted, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
           <div style={{ height: 2, background: "#0F172A", margin: "8px 0 6px" }} />
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 4 }}>
@@ -1177,7 +1177,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     return (
       <div className="resume-preview" style={{ ...wrap, background: customBg || "#FFFBF5", color: text }}>
         <div style={{ textAlign: "center", borderBottom: `2px solid ${accent}`, paddingBottom: 12, marginBottom: 14 }}>
-          <h1 style={{ color: text, margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>{r.personal.name || "Your Name"}</h1>
+          <h1 style={{ color: customNameColor || text, margin: "0 0 2px", textTransform: "uppercase", letterSpacing: "0.04em" }}>{r.personal.name || "Your Name"}</h1>
           <div style={{ fontSize: 12, color: accent, marginBottom: 6 }}>{r.personal.title || "Professional Title"}</div>
           <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 10 }}>
             {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
@@ -1196,7 +1196,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   return (
     <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
       <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 12, marginBottom: 14 }}>
-        <h1 style={{ color: text, margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
+        <h1 style={{ color: customNameColor || text, margin: "0 0 2px" }}>{r.personal.name || "Your Name"}</h1>
         <p style={{ margin: "0 0 6px", fontSize: 12, color: muted }}>{r.personal.title || "Professional Title"}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
           {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
@@ -2267,7 +2267,7 @@ function AuthPage({ mode, setPage, setUser }) {
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 
-function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "", onClose }) {
+function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "", customNameColor = "", onClose }) {
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 1000,
@@ -2283,7 +2283,7 @@ function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", 
           boxShadow: "0 2px 12px rgba(0,0,0,0.3)", fontSize: 18,
         }}>✕</button>
         <div style={{ background: "white", borderRadius: 12, overflow: "hidden", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
-          <ResumePreview resume={resume} templateId={templateId} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} />
+          <ResumePreview resume={resume} templateId={templateId} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} />
         </div>
       </div>
     </div>
@@ -2302,7 +2302,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
 
   return (
     <div className="app-bg" style={{ minHeight: "100vh" }}>
-      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} onClose={() => setShowCVPreview(false)} />}
+      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} onClose={() => setShowCVPreview(false)} />}
       <div style={{ padding: "32px 24px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
@@ -2423,8 +2423,9 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const [customText, setCustomText] = useLocalStorage("ats-custom-text", "");
   const [customHeaderBg, setCustomHeaderBg] = useLocalStorage("ats-custom-headerbg", "");
   const [customMuted, setCustomMuted] = useLocalStorage("ats-custom-muted", "");
+  const [customNameColor, setCustomNameColor] = useLocalStorage("ats-custom-namecolor", "");
 
-  const resetColors = () => { setCustomAccent(""); setCustomBg(""); setCustomText(""); setCustomHeaderBg(""); setCustomMuted(""); };
+  const resetColors = () => { setCustomAccent(""); setCustomBg(""); setCustomText(""); setCustomHeaderBg(""); setCustomMuted(""); setCustomNameColor(""); };
 
   const handleTemplateChange = (id) => {
     onTemplateChange?.(id);
@@ -2605,11 +2606,15 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
         {(() => {
           const tplAccent = TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0";
           const hasHeaderBand = ["echo","flow","summit","bloom","vista","lens","axiom","portrait","prism"].includes(template);
-          const anyCustom = customAccent || customBg || customText || customHeaderBg || customMuted;
+          const anyCustom = customAccent || customBg || customText || customHeaderBg || customMuted || customNameColor;
           const colorRows = [
             {
               label: "Accent", value: customAccent, set: setCustomAccent, def: tplAccent,
               presets: ["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"],
+            },
+            {
+              label: "Name Color", value: customNameColor, set: setCustomNameColor, def: "#FFFFFF",
+              presets: ["#FFFFFF","#F1F5F9","#111827","#1E293B","#1D4ED8","#7C3AED","#0D9488","#DC2626","#F59E0B","#EC4899","#059669","#0891B2"],
             },
             ...(hasHeaderBand ? [{
               label: "Header BG", value: customHeaderBg, set: setCustomHeaderBg, def: tplAccent,
@@ -3159,7 +3164,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
         {/* Resume — fills remaining space */}
         <div style={{ flex: 1, overflow: "auto" }}>
-          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} />
+          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} />
         </div>
       </div>
     </div>
