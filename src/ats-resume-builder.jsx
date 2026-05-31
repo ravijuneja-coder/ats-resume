@@ -976,7 +976,7 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
   );
 }
 
-function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "", customBg = "", customText = "" }) {
+function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "" }) {
   const r = resume;
   const tpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[1];
   const accent = customAccent || tpl.accent;
@@ -993,12 +993,12 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   // ── SIDEBAR TEMPLATES (two-column) ──────────────────────────────────────────
   if (["axiom", "portrait", "prism"].includes(templateId)) {
     const isDarkSide = ["portrait", "prism"].includes(templateId);
-    const sideBg = templateId === "axiom" ? "#4C1D95" : templateId === "prism" ? "#5B21B6" : "#13113A";
+    const sideBg = customHeaderBg || (templateId === "axiom" ? "#4C1D95" : templateId === "prism" ? "#5B21B6" : "#13113A");
     const sideText = "#EDE9FE";
     const sideAccent = templateId === "axiom" ? "#A78BFA" : accent;
     const contentBg = customBg || (templateId === "axiom" ? "#FAFAF9" : templateId === "prism" ? "#F5F3FF" : "#1E1B4B");
     const contentText = customText || (isDarkSide ? "#E0E7FF" : "#111827");
-    const contentMuted = isDarkSide ? "#A5B4FC" : "#4B5563";
+    const contentMuted = customMuted || (isDarkSide ? "#A5B4FC" : "#4B5563");
     return (
       <div className="resume-preview" style={{ ...wrap, background: contentBg, color: contentText, padding: 0, display: "flex", minHeight: 700 }}>
         {/* Sidebar */}
@@ -1056,7 +1056,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── PHOTO TOP-RIGHT (pulse) ──────────────────────────────────────────────────
   if (templateId === "pulse") {
-    const bg = customBg || "#0C0A09"; const text = customText || "#FAFAF9"; const muted = "#A8A29E";
+    const bg = customBg || "#0C0A09"; const text = customText || "#FAFAF9"; const muted = customMuted || "#A8A29E";
     return (
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
         <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 14, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1082,10 +1082,10 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     const isVista = templateId === "vista";
     const grad = isVista ? "linear-gradient(135deg,#EC4899,#BE185D)" : "linear-gradient(135deg,#0EA5E9,#0369A1)";
     const headerText = "#fff"; const headerMuted = isVista ? "#FBCFE8" : "#BAE6FD";
-    const bg = customBg || (isVista ? "#FFF1F2" : "#F0F9FF"); const text = customText || "#1F2937"; const muted = "#6B7280";
+    const bg = customBg || (isVista ? "#FFF1F2" : "#F0F9FF"); const text = customText || "#1F2937"; const muted = customMuted || "#6B7280";
     return (
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0 }}>
-        <div style={{ background: grad, padding: "24px 32px 20px", display: "flex", alignItems: "center", gap: 20, marginBottom: 0 }}>
+        <div style={{ background: customHeaderBg || grad, padding: "24px 32px 20px", display: "flex", alignItems: "center", gap: 20, marginBottom: 0 }}>
           {r.personal.photo
             ? <img src={r.personal.photo} alt={r.personal.name} style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid rgba(255,255,255,0.6)", flexShrink: 0 }} />
             : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{r.personal.name?.[0] || "?"}</div>
@@ -1113,9 +1113,9 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
       bloom: "linear-gradient(135deg,#D946EF,#9333EA)",
     };
     const bgs = { echo: "#F0F9FF", flow: "#FFFFFF", summit: "#EFF6FF", bloom: "#FDF4FF" };
-    const headerBg = grads[templateId] || accent;
+    const headerBg = customHeaderBg || grads[templateId] || accent;
     const contentBg = customBg || bgs[templateId] || "#fff";
-    const text = customText || "#0F172A"; const muted = "#475569";
+    const text = customText || "#0F172A"; const muted = customMuted || "#475569";
     return (
       <div className="resume-preview" style={{ ...wrap, background: contentBg, color: text, padding: 0 }}>
         <div style={{ background: headerBg, padding: "24px 32px 20px", marginBottom: 0 }}>
@@ -1134,7 +1134,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── DARK TEMPLATES (apex, nova, edge, spark) ─────────────────────────────────
   if (["apex", "nova", "edge", "spark"].includes(templateId)) {
-    const bg = customBg || tpl.bg; const text = customText || "#E2E8F0"; const muted = "#94A3B8";
+    const bg = customBg || tpl.bg; const text = customText || "#E2E8F0"; const muted = customMuted || "#94A3B8";
     const leftStrip = templateId === "edge";
     return (
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0, display: "flex" }}>
@@ -1155,7 +1155,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── EXECUTIVE / FORM ────────────────────────────────────────────────────────
   if (templateId === "form") {
-    const text = customText || "#0F172A"; const muted = "#475569"; const rule = "#CBD5E1";
+    const text = customText || "#0F172A"; const muted = customMuted || "#475569"; const rule = "#CBD5E1";
     return (
       <div className="resume-preview" style={{ ...wrap, background: customBg || "#FFFFFF", color: text }}>
         <div style={{ marginBottom: 14 }}>
@@ -1173,7 +1173,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
 
   // ── PRESTIGE (warm ivory, centered header) ───────────────────────────────────
   if (templateId === "prestige") {
-    const text = customText || "#1C0A00"; const muted = "#6B5747";
+    const text = customText || "#1C0A00"; const muted = customMuted || "#6B5747";
     return (
       <div className="resume-preview" style={{ ...wrap, background: customBg || "#FFFBF5", color: text }}>
         <div style={{ textAlign: "center", borderBottom: `2px solid ${accent}`, paddingBottom: 12, marginBottom: 14 }}>
@@ -1192,7 +1192,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   const isLight = !["apex","nova","pulse","portrait","edge","spark","prism"].includes(templateId);
   const bg = customBg || (isLight ? (tpl.bg || "#ffffff") : tpl.bg);
   const text = customText || (isLight ? "#111111" : "#E2E8F0");
-  const muted = isLight ? "#555555" : "#94A3B8";
+  const muted = customMuted || (isLight ? "#555555" : "#94A3B8");
   return (
     <div className="resume-preview" style={{ ...wrap, background: bg, color: text }}>
       <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 12, marginBottom: 14 }}>
@@ -2171,7 +2171,7 @@ function AuthPage({ mode, setPage, setUser }) {
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 
-function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", customText = "", onClose }) {
+function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "", onClose }) {
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 1000,
@@ -2187,7 +2187,7 @@ function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", 
           boxShadow: "0 2px 12px rgba(0,0,0,0.3)", fontSize: 18,
         }}>✕</button>
         <div style={{ background: "white", borderRadius: 12, overflow: "hidden", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
-          <ResumePreview resume={resume} templateId={templateId} customAccent={customAccent} customBg={customBg} customText={customText} />
+          <ResumePreview resume={resume} templateId={templateId} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} />
         </div>
       </div>
     </div>
@@ -2206,7 +2206,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
 
   return (
     <div className="app-bg" style={{ minHeight: "100vh" }}>
-      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} onClose={() => setShowCVPreview(false)} />}
+      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} onClose={() => setShowCVPreview(false)} />}
       <div style={{ padding: "32px 24px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
@@ -2325,8 +2325,10 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const [customAccent, setCustomAccent] = useLocalStorage("ats-custom-accent", "");
   const [customBg, setCustomBg] = useLocalStorage("ats-custom-bg", "");
   const [customText, setCustomText] = useLocalStorage("ats-custom-text", "");
+  const [customHeaderBg, setCustomHeaderBg] = useLocalStorage("ats-custom-headerbg", "");
+  const [customMuted, setCustomMuted] = useLocalStorage("ats-custom-muted", "");
 
-  const resetColors = () => { setCustomAccent(""); setCustomBg(""); setCustomText(""); };
+  const resetColors = () => { setCustomAccent(""); setCustomBg(""); setCustomText(""); setCustomHeaderBg(""); setCustomMuted(""); };
 
   const handleTemplateChange = (id) => {
     onTemplateChange?.(id);
@@ -2506,19 +2508,27 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
         {/* ── Color Customizer ── */}
         {(() => {
           const tplAccent = TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0";
-          const anyCustom = customAccent || customBg || customText;
+          const anyCustom = customAccent || customBg || customText || customHeaderBg || customMuted;
           const colorRows = [
             {
               label: "Accent", value: customAccent, set: setCustomAccent, def: tplAccent,
               presets: ["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"],
             },
             {
+              label: "Header BG", value: customHeaderBg, set: setCustomHeaderBg, def: tplAccent,
+              presets: ["#1D4ED8","#7C3AED","#0D9488","#DC2626","#EA580C","#EC4899","#059669","#0891B2","#111827","#4C1D95","#9333EA","#B45309"],
+            },
+            {
               label: "Background", value: customBg, set: setCustomBg, def: "#FFFFFF",
               presets: ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#0F172A","#111827","#1C1917","#0C0A09"],
             },
             {
-              label: "Text", value: customText, set: setCustomText, def: "#111111",
+              label: "Body Text", value: customText, set: setCustomText, def: "#111111",
               presets: ["#111827","#1E293B","#0F172A","#374151","#1D4ED8","#065F46","#4C1D95","#7C2D12","#FFFFFF","#F1F5F9","#E2E8F0","#CBD5E1"],
+            },
+            {
+              label: "Details", value: customMuted, set: setCustomMuted, def: "#6B7280",
+              presets: ["#6B7280","#475569","#94A3B8","#9CA3AF","#374151","#1D4ED8","#0D9488","#7C3AED","#DC2626","#B45309","#059669","#EC4899"],
             },
           ];
           return (
@@ -3046,7 +3056,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
         {/* Resume — fills remaining space */}
         <div style={{ flex: 1, overflow: "auto" }}>
-          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} />
+          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} />
         </div>
       </div>
     </div>
