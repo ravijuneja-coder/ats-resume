@@ -25,6 +25,17 @@ const TEMPLATES = [
   { id: "pulse",    name: "Pulse",    tag: "With Photo",   accent: "#F97316", bg: "#0C0A09", photo: true },
   { id: "prism",    name: "Prism",    tag: "With Photo",   accent: "#8B5CF6", bg: "#F5F3FF", photo: true },
   { id: "lens",     name: "Lens",     tag: "With Photo",   accent: "#0EA5E9", bg: "#F0F9FF", photo: true },
+  // ── Additional templates ──
+  { id: "zen",      name: "Zen",      tag: "Minimal",      accent: "#374151", bg: "#FAFAFA",  photo: false },
+  { id: "mono",     name: "Mono",     tag: "Minimal",      accent: "#3B82F6", bg: "#F9FAFB",  photo: false },
+  { id: "nexus",    name: "Nexus",    tag: "Modern",       accent: "#10B981", bg: "#031D2E",  photo: false },
+  { id: "vector",   name: "Vector",   tag: "Modern",       accent: "#6366F1", bg: "#0D1117",  photo: false },
+  { id: "atlas",    name: "Atlas",    tag: "Corporate",    accent: "#C9A84C", bg: "#0F1B30",  photo: false },
+  { id: "charter",  name: "Charter",  tag: "Corporate",    accent: "#2563EB", bg: "#F8FAFC",  photo: false },
+  { id: "crimson",  name: "Crimson",  tag: "Creative",     accent: "#E11D48", bg: "#0D0407",  photo: false },
+  { id: "halo",     name: "Halo",     tag: "Creative",     accent: "#A855F7", bg: "#FAF5FF",  photo: false },
+  { id: "aura",     name: "Aura",     tag: "With Photo",   accent: "#8B5CF6", bg: "#F5F3FF",  photo: true },
+  { id: "frame",    name: "Frame",    tag: "With Photo",   accent: "#F59E0B", bg: "#111827",  photo: true },
 ];
 
 const SAMPLE_RESUME = {
@@ -1026,9 +1037,9 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   ].filter(Boolean);
 
   // ── SIDEBAR TEMPLATES (two-column) ──────────────────────────────────────────
-  if (["axiom", "portrait", "prism"].includes(templateId)) {
-    const isDarkSide = ["portrait", "prism"].includes(templateId);
-    const sideBg = customHeaderBg || (templateId === "axiom" ? "#4C1D95" : templateId === "prism" ? "#5B21B6" : "#13113A");
+  if (["axiom", "portrait", "prism", "frame"].includes(templateId)) {
+    const isDarkSide = ["portrait", "prism", "frame"].includes(templateId);
+    const sideBg = customHeaderBg || (templateId === "axiom" ? "#4C1D95" : templateId === "prism" ? "#5B21B6" : templateId === "frame" ? "#0D1117" : "#13113A");
     const sideText = "#EDE9FE";
     const sideAccent = templateId === "axiom" ? "#A78BFA" : accent;
     const contentBg = customBg || (templateId === "axiom" ? "#FAFAF9" : templateId === "prism" ? "#F5F3FF" : "#1E1B4B");
@@ -1113,11 +1124,12 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   }
 
   // ── PHOTO HEADER BAND (vista, lens) ─────────────────────────────────────────
-  if (["vista", "lens"].includes(templateId)) {
+  if (["vista", "lens", "aura"].includes(templateId)) {
     const isVista = templateId === "vista";
-    const grad = isVista ? "linear-gradient(135deg,#EC4899,#BE185D)" : "linear-gradient(135deg,#0EA5E9,#0369A1)";
+    const isAura = templateId === "aura";
+    const grad = isVista ? "linear-gradient(135deg,#EC4899,#BE185D)" : isAura ? "linear-gradient(180deg,#7C3AED,#A855F7)" : "linear-gradient(135deg,#0EA5E9,#0369A1)";
     const headerText = "#fff"; const headerMuted = isVista ? "#FBCFE8" : "#BAE6FD";
-    const bg = customBg || (isVista ? "#FFF1F2" : "#F0F9FF"); const text = customText || "#1F2937"; const muted = customMuted || "#6B7280";
+    const bg = customBg || (isVista ? "#FFF1F2" : isAura ? "#F5F3FF" : "#F0F9FF"); const text = customText || "#1F2937"; const muted = customMuted || "#6B7280";
     return (
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0 }}>
         <div style={{ background: customHeaderBg || grad, padding: "24px 32px 20px", display: "flex", alignItems: "center", gap: 20, marginBottom: 0 }}>
@@ -1141,13 +1153,15 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   }
 
   // ── COLORED HEADER BAND (echo, flow, summit, bloom) ─────────────────────────
-  if (["echo", "flow", "summit", "bloom"].includes(templateId)) {
+  if (["echo", "flow", "summit", "bloom", "charter", "halo"].includes(templateId)) {
     const grads = {
       echo: accent, flow: accent,
       summit: "linear-gradient(135deg,#1D4ED8,#1E40AF)",
       bloom: "linear-gradient(135deg,#D946EF,#9333EA)",
+      charter: "linear-gradient(135deg,#1D4ED8,#2563EB)",
+      halo: "linear-gradient(135deg,#7C3AED,#A855F7)",
     };
-    const bgs = { echo: "#F0F9FF", flow: "#FFFFFF", summit: "#EFF6FF", bloom: "#FDF4FF" };
+    const bgs = { echo: "#F0F9FF", flow: "#FFFFFF", summit: "#EFF6FF", bloom: "#FDF4FF", charter: "#EFF6FF", halo: "#FAF5FF" };
     const headerBg = customHeaderBg || grads[templateId] || accent;
     const contentBg = customBg || bgs[templateId] || "#fff";
     const text = customText || "#0F172A"; const muted = customMuted || "#475569";
@@ -1168,7 +1182,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   }
 
   // ── DARK TEMPLATES (apex, nova, edge, spark) ─────────────────────────────────
-  if (["apex", "nova", "edge", "spark"].includes(templateId)) {
+  if (["apex", "nova", "edge", "spark", "nexus", "vector", "crimson", "atlas"].includes(templateId)) {
     const bg = customBg || tpl.bg; const text = customText || "#E2E8F0"; const muted = customMuted || "#94A3B8";
     const leftStrip = templateId === "edge";
     return (
@@ -2024,10 +2038,10 @@ function HomePage({ setPage }) {
         const filters = ["all", "minimal", "modern", "corporate", "creative", "with photo"];
         const filtered = TEMPLATES.filter(t => {
           if (homeFilter === "all") return true;
-          if (homeFilter === "minimal") return ["clarity","form","slate","pure"].includes(t.id);
-          if (homeFilter === "modern") return ["apex","echo","edge","flow"].includes(t.id);
-          if (homeFilter === "corporate") return ["axiom","form","summit","prestige"].includes(t.id);
-          if (homeFilter === "creative") return ["nova","axiom","spark","bloom"].includes(t.id);
+          if (homeFilter === "minimal") return ["clarity","form","slate","pure","zen","mono"].includes(t.id);
+          if (homeFilter === "modern") return ["apex","echo","edge","flow","nexus","vector"].includes(t.id);
+          if (homeFilter === "corporate") return ["axiom","form","summit","prestige","atlas","charter"].includes(t.id);
+          if (homeFilter === "creative") return ["nova","axiom","spark","bloom","crimson","halo"].includes(t.id);
           if (homeFilter === "with photo") return t.photo === true;
           return true;
         });
@@ -4649,12 +4663,306 @@ function MiniChronicle({ photo } = {}) {
   );
 }
 
+// ── Zen: ultra-minimal, centered name, thin rules, dark gray ──
+function MiniZen() {
+  const accent = "#374151"; const muted = "#6B7280"; const rule = "#E5E7EB";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FAFAFA", color: "#111", fontSize: 7.5, lineHeight: 1.6, padding: "16px 16px", height: "100%" }}>
+      <div style={{ textAlign: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 15, fontWeight: 300, letterSpacing: "0.15em", textTransform: "uppercase", color: "#111" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7, color: muted, letterSpacing: "0.06em", marginTop: 3 }}>{R.personal.title}</div>
+        <div style={{ height: 1, background: rule, margin: "7px 0" }} />
+        <div style={{ display: "flex", justifyContent: "center", gap: 10, fontSize: 6, color: muted }}>
+          {[R.personal.email, R.personal.location].map((v, i) => <span key={i}>{v}</span>)}
+        </div>
+      </div>
+      {[["Summary", <div style={{ fontSize: 7, color: muted, lineHeight: 1.7 }}>{R.summary.slice(0,130)}…</div>],
+        ["Experience", R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 600, fontSize: 7 }}>{e.role}</span><span style={{ fontSize: 6, color: muted }}>{e.start}–{e.end}</span></div><div style={{ fontSize: 6.5, color: accent }}>{e.company}</div></div>)],
+        ["Skills", <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{R.skills.slice(0,10).map((s, i) => <span key={i} style={{ fontSize: 6, color: muted }}>· {s}</span>)}</div>],
+        ["Education", R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)],
+        ["Certifications", R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)],
+        ["Projects", R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}</div>)],
+        ["Portfolio & Links", <div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>],
+      ].map(([label, content]) => (
+        <div key={label} style={{ marginBottom: 7 }}>
+          <div style={{ fontSize: 6.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: accent, borderBottom: `0.5px solid ${rule}`, paddingBottom: 2, marginBottom: 4 }}>{label}</div>
+          {content}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Mono: monospace tech, blue accent, code-inspired ──
+function MiniMono() {
+  const accent = "#3B82F6"; const muted = "#374151"; const bg = "#F9FAFB";
+  return (
+    <div style={{ fontFamily: "monospace", background: bg, color: "#111", fontSize: 7, lineHeight: 1.6, padding: "14px 14px", height: "100%" }}>
+      <div style={{ borderBottom: "2px solid #111", paddingBottom: 8, marginBottom: 9 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.02em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7, color: accent, marginTop: 1 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 8, fontSize: 6, color: muted, marginTop: 4, flexWrap: "wrap" }}>
+          {[R.personal.email, R.personal.phone, R.personal.location].map((v, i) => <span key={i}>{v}</span>)}
+        </div>
+      </div>
+      {[["// summary", <div style={{ fontSize: 7, color: muted, lineHeight: 1.6 }}>{R.summary.slice(0,120)}…</div>],
+        ["// experience", R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ fontWeight: 700, fontSize: 7 }}>{e.role} <span style={{ color: accent }}>@ {e.company}</span></div><div style={{ fontSize: 6, color: muted }}>{e.start}–{e.end}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6, color: muted, paddingLeft: 6 }}>{'>'} {b.slice(0,55)}…</div>)}</div>)],
+        ["// skills", <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{R.skills.slice(0,10).map((s, i) => <span key={i} style={{ background: "#E0F2FE", color: accent, fontSize: 6, padding: "1px 5px", borderRadius: 2 }}>{s}</span>)}</div>],
+        ["// education", R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)],
+        ["// certifications", R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)],
+        ["// projects", R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, color: accent, fontSize: 7 }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}</div>)],
+        ["// links", <div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>],
+      ].map(([label, content]) => (
+        <div key={label} style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 6.5, fontWeight: 700, color: accent, marginBottom: 3 }}>{label}</div>
+          {content}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Nexus: dark teal-green, modern card layout ──
+function MiniNexus() {
+  const accent = "#10B981"; const bg = "#031D2E"; const muted = "#6EE7B7"; const surface = "#062532";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: bg, color: "#E2FFF7", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: surface, borderBottom: `2px solid ${accent}`, padding: "14px 14px 10px" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7.5, color: accent, fontWeight: 700, marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
+          {[R.personal.email, R.personal.location].map((v, i) => <span key={i} style={{ fontSize: 6, color: muted }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+        {[["Summary", <div style={{ fontSize: 7, color: "#A7F3D0", lineHeight: 1.6 }}>{R.summary.slice(0,110)}…</div>],
+          ["Experience", R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5, borderLeft: `2px solid ${accent}`, paddingLeft: 6 }}><div style={{ fontWeight: 700, fontSize: 7.5, color: "#fff" }}>{e.role}</div><div style={{ fontSize: 7, color: accent }}>{e.company} · {e.start}–{e.end}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted }}>› {b.slice(0,58)}…</div>)}</div>)],
+          ["Skills", <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{R.skills.slice(0,9).map((s, i) => <span key={i} style={{ background: "#052A1E", border: `1px solid ${accent}44`, color: accent, fontSize: 6, padding: "1px 5px", borderRadius: 3 }}>{s}</span>)}</div>],
+          ["Education", R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)],
+          ["Certifications", R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)],
+          ["Projects", R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#fff" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}</div>)],
+          ["Portfolio", <div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>],
+        ].map(([l, c]) => <div key={l}><div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1px solid ${accent}33`, paddingBottom: 2, marginBottom: 4 }}>{l}</div>{c}</div>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Vector: dark indigo-black, electric blue, sharp grid ──
+function MiniVector() {
+  const accent = "#6366F1"; const bg = "#0D1117"; const muted = "#8B949E";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: bg, color: "#E6EDF3", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "14px 14px 10px", borderBottom: `1px solid #21262D` }}>
+        <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7.5, color: accent, fontWeight: 600, marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
+          {[R.personal.email, R.personal.location, R.personal.github].filter(Boolean).map((v, i) => <span key={i} style={{ fontSize: 6, color: muted }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+        {[["Profile", <div style={{ fontSize: 7, color: muted, lineHeight: 1.6 }}>{R.summary.slice(0,110)}…</div>],
+          ["Experience", R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 7.5, color: "#fff" }}>{e.role}</span><span style={{ fontSize: 6, color: muted }}>{e.start}–{e.end}</span></div><div style={{ fontSize: 7, color: accent }}>{e.company}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted, paddingLeft: 6 }}>▸ {b.slice(0,60)}…</div>)}</div>)],
+          ["Skills", <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>{R.skills.slice(0,9).map((s, i) => <span key={i} style={{ background: "#161B22", border: `1px solid #30363D`, color: "#C9D1D9", fontSize: 6, padding: "2px 4px", borderRadius: 3, textAlign: "center" }}>{s}</span>)}</div>],
+          ["Education", R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)],
+          ["Certifications", R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)],
+          ["Projects", R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#fff" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}</div>)],
+          ["Portfolio", <div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>],
+        ].map(([l, c]) => <div key={l}><div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1px solid #21262D`, paddingBottom: 2, marginBottom: 4 }}>{l}</div>{c}</div>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Atlas: dark navy + gold, executive prestige ──
+function MiniAtlas() {
+  const accent = "#C9A84C"; const bg = "#0F1B30"; const muted = "#94A3B8"; const gold = "#E8C97A";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: bg, color: "#F1F5F9", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "linear-gradient(135deg,#0F1B30,#1B2A4A)", padding: "16px 16px 12px", borderBottom: `2px solid ${accent}` }}>
+        <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", letterSpacing: "0.03em", textTransform: "uppercase" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7.5, color: gold, fontWeight: 500, letterSpacing: "0.1em", marginTop: 3 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+          {[R.personal.email, R.personal.phone, R.personal.location].map((v, i) => <span key={i} style={{ fontSize: 6, color: muted }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+        {[["Executive Summary", <div style={{ fontSize: 7, color: muted, lineHeight: 1.6 }}>{R.summary.slice(0,115)}…</div>],
+          ["Experience", R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 7.5, color: "#fff" }}>{e.role}</span><span style={{ fontSize: 6, color: muted, fontStyle: "italic" }}>{e.start}–{e.end}</span></div><div style={{ fontSize: 7, color: gold, fontWeight: 600 }}>{e.company}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted, paddingLeft: 8, position: "relative" }}><span style={{ position: "absolute", left: 2, color: accent }}>—</span>{b.slice(0,58)}…</div>)}</div>)],
+          ["Skills", <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{R.skills.slice(0,9).map((s, i) => <span key={i} style={{ background: "#1B2A4A", border: `1px solid ${accent}55`, color: gold, fontSize: 6, padding: "1px 6px", borderRadius: 3 }}>{s}</span>)}</div>],
+          ["Education", R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)],
+          ["Certifications", R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)],
+          ["Projects", R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#fff" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: gold }}>{p.url}</div>}</div>)],
+          ["Portfolio", <div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>],
+        ].map(([l, c]) => <div key={l}><div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1px solid ${accent}44`, paddingBottom: 2, marginBottom: 4 }}>{l}</div>{c}</div>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Charter: clean blue corporate, two-tone header ──
+function MiniCharter() {
+  const accent = "#2563EB"; const muted = "#475569"; const bg = "#EFF6FF";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: `linear-gradient(135deg,#1D4ED8,#2563EB)`, padding: "14px 16px 12px" }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7.5, color: "#BFDBFE", fontWeight: 500, marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 10, marginTop: 5, flexWrap: "wrap" }}>
+          {[R.personal.email, R.personal.phone, R.personal.location].map((v, i) => <span key={i} style={{ fontSize: 6, color: "#DBEAFE" }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", flex: 1, background: bg, display: "flex", flexDirection: "column", gap: 6 }}>
+        <SectionBlock label="Summary" accent={accent}><div style={{ fontSize: 7, color: muted }}>{R.summary.slice(0,110)}…</div></SectionBlock>
+        <SectionBlock label="Experience" accent={accent}>
+          {R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 7.5 }}>{e.role}</span><span style={{ fontSize: 6, color: muted }}>{e.start}–{e.end}</span></div><div style={{ fontSize: 7, color: accent, fontWeight: 600 }}>{e.company}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted, paddingLeft: 6 }}>› {b.slice(0,58)}…</div>)}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Skills" accent={accent}><div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{R.skills.slice(0,9).map((s, i) => <span key={i} style={{ background: "#DBEAFE", color: accent, fontSize: 6, padding: "1px 6px", borderRadius: 3, fontWeight: 600 }}>{s}</span>)}</div></SectionBlock>
+        <SectionBlock label="Education" accent={accent}>{R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}</SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>{R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}</SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>{R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <span style={{ fontSize: 6, color: accent }}> · {p.url}</span>}</div>)}</SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}><div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div></SectionBlock>
+      </div>
+    </div>
+  );
+}
+
+// ── Crimson: dark editorial, bold red ──
+function MiniCrimson() {
+  const accent = "#E11D48"; const bg = "#0D0407"; const muted = "#A8A29E";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: bg, color: "#FAFAF9", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "14px 14px 10px", borderBottom: `3px solid ${accent}` }}>
+        <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: "-0.02em", color: "#FAFAF9" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7.5, color: accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 3 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
+          {[R.personal.email, R.personal.location].map((v, i) => <span key={i} style={{ fontSize: 6, color: muted }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+        {[["Profile", <div style={{ fontSize: 7, color: "#A8A29E", lineHeight: 1.6 }}>{R.summary.slice(0,110)}…</div>],
+          ["Experience", R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5, borderLeft: `2px solid ${accent}`, paddingLeft: 6 }}><div style={{ fontWeight: 800, fontSize: 7.5, color: "#FAFAF9" }}>{e.role}</div><div style={{ fontSize: 7, color: accent }}>{e.company} · {e.start}–{e.end}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted }}>› {b.slice(0,58)}…</div>)}</div>)],
+          ["Skills", <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{R.skills.slice(0,9).map((s, i) => <span key={i} style={{ background: "#1A0A0A", border: `1px solid ${accent}44`, color: accent, fontSize: 6, padding: "1px 5px", borderRadius: 3 }}>{s}</span>)}</div>],
+          ["Education", R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)],
+          ["Certifications", R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)],
+          ["Projects", R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#FAFAF9" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}</div>)],
+          ["Portfolio", <div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>],
+        ].map(([l, c]) => <div key={l}><div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}><div style={{ width: 14, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>{l}</span></div>{c}</div>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Halo: soft purple gradient, playful creative ──
+function MiniHalo() {
+  const accent = "#A855F7"; const bg = "#FAF5FF"; const muted = "#7E22CE";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: bg, color: "#3B0764", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "linear-gradient(135deg,#A855F7,#7C3AED,#5B21B6)", padding: "16px 16px 14px" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7.5, color: "#E9D5FF", marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
+          {[R.personal.email, R.personal.location].map((v, i) => <span key={i} style={{ fontSize: 6, color: "#DDD6FE" }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+        <div style={{ fontSize: 7, color: "#6B21A8", lineHeight: 1.6 }}>{R.summary.slice(0,110)}…</div>
+        <SectionBlock label="Experience" accent={accent}>
+          {R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ fontWeight: 700, fontSize: 7.5, color: "#3B0764" }}>{e.role}</div><div style={{ fontSize: 7, color: accent, fontWeight: 600 }}>{e.company} · {e.start}–{e.end}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted, paddingLeft: 6 }}>✦ {b.slice(0,58)}…</div>)}</div>)}
+        </SectionBlock>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 6 }}>{R.skills.slice(0,9).map((s, i) => <span key={i} style={{ background: "#F3E8FF", color: muted, fontSize: 6, padding: "1px 6px", borderRadius: 99, fontWeight: 600 }}>{s}</span>)}</div>
+        <SectionBlock label="Education" accent={accent}>{R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}</SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>{R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}</SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>{R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#3B0764" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}</div>)}</SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}><div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div></SectionBlock>
+      </div>
+    </div>
+  );
+}
+
+// ── Aura: soft purple, centered photo top, elegant ──
+function MiniAura({ photo } = {}) {
+  const accent = "#8B5CF6"; const bg = "#F5F3FF"; const muted = "#5B21B6";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "linear-gradient(180deg,#7C3AED 0%,#A855F7 100%)", padding: "16px 16px 20px", textAlign: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 7 }}>
+          <PhotoAvatar photo={photo} name={R.personal.name} size={46} shape="circle" accent="#fff" />
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7, color: "#E9D5FF", marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 4 }}>
+          {[R.personal.email, R.personal.phone].map((v, i) => <span key={i} style={{ fontSize: 5.5, color: "#DDD6FE" }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "10px 14px", flex: 1, background: bg, display: "flex", flexDirection: "column", gap: 6 }}>
+        <SectionBlock label="Summary" accent={accent}><div style={{ fontSize: 7, color: muted }}>{R.summary.slice(0,100)}…</div></SectionBlock>
+        <SectionBlock label="Experience" accent={accent}>
+          {R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ fontWeight: 700, fontSize: 7.5 }}>{e.role}</div><div style={{ fontSize: 7, color: accent, fontWeight: 600 }}>{e.company} · {e.start}–{e.end}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted, paddingLeft: 6 }}>• {b.slice(0,55)}…</div>)}</div>)}
+        </SectionBlock>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 5 }}>{R.skills.slice(0,8).map((s, i) => <span key={i} style={{ background: "#EDE9FE", color: muted, fontSize: 6, padding: "1px 6px", borderRadius: 99, fontWeight: 600 }}>{s}</span>)}</div>
+        <SectionBlock label="Education" accent={accent}>{R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}</SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>{R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}</SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>{R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <span style={{ fontSize: 6, color: accent }}> · {p.url}</span>}</div>)}</SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}><div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div></SectionBlock>
+      </div>
+    </div>
+  );
+}
+
+// ── Frame: dark sidebar with large square photo ──
+function MiniFrame({ photo } = {}) {
+  const accent = "#F59E0B"; const sideBg = "#111827"; const muted = "#9CA3AF";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#111827", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex" }}>
+      <div style={{ width: "38%", background: "#0D1117", padding: "14px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <PhotoAvatar photo={photo} name={R.personal.name} size={52} shape="rounded" accent={accent} />
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{R.personal.name}</div>
+          <div style={{ fontSize: 6, color: accent, marginTop: 2 }}>{R.personal.title}</div>
+        </div>
+        <div style={{ height: 1, background: "#21262D", width: "100%" }} />
+        <div style={{ width: "100%" }}>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", color: accent, marginBottom: 4 }}>Contact</div>
+          {[R.personal.email, R.personal.phone, R.personal.location].map((v, i) => <div key={i} style={{ fontSize: 5.5, color: "#8B949E", marginBottom: 2, wordBreak: "break-all" }}>{v}</div>)}
+        </div>
+        <div style={{ width: "100%" }}>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", color: accent, marginBottom: 4 }}>Skills</div>
+          {R.skills.slice(0,7).map((s, i) => <div key={i} style={{ fontSize: 5.5, color: "#8B949E", marginBottom: 2, display: "flex", alignItems: "center", gap: 3 }}><div style={{ width: 3, height: 3, borderRadius: "50%", background: accent, flexShrink: 0 }} />{s}</div>)}
+        </div>
+        <div style={{ width: "100%" }}>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", color: accent, marginBottom: 3 }}>Certification</div>
+          {R.certifications.slice(0,1).map(c => <div key={c.id} style={{ fontSize: 5.5, color: "#8B949E" }}>{c.name}</div>)}
+        </div>
+        <div style={{ width: "100%" }}>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", color: accent, marginBottom: 3 }}>Portfolio</div>
+          <div style={{ fontSize: 5.5, color: "#2F81F7" }}>🌐 {R.personal.website}</div>
+        </div>
+      </div>
+      <div style={{ flex: 1, padding: "14px 12px", display: "flex", flexDirection: "column", gap: 7 }}>
+        <SectionBlock label="Profile" accent={accent}><div style={{ fontSize: 7, color: muted, lineHeight: 1.6 }}>{R.summary.slice(0,120)}…</div></SectionBlock>
+        <SectionBlock label="Experience" accent={accent}>
+          {R.experience.slice(0,2).map(e => <div key={e.id} style={{ marginBottom: 5 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 700, fontSize: 7.5, color: "#fff" }}>{e.role}</span><span style={{ fontSize: 6, color: muted }}>{e.start}–{e.end}</span></div><div style={{ fontSize: 7, color: accent }}>{e.company}</div>{e.bullets.slice(0,1).map((b,i) => <div key={i} style={{ fontSize: 6.5, color: muted, paddingLeft: 6 }}>› {b.slice(0,58)}…</div>)}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Education" accent={accent}>{R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}</SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>{R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#fff" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}</div>)}</SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}><div style={{ fontSize: 6, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div></SectionBlock>
+      </div>
+    </div>
+  );
+}
+
 const MINI_PREVIEWS = {
   apex: MiniApex, clarity: MiniClarity, axiom: MiniAxiom, nova: MiniNova,
   echo: MiniEcho, form: MiniForm,
   slate: MiniSlate, pure: MiniPure, edge: MiniEdge, flow: MiniFlow,
   summit: MiniSummit, prestige: MiniPrestige, spark: MiniSpark, bloom: MiniBloom,
   portrait: MiniPortrait, vista: MiniVista, pulse: MiniPulse, prism: MiniPrism, lens: MiniLens,
+  zen: MiniZen, mono: MiniMono,
+  nexus: MiniNexus, vector: MiniVector,
+  atlas: MiniAtlas, charter: MiniCharter,
+  crimson: MiniCrimson, halo: MiniHalo,
+  aura: MiniAura, frame: MiniFrame,
 };
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
@@ -4669,10 +4977,10 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
 
   const filteredTemplates = TEMPLATES.filter(t => {
     if (filter === "all") return true;
-    if (filter === "minimal") return ["clarity", "form", "slate", "pure"].includes(t.id);
-    if (filter === "modern") return ["apex", "echo", "edge", "flow"].includes(t.id);
-    if (filter === "corporate") return ["axiom", "form", "summit", "prestige"].includes(t.id);
-    if (filter === "creative") return ["nova", "axiom", "spark", "bloom"].includes(t.id);
+    if (filter === "minimal") return ["clarity","form","slate","pure","zen","mono"].includes(t.id);
+    if (filter === "modern") return ["apex","echo","edge","flow","nexus","vector"].includes(t.id);
+    if (filter === "corporate") return ["axiom","form","summit","prestige","atlas","charter"].includes(t.id);
+    if (filter === "creative") return ["nova","axiom","spark","bloom","crimson","halo"].includes(t.id);
     if (filter === "with photo") return t.photo === true;
     return true;
   });
