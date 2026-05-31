@@ -25,6 +25,8 @@ const TEMPLATES = [
   { id: "pulse",    name: "Pulse",    tag: "With Photo",   accent: "#F97316", bg: "#0C0A09", photo: true },
   { id: "prism",    name: "Prism",    tag: "With Photo",   accent: "#8B5CF6", bg: "#F5F3FF", photo: true },
   { id: "lens",     name: "Lens",     tag: "With Photo",   accent: "#0EA5E9", bg: "#F0F9FF", photo: true },
+  // ── Two-column executive ──
+  { id: "chronicle", name: "Chronicle", tag: "Executive",  accent: "#7C2D12", bg: "#FFFFFF", photo: false },
 ];
 
 const SAMPLE_RESUME = {
@@ -1219,6 +1221,135 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
           </div>
         </div>
         <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "18"} />
+      </div>
+    );
+  }
+
+  // ── CHRONICLE: two-column executive (left sidebar + right content) ────────────
+  if (templateId === "chronicle") {
+    const bg = customBg || "#FFFFFF";
+    const text = customText || "#111827";
+    const muted = customMuted || "#4B5563";
+    const sh = { fontSize: 10, fontWeight: 800, color: customNameColor || accent, textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: `1.5px solid ${accent}`, paddingBottom: 3, marginBottom: 8 };
+    return (
+      <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0, display: "flex", minHeight: 700 }}>
+        {/* ── Left sidebar ── */}
+        <div style={{ width: "30%", padding: "28px 16px", borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 16, flexShrink: 0 }}>
+          {/* Contact */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Contact</div>
+            {contacts.map((c, i) => <div key={i} style={{ fontSize: 9, color: muted, marginBottom: 5, wordBreak: "break-all" }}>{c}</div>)}
+          </div>
+          {/* Skills */}
+          {r.skills?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Skills</div>
+              {r.skills.map((sk, i) => (
+                <div key={i} style={{ fontSize: 9, color: muted, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: accent, fontSize: 8, flexShrink: 0 }}>•</span>{sk}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Certifications */}
+          {r.certifications?.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Certification</div>
+              {r.certifications.map(c => (
+                <div key={c.id} style={{ fontSize: 9, color: muted, marginBottom: 5 }}>
+                  <div style={{ fontWeight: 700, color: text }}>{c.name}</div>
+                  <div>{c.issuer}{c.year ? ` · ${c.year}` : ""}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Portfolio */}
+          {(r.personal.website || r.personal.github || r.personal.linkedin) && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Portfolio</div>
+              {r.personal.website && <div style={{ fontSize: 9, color: accent, marginBottom: 3, wordBreak: "break-all" }}>🌐 {r.personal.website}</div>}
+              {r.personal.github && <div style={{ fontSize: 9, color: accent, marginBottom: 3, wordBreak: "break-all" }}>⚡ {r.personal.github}</div>}
+              {r.personal.linkedin && <div style={{ fontSize: 9, color: accent, wordBreak: "break-all" }}>in {r.personal.linkedin}</div>}
+            </div>
+          )}
+        </div>
+        {/* ── Right content ── */}
+        <div style={{ flex: 1, padding: "28px 28px" }}>
+          {/* Name header */}
+          <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid #E5E7EB` }}>
+            <h1 style={{ color: customNameColor || text, margin: "0 0 3px", fontSize: 26, fontWeight: 900, letterSpacing: "-0.02em" }}>{r.personal.name || "Your Name"}</h1>
+            <div style={{ fontSize: 12, color: accent, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{r.personal.title || "Professional Title"}</div>
+            <div style={{ fontSize: 10, color: muted, marginTop: 4 }}>{r.personal.location}</div>
+          </div>
+          {/* Summary */}
+          {r.summary && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={sh}>Summary</div>
+              <p style={{ margin: 0, color: muted, lineHeight: 1.65, fontSize: 11 }}>{r.summary}</p>
+            </div>
+          )}
+          {/* Experience */}
+          {r.experience?.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={sh}>Work Experience</div>
+              {r.experience.map(exp => (
+                <div key={exp.id} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: text }}>{exp.role}</div>
+                    <span style={{ color: muted, fontSize: 10, whiteSpace: "nowrap" }}>{exp.start}{exp.end ? ` – ${exp.end}` : ""}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: accent, fontWeight: 600, marginBottom: 4 }}>{exp.company}{exp.location ? ` · ${exp.location}` : ""}</div>
+                  {exp.bullets?.filter(Boolean).length > 0 && (
+                    <ul style={{ margin: "4px 0 0", paddingLeft: 14 }}>
+                      {exp.bullets.filter(Boolean).map((b, i) => <li key={i} style={{ color: muted, marginBottom: 3, fontSize: 10, lineHeight: 1.5 }}>{b}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Education */}
+          {r.education?.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={sh}>Education</div>
+              {r.education.map(edu => (
+                <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{edu.degree}</div>
+                    <span style={{ color: accent, fontSize: 10, fontWeight: 600 }}>{edu.school}</span>
+                    {edu.gpa && <span style={{ color: muted, fontSize: 10 }}> · GPA: {edu.gpa}</span>}
+                  </div>
+                  <span style={{ color: muted, fontSize: 10 }}>{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Projects */}
+          {r.projects?.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={sh}>Projects</div>
+              {r.projects.map(p => (
+                <div key={p.id} style={{ marginBottom: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{p.name}</div>
+                    {(p.start || p.end) && <span style={{ color: muted, fontSize: 10 }}>{p.start}{p.end ? ` – ${p.end}` : ""}</span>}
+                  </div>
+                  {p.url && <div style={{ color: accent, fontSize: 10 }}>{p.url}</div>}
+                  {p.desc && <p style={{ margin: "2px 0 0", color: muted, fontSize: 10, lineHeight: 1.5 }}>{p.desc}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Portfolio links */}
+          {(r.personal.website || r.personal.linkedin || r.personal.github) && (
+            <div>
+              <div style={sh}>Portfolio & Links</div>
+              {r.personal.website && <div style={{ color: accent, fontSize: 10, marginBottom: 3 }}>🌐 {r.personal.website}</div>}
+              {r.personal.linkedin && <div style={{ color: accent, fontSize: 10, marginBottom: 3 }}>in {r.personal.linkedin}</div>}
+              {r.personal.github && <div style={{ color: accent, fontSize: 10 }}>⚡ {r.personal.github}</div>}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -4579,6 +4710,7 @@ const MINI_PREVIEWS = {
   slate: MiniSlate, pure: MiniPure, edge: MiniEdge, flow: MiniFlow,
   summit: MiniSummit, prestige: MiniPrestige, spark: MiniSpark, bloom: MiniBloom,
   portrait: MiniPortrait, vista: MiniVista, pulse: MiniPulse, prism: MiniPrism, lens: MiniLens,
+  chronicle: MiniRaviAxiom,
 };
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
@@ -4755,7 +4887,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
             </div>
             <div style={{ padding: "14px 16px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Axiom · Real Resume</div>
+                <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Chronicle · Executive</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
                   <span style={{ background: "#F5F3FF", color: "#7C3AED", border: "1px solid #DDD6FE", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>Corporate</span>
@@ -4774,13 +4906,13 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                 <div style={{ transform: "scale(0.13)", transformOrigin: "top left", width: "770%", height: "770%", pointerEvents: "none" }}><MiniRaviAxiom /></div>
               </div>
               <div>
-                <div className="font-display" style={{ fontWeight: 800, fontSize: 17 }}>Axiom template selected</div>
+                <div className="font-display" style={{ fontWeight: 800, fontSize: 17 }}>Chronicle template selected</div>
                 <div className="app-text2" style={{ fontSize: 13 }}>ATS-safe · Corporate · Fully editable</div>
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn-secondary btn-lg" onClick={() => setSelected("")}>Change</button>
-              <button className="btn btn-primary btn-lg" onClick={() => { onSelectTemplate?.("axiom"); setPage(PAGES.BUILDER); }}>
+              <button className="btn btn-primary btn-lg" onClick={() => { onSelectTemplate?.("chronicle"); setPage(PAGES.BUILDER); }}>
                 Use This Template <Icon.ArrowRight />
               </button>
             </div>
