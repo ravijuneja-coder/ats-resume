@@ -1235,19 +1235,6 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
       <div className="resume-preview" style={{ ...wrap, background: bg, color: text, padding: 0, display: "flex", minHeight: 700 }}>
         {/* ── Left sidebar ── */}
         <div style={{ width: "30%", padding: "28px 16px", borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 16, flexShrink: 0 }}>
-          {/* Photo */}
-          {r.personal.photo ? (
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <img src={r.personal.photo} alt={r.personal.name}
-                style={{ width: 88, height: 88, borderRadius: "50%", objectFit: "cover", border: `3px solid ${accent}` }} />
-            </div>
-          ) : (
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <div style={{ width: 88, height: 88, borderRadius: "50%", background: accent + "22", border: `2px dashed ${accent}55`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: accent }}>
-                {r.personal.name?.[0] || "?"}
-              </div>
-            </div>
-          )}
           {/* Contact */}
           <div>
             <div style={{ fontSize: 10, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Contact</div>
@@ -1288,11 +1275,22 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
         </div>
         {/* ── Right content ── */}
         <div style={{ flex: 1, padding: "28px 28px" }}>
-          {/* Name header */}
-          <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid #E5E7EB` }}>
-            <h1 style={{ color: customNameColor || text, margin: "0 0 3px", fontSize: 26, fontWeight: 900, letterSpacing: "-0.02em" }}>{r.personal.name || "Your Name"}</h1>
-            <div style={{ fontSize: 12, color: accent, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{r.personal.title || "Professional Title"}</div>
-            <div style={{ fontSize: 10, color: muted, marginTop: 4 }}>{r.personal.location}</div>
+          {/* Name header with photo on right */}
+          <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: `1px solid #E5E7EB`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ color: customNameColor || text, margin: "0 0 3px", fontSize: 26, fontWeight: 900, letterSpacing: "-0.02em" }}>{r.personal.name || "Your Name"}</h1>
+              <div style={{ fontSize: 12, color: accent, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{r.personal.title || "Professional Title"}</div>
+              <div style={{ fontSize: 10, color: muted, marginTop: 4 }}>{r.personal.location}</div>
+            </div>
+            {/* Photo — top right */}
+            {r.personal.photo ? (
+              <img src={r.personal.photo} alt={r.personal.name}
+                style={{ width: 88, height: 88, borderRadius: "50%", objectFit: "cover", border: `3px solid ${accent}`, flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 88, height: 88, borderRadius: "50%", background: accent + "18", border: `2px dashed ${accent}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 800, color: accent, flexShrink: 0 }}>
+                {r.personal.name?.[0] || "?"}
+              </div>
+            )}
           </div>
           {/* Summary */}
           {r.summary && (
@@ -4724,15 +4722,6 @@ function MiniChronicle({ photo } = {}) {
     <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex" }}>
       {/* Left sidebar */}
       <div style={{ width: "30%", padding: "12px 9px", borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* Photo */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>
-          <PhotoAvatar photo={photo} name={R.personal.name} size={44} shape="circle" accent={accent} />
-        </div>
-        <div style={{ textAlign: "center", marginBottom: 2 }}>
-          <div style={{ fontSize: 7.5, fontWeight: 800, color: text, lineHeight: 1.2 }}>{R.personal.name}</div>
-          <div style={{ fontSize: 5.5, color: accent, marginTop: 1 }}>{R.personal.title}</div>
-        </div>
-        <div style={{ height: 1, background: "#E5E7EB" }} />
         <div>
           <div style={{ fontSize: 6.5, fontWeight: 800, color: text, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Contact</div>
           {[R.personal.email, R.personal.phone, R.personal.location].map((v, i) => (
@@ -4760,6 +4749,15 @@ function MiniChronicle({ photo } = {}) {
       </div>
       {/* Right content */}
       <div style={{ flex: 1, padding: "12px 10px" }}>
+        {/* Name + photo header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8, paddingBottom: 7, borderBottom: "1px solid #E5E7EB" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 900, color: text, letterSpacing: "-0.02em", lineHeight: 1.1 }}>{R.personal.name}</div>
+            <div style={{ fontSize: 7, color: accent, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>{R.personal.title}</div>
+            <div style={{ fontSize: 6, color: muted, marginTop: 3 }}>{R.personal.location}</div>
+          </div>
+          <PhotoAvatar photo={photo} name={R.personal.name} size={38} shape="circle" accent={accent} />
+        </div>
         <SectionBlock label="Summary" accent={accent}>
           <div style={{ fontSize: 6.5, color: muted, lineHeight: 1.6 }}>{R.summary.slice(0, 130)}…</div>
         </SectionBlock>
