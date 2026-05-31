@@ -1683,6 +1683,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 
 function HomePage({ setPage }) {
+  const [homeFilter, setHomeFilter] = useState("all");
   const features = [
     { icon: <Icon.Target />, title: "ATS Optimization", desc: "Real-time scoring against 98% of ATS systems used by Fortune 500 companies" },
     { icon: <Icon.Sparkles />, title: "AI-Powered Writing", desc: "Generate professional summaries, rewrite bullets, and get keyword suggestions instantly" },
@@ -2020,7 +2021,6 @@ function HomePage({ setPage }) {
 
       {/* Templates showcase */}
       {(() => {
-        const [homeFilter, setHomeFilter] = React.useState("all");
         const filters = ["all", "minimal", "modern", "corporate", "creative", "with photo"];
         const filtered = TEMPLATES.filter(t => {
           if (homeFilter === "all") return true;
