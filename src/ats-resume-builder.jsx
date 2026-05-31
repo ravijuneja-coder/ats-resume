@@ -2802,7 +2802,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               presets: ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#0F172A","#111827","#1C1917","#0C0A09"],
             },
             {
-              label: "Body Text", value: customText, set: setCustomText, def: "#111111",
+              label: "Sub-heading", value: customText, set: setCustomText, def: "#111111",
               presets: ["#111827","#1E293B","#0F172A","#374151","#1D4ED8","#065F46","#4C1D95","#7C2D12","#FFFFFF","#F1F5F9","#E2E8F0","#CBD5E1"],
             },
             {
