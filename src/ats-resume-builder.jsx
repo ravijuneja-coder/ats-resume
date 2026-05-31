@@ -1207,6 +1207,102 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
   );
 }
 
+// ─── MONTH/YEAR DATE PICKER ──────────────────────────────────────────────────
+
+function MonthYearPicker({ value = "", onChange, allowPresent = false, placeholder = "Jan 2022" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const CY = new Date().getFullYear();
+  const YEARS = Array.from({ length: 51 }, (_, i) => String(CY - i));
+
+  // Parse incoming value into month + year
+  const parse = v => {
+    if (!v || v === "Present") return { m: "", y: "" };
+    const p = v.trim().split(" ");
+    if (p.length === 2 && MONTHS.includes(p[0])) return { m: p[0], y: p[1] };
+    if (/^\d{4}$/.test(v)) return { m: "", y: v };
+    return { m: "", y: v };
+  };
+  const { m: initM, y: initY } = parse(value);
+  const [selMonth, setSelMonth] = useState(initM);
+  const [selYear, setSelYear] = useState(initY);
+
+  // Sync when value changes externally
+  useEffect(() => {
+    const { m, y } = parse(value);
+    setSelMonth(m); setSelYear(y);
+  }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const apply = (m, y) => {
+    if (m && y) onChange(`${m} ${y}`);
+    else if (y) onChange(y);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div className="input" onClick={() => setOpen(o => !o)}
+        style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", userSelect: "none" }}>
+        <span style={{ color: value ? "var(--c-text)" : "var(--c-text3)" }}>{value || placeholder}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--c-text3)", flexShrink: 0 }}>
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 200,
+          background: "var(--c-surface)", border: "1px solid var(--c-border)",
+          borderRadius: 12, padding: 14, boxShadow: "0 12px 40px var(--c-shadow)",
+          minWidth: 240,
+        }}>
+          {allowPresent && (
+            <button onClick={() => { onChange("Present"); setOpen(false); }}
+              style={{ width: "100%", marginBottom: 10, padding: "7px", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", border: value === "Present" ? "1.5px solid var(--c-accent)" : "1px solid var(--c-border)", background: value === "Present" ? "var(--c-accent-light)" : "var(--c-surface2)", color: value === "Present" ? "var(--c-accent)" : "var(--c-text2)" }}>
+              Present (Current)
+            </button>
+          )}
+
+          {/* Month grid */}
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--c-text3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Month</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4, marginBottom: 10 }}>
+            {MONTHS.map(m => (
+              <button key={m} onClick={() => { setSelMonth(m); if (selYear) apply(m, selYear); }}
+                style={{ padding: "5px 2px", borderRadius: 6, border: selMonth === m ? "1.5px solid var(--c-accent)" : "1px solid var(--c-border)", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", background: selMonth === m ? "var(--c-accent-light)" : "var(--c-surface2)", color: selMonth === m ? "var(--c-accent)" : "var(--c-text2)", transition: "all 0.1s" }}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {/* Year selector */}
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--c-text3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Year</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            <select value={selYear} onChange={e => { setSelYear(e.target.value); if (e.target.value) apply(selMonth, e.target.value); }}
+              className="input" style={{ fontSize: 13, flex: 1 }}>
+              <option value="">Select year</option>
+              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+
+          <button onClick={() => { onChange(""); setSelMonth(""); setSelYear(""); setOpen(false); }}
+            style={{ width: "100%", padding: "5px", borderRadius: 6, border: "1px solid var(--c-border)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-body)", background: "var(--c-surface2)", color: "var(--c-text3)" }}>
+            Clear
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ATS SCORE PANEL ─────────────────────────────────────────────────────────
 
 function ATSPanel({ resume }) {
@@ -2772,13 +2868,14 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                         </div>
                       ))}
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        {[{ key: "start", label: "Start" }, { key: "end", label: "End" }].map(f => (
-                          <div key={f.key}>
-                            <label className="label">{f.label}</label>
-                            <input className="input" placeholder="Jan 2022" value={exp[f.key] || ""}
-                              onChange={e => updateExp(exp.id, f.key, e.target.value)} />
-                          </div>
-                        ))}
+                        <div>
+                          <label className="label">Start</label>
+                          <MonthYearPicker value={exp.start || ""} onChange={v => updateExp(exp.id, "start", v)} placeholder="Jan 2022" />
+                        </div>
+                        <div>
+                          <label className="label">End</label>
+                          <MonthYearPicker value={exp.end || ""} onChange={v => updateExp(exp.id, "end", v)} allowPresent placeholder="Present" />
+                        </div>
                       </div>
                       <div>
                         <label className="label">Bullet Points</label>
@@ -2840,7 +2937,6 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                     {[
                       { key: "school", label: "Institution" },
                       { key: "degree", label: "Degree" },
-                      { key: "year", label: "Year" },
                       { key: "gpa", label: "GPA (optional)" },
                     ].map(f => (
                       <div key={f.key} style={{ marginBottom: 10 }}>
@@ -2852,6 +2948,10 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                           })} />
                       </div>
                     ))}
+                    <div style={{ marginBottom: 10 }}>
+                      <label className="label">Year</label>
+                      <MonthYearPicker value={edu.year || ""} onChange={v => setResume({ ...resume, education: resume.education.map(ed => ed.id === edu.id ? { ...ed, year: v } : ed) })} placeholder="2022" />
+                    </div>
                   </div>
                 ))}
                 <button className="btn btn-secondary btn-sm" onClick={() => setResume({ ...resume, education: [...resume.education, { id: Date.now(), school: "", degree: "", year: "", gpa: "" }] })}>
@@ -2866,7 +2966,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                 <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Certifications</h2>
                 {resume.certifications.map(cert => (
                   <div key={cert.id} className="card" style={{ padding: 16 }}>
-                    {[{ key: "name", label: "Name" }, { key: "issuer", label: "Issuer" }, { key: "year", label: "Year" }].map(f => (
+                    {[{ key: "name", label: "Name" }, { key: "issuer", label: "Issuer" }].map(f => (
                       <div key={f.key} style={{ marginBottom: 10 }}>
                         <label className="label">{f.label}</label>
                         <input className="input" value={cert[f.key] || ""}
@@ -2876,6 +2976,10 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                           })} />
                       </div>
                     ))}
+                    <div style={{ marginBottom: 10 }}>
+                      <label className="label">Year</label>
+                      <MonthYearPicker value={cert.year || ""} onChange={v => setResume({ ...resume, certifications: resume.certifications.map(c => c.id === cert.id ? { ...c, year: v } : c) })} placeholder="2022" />
+                    </div>
                   </div>
                 ))}
                 <button className="btn btn-secondary btn-sm"
@@ -2906,13 +3010,11 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                       <div>
                         <label className="label">Start Date</label>
-                        <input className="input" placeholder="Jan 2023" value={proj.start || ""}
-                          onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, start: e.target.value } : p) })} />
+                        <MonthYearPicker value={proj.start || ""} onChange={v => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, start: v } : p) })} placeholder="Jan 2023" />
                       </div>
                       <div>
                         <label className="label">End Date</label>
-                        <input className="input" placeholder="Present" value={proj.end || ""}
-                          onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, end: e.target.value } : p) })} />
+                        <MonthYearPicker value={proj.end || ""} onChange={v => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, end: v } : p) })} allowPresent placeholder="Present" />
                       </div>
                     </div>
                     <div style={{ marginBottom: 10 }}>
