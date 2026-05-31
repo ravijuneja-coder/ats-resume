@@ -976,10 +976,10 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
   );
 }
 
-function ResumePreview({ resume, scale = 1, templateId = "clarity" }) {
+function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "" }) {
   const r = resume;
   const tpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[1];
-  const accent = tpl.accent;
+  const accent = customAccent || tpl.accent;
   const wrap = { transform: scale !== 1 ? `scale(${scale})` : undefined, transformOrigin: "top left" };
   const font = "'Poppins', sans-serif";
   const contacts = [
@@ -2171,7 +2171,7 @@ function AuthPage({ mode, setPage, setUser }) {
 
 // ─── DASHBOARD PAGE ───────────────────────────────────────────────────────────
 
-function CVPreviewModal({ resume, templateId, onClose }) {
+function CVPreviewModal({ resume, templateId, customAccent = "", onClose }) {
   return (
     <div onClick={onClose} style={{
       position: "fixed", inset: 0, zIndex: 1000,
@@ -2187,7 +2187,7 @@ function CVPreviewModal({ resume, templateId, onClose }) {
           boxShadow: "0 2px 12px rgba(0,0,0,0.3)", fontSize: 18,
         }}>✕</button>
         <div style={{ background: "white", borderRadius: 12, overflow: "hidden", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}>
-          <ResumePreview resume={resume} templateId={templateId} />
+          <ResumePreview resume={resume} templateId={templateId} customAccent={customAccent} />
         </div>
       </div>
     </div>
@@ -2206,7 +2206,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
 
   return (
     <div className="app-bg" style={{ minHeight: "100vh" }}>
-      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} onClose={() => setShowCVPreview(false)} />}
+      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} onClose={() => setShowCVPreview(false)} />}
       <div style={{ padding: "32px 24px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
@@ -2322,10 +2322,12 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
     e.target.value = "";
   };
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [customAccent, setCustomAccent] = useLocalStorage("ats-custom-accent", "");
 
   const handleTemplateChange = (id) => {
     onTemplateChange?.(id);
     setShowTemplatePicker(false);
+    setCustomAccent(""); // reset color when switching templates
   };
 
   useEffect(() => {
@@ -2495,6 +2497,45 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               })}
             </div>
           )}
+        </div>
+
+        {/* ── Color Customizer ── */}
+        <div style={{ marginBottom: 8 }}>
+          <div className="app-text3" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 4px 8px" }}>Accent Color</div>
+
+          {/* Preset swatches */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "0 4px", marginBottom: 8 }}>
+            {/* Default swatch */}
+            <button title="Template default" onClick={() => setCustomAccent("")}
+              style={{ width: 24, height: 24, borderRadius: 5, background: TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0", border: "none", cursor: "pointer", position: "relative", outline: !customAccent ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 2 }}>
+              {!customAccent && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
+            </button>
+            {["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"].map(c => (
+              <button key={c} title={c} onClick={() => setCustomAccent(c)}
+                style={{ width: 24, height: 24, borderRadius: 5, background: c, border: "none", cursor: "pointer", position: "relative", outline: customAccent === c ? "2px solid var(--c-accent)" : "2px solid transparent", outlineOffset: 2, transition: "transform 0.1s", transform: customAccent === c ? "scale(1.15)" : "scale(1)" }}>
+                {customAccent === c && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom color picker row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "5px 8px" }}>
+              <input type="color"
+                value={customAccent || TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0"}
+                onChange={e => setCustomAccent(e.target.value)}
+                style={{ width: 22, height: 22, border: "none", borderRadius: 3, cursor: "pointer", padding: 0, background: "none" }} />
+              <span style={{ fontSize: 11, color: "var(--c-text2)", fontFamily: "monospace" }}>
+                {customAccent || TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0"}
+              </span>
+            </div>
+            {customAccent && (
+              <button onClick={() => setCustomAccent("")}
+                style={{ fontSize: 11, color: "var(--c-text3)", background: "none", border: "1px solid var(--c-border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                Reset
+              </button>
+            )}
+          </div>
         </div>
 
         <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={handleExportPDF}>
@@ -2977,7 +3018,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
         {/* Resume — fills remaining space */}
         <div style={{ flex: 1, overflow: "auto" }}>
-          <ResumePreview resume={resume} templateId={template} />
+          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} />
         </div>
       </div>
     </div>
