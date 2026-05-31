@@ -2484,20 +2484,20 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               maxHeight: 260, overflowY: "auto",
             }}>
               {TEMPLATES.map(t => {
-                const locked = false;
+                const isPrem = !FREE_TEMPLATES.includes(t.id);
                 return (
                   <button key={t.id}
-                    onClick={() => locked ? onNeedUpgrade?.("all_templates") : handleTemplateChange(t.id)}
+                    onClick={() => handleTemplateChange(t.id)}
                     style={{
                       display: "flex", alignItems: "center", gap: 6, padding: "6px 8px",
                       borderRadius: 7, border: t.id === template ? `1.5px solid var(--c-accent)` : "1.5px solid var(--c-border)",
-                      background: t.id === template ? "var(--c-accent-light)" : locked ? "var(--c-surface2)" : "var(--c-surface2)",
+                      background: t.id === template ? "var(--c-accent-light)" : "var(--c-surface2)",
                       cursor: "pointer", fontSize: 12, fontWeight: 500, fontFamily: "var(--font-body)",
-                      color: locked ? "var(--c-text3)" : t.id === template ? "var(--c-accent)" : "var(--c-text2)",
-                      opacity: locked ? 0.7 : 1,
+                      color: t.id === template ? "var(--c-accent)" : "var(--c-text2)",
                     }}>
-                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: locked ? "var(--c-border)" : t.accent, flexShrink: 0 }} />
-                    {t.name} {locked && <span style={{ fontSize: 10 }}>👑</span>}
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                    <span style={{ flex: 1, textAlign: "left" }}>{t.name}</span>
+                    {isPrem && <span style={{ fontSize: 9, background: "linear-gradient(135deg,#F59E0B,#D97706)", color: "#fff", borderRadius: 3, padding: "1px 4px", fontWeight: 700, letterSpacing: "0.02em", flexShrink: 0 }}>PRO</span>}
                   </button>
                 );
               })}
