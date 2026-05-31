@@ -2867,13 +2867,29 @@ function MiniApex() {
         ))}
       </div>
       {/* Skills */}
-      <div>
+      <div style={{ marginBottom: 7 }}>
         <div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, marginBottom: 4 }}>Skills</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
           {R.skills.slice(0, 9).map((sk, i) => (
             <span key={i} style={{ background: "#1E293B", border: `1px solid ${border}`, color: accent, fontSize: 6, padding: "1px 5px", borderRadius: 3, fontWeight: 600 }}>{sk}</span>
           ))}
         </div>
+      </div>
+      <div style={{ marginBottom: 7 }}>
+        <div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, marginBottom: 3 }}>Education</div>
+        {R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+      </div>
+      <div style={{ marginBottom: 7 }}>
+        <div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, marginBottom: 3 }}>Certifications</div>
+        {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+      </div>
+      <div style={{ marginBottom: 7 }}>
+        <div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, marginBottom: 3 }}>Projects</div>
+        {R.projects.slice(0, 1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7, color: "#F1F5F9" }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+      </div>
+      <div>
+        <div style={{ fontSize: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, marginBottom: 3 }}>Portfolio & Links</div>
+        <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
       </div>
     </div>
   );
@@ -2925,6 +2941,16 @@ function MiniClarity() {
             <span style={{ fontSize: 6.5, color: muted }}>{e.year}</span>
           </div>
         ))}
+      </SectionBlock>
+      <SectionBlock label="Certifications" accent={accent}>
+        {R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 600 }}>{c.name}</span><span style={{ color: muted }}>{c.issuer} · {c.year}</span></div>)}
+      </SectionBlock>
+      <SectionBlock label="Projects" accent={accent}>
+        {R.projects.slice(0, 1).map(p => <div key={p.id}><div style={{ fontWeight: 700, fontSize: 7 }}>{p.name}</div>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Portfolio & Links" accent={accent}>
+        <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website}</div>
+        <div style={{ fontSize: 6.5, color: muted }}>in {R.personal.linkedin} · ⌥ {R.personal.github}</div>
       </SectionBlock>
     </div>
   );
@@ -3000,6 +3026,12 @@ function MiniAxiom() {
             </div>
           ))}
         </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0, 1).map(p => <div key={p.id}><div style={{ fontWeight: 700, fontSize: 7, color: "#111827" }}>{p.name}</div>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: "#6B7280" }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
@@ -3050,7 +3082,7 @@ function MiniNova() {
           ))}
         </div>
         {/* Skills */}
-        <div>
+        <div style={{ marginBottom: 7 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
             <div style={{ width: 16, height: 2, background: accent }} />
             <span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Stack</span>
@@ -3060,6 +3092,22 @@ function MiniNova() {
               <span key={i} style={{ background: "#1A1A1A", border: `1px solid #333`, color: "#D4D4D8", fontSize: 6, padding: "1px 5px", borderRadius: 2 }}>{sk}</span>
             ))}
           </div>
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 16, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Education</span></div>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 16, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Certifications</span></div>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 16, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Projects</span></div>
+          {R.projects.slice(0, 1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#F4F4F5" }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+        </div>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 16, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Portfolio</span></div>
+          <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
         </div>
       </div>
     </div>
@@ -3110,13 +3158,29 @@ function MiniEcho() {
           ))}
         </div>
         {/* Skills grid */}
-        <div>
+        <div style={{ marginBottom: 7 }}>
           <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1.5px solid ${accent}`, paddingBottom: 2, marginBottom: 5 }}>Core Competencies</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 2 }}>
             {R.skills.slice(0, 9).map((sk, i) => (
               <div key={i} style={{ background: strip, fontSize: 6, padding: "2px 4px", borderRadius: 3, color: accent, fontWeight: 600, textAlign: "center" }}>{sk}</div>
             ))}
           </div>
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1.5px solid ${accent}`, paddingBottom: 2, marginBottom: 4 }}>Education</div>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1.5px solid ${accent}`, paddingBottom: 2, marginBottom: 4 }}>Certifications</div>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1.5px solid ${accent}`, paddingBottom: 2, marginBottom: 4 }}>Projects</div>
+          {R.projects.slice(0, 1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+        </div>
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1.5px solid ${accent}`, paddingBottom: 2, marginBottom: 4 }}>Portfolio & Links</div>
+          <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
         </div>
       </div>
     </div>
@@ -3164,7 +3228,7 @@ function MiniForm() {
         ))}
       </div>
       {/* Skills & Education inline */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
         <div>
           <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: accent, borderBottom: `0.5px solid ${rule}`, paddingBottom: 2, marginBottom: 4 }}>Skills</div>
           {R.skills.slice(0, 6).map((sk, i) => (
@@ -3177,7 +3241,6 @@ function MiniForm() {
             <div key={e.id} style={{ fontSize: 7, color: muted }}>
               <div style={{ fontWeight: 700, color: "#0F172A" }}>{e.degree}</div>
               <div>{e.school} · {e.year}</div>
-              <div>GPA: {e.gpa}</div>
             </div>
           ))}
           {R.certifications.map(c => (
@@ -3187,6 +3250,14 @@ function MiniForm() {
             </div>
           ))}
         </div>
+      </div>
+      <div style={{ marginBottom: 7 }}>
+        <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: accent, borderBottom: `0.5px solid ${rule}`, paddingBottom: 2, marginBottom: 4 }}>Projects</div>
+        {R.projects.slice(0, 1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#0F172A" }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+      </div>
+      <div>
+        <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: accent, borderBottom: `0.5px solid ${rule}`, paddingBottom: 2, marginBottom: 4 }}>Portfolio & Links</div>
+        <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
       </div>
     </div>
   );
@@ -3293,6 +3364,15 @@ function MiniPortrait({ photo } = {}) {
             </div>
           ))}
         </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: "#C7D2FE" }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#EEF2FF" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: "#C7D2FE" }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
@@ -3351,6 +3431,15 @@ function MiniVista({ photo } = {}) {
               <span style={{ color: "#9CA3AF" }}>{e.year}</span>
             </div>
           ))}
+        </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, display: "flex", justifyContent: "space-between" }}><span style={{ fontWeight: 600 }}>{c.name}</span><span style={{ color: "#9CA3AF" }}>{c.issuer} · {c.year}</span></div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><div style={{ fontWeight: 700, fontSize: 7 }}>{p.name}</div>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: "#6B7280" }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
         </SectionBlock>
       </div>
     </div>
@@ -3419,6 +3508,22 @@ function MiniPulse({ photo } = {}) {
             ))}
           </div>
         </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 14, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Education</span></div>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 14, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Certifications</span></div>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 14, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Projects</span></div>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#FAFAF9" }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+        </div>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}><div style={{ width: 14, height: 2, background: accent }} /><span style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", color: accent }}>Portfolio</span></div>
+          <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </div>
       </div>
     </div>
   );
@@ -3454,6 +3559,18 @@ function MiniSlate() {
           {R.skills.slice(0, 9).map((sk, i) => <span key={i} style={{ background: "#E2E8F0", color: accent, fontSize: 6, padding: "1px 6px", borderRadius: 3, fontWeight: 500 }}>{sk}</span>)}
         </div>
       </SectionBlock>
+      <SectionBlock label="Education" accent={accent}>
+        {R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Certifications" accent={accent}>
+        {R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Projects" accent={accent}>
+        {R.projects.slice(0, 1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Portfolio & Links" accent={accent}>
+        <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+      </SectionBlock>
     </div>
   );
 }
@@ -3486,6 +3603,16 @@ function MiniPure() {
           {label === "Skills" && <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>{R.skills.slice(0, 10).map((sk, i) => <span key={i} style={{ fontSize: 6.5, color: "#333" }}>· {sk}</span>)}</div>}
         </div>
       ))}
+      {[["Education", R.education.map(e => `${e.degree} · ${e.school} · ${e.year}`).join("")],
+        ["Certifications", R.certifications.map(c => `${c.name} · ${c.issuer} · ${c.year}`).join("")],
+        ["Projects", R.projects[0]?.name || ""],
+        ["Portfolio & Links", `🌐 ${R.personal.website} · in ${R.personal.linkedin}`]
+      ].map(([label, val]) => val && (
+        <div key={label} style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "#111", borderBottom: `1px solid #E5E7EB`, paddingBottom: 2, marginBottom: 3 }}>{label}</div>
+          <div style={{ fontSize: 6.5, color: "#555" }}>{val}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -3516,9 +3643,21 @@ function MiniEdge() {
             </div>
           ))}
         </SectionBlock>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 7 }}>
           {R.skills.slice(0, 8).map((sk, i) => <span key={i} style={{ background: "#1E1B4B", border: "1px solid #312E81", color: accent, fontSize: 6, padding: "1px 5px", borderRadius: 3, fontWeight: 600 }}>{sk}</span>)}
         </div>
+        <SectionBlock label="Education" accent={accent}>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: "#94A3B8" }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: "#94A3B8" }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#fff" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: "#94A3B8" }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
@@ -3548,9 +3687,23 @@ function MiniFlow() {
           </div>
         ))}
       </SectionBlock>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-        {R.skills.slice(0, 9).map((sk, i) => <span key={i} style={{ background: strip, color: accent, fontSize: 6, padding: "1px 6px", borderRadius: 3, fontWeight: 600 }}>{sk}</span>)}
-      </div>
+      <SectionBlock label="Skills" accent={accent}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+          {R.skills.slice(0, 9).map((sk, i) => <span key={i} style={{ background: strip, color: accent, fontSize: 6, padding: "1px 6px", borderRadius: 3, fontWeight: 600 }}>{sk}</span>)}
+        </div>
+      </SectionBlock>
+      <SectionBlock label="Education" accent={accent}>
+        {R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: "#64748B" }}>{e.degree} · {e.school} · {e.year}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Certifications" accent={accent}>
+        {R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: "#64748B" }}>{c.name} · {c.issuer} · {c.year}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Projects" accent={accent}>
+        {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Portfolio & Links" accent={accent}>
+        <div style={{ fontSize: 6.5, color: "#64748B" }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+      </SectionBlock>
     </div>
   );
 }
@@ -3583,9 +3736,21 @@ function MiniSummit() {
             </div>
           ))}
         </SectionBlock>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 7 }}>
           {R.skills.slice(0, 8).map((sk, i) => <span key={i} style={{ background: "#DBEAFE", color: accent, fontSize: 6, padding: "1px 6px", borderRadius: 3, fontWeight: 600 }}>{sk}</span>)}
         </div>
+        <SectionBlock label="Education" accent={accent}>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
@@ -3618,9 +3783,21 @@ function MiniPrestige() {
           </div>
         ))}
       </SectionBlock>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 7 }}>
         {R.skills.slice(0, 8).map((sk, i) => <span key={i} style={{ fontSize: 6.5, color: muted }}>· {sk}</span>)}
       </div>
+      <SectionBlock label="Education" accent={accent}>
+        {R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Certifications" accent={accent}>
+        {R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Projects" accent={accent}>
+        {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7, color: "#1C0A00" }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+      </SectionBlock>
+      <SectionBlock label="Portfolio & Links" accent={accent}>
+        <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+      </SectionBlock>
     </div>
   );
 }
@@ -3651,9 +3828,21 @@ function MiniSpark() {
             </div>
           ))}
         </SectionBlock>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 7 }}>
           {R.skills.slice(0, 8).map((sk, i) => <span key={i} style={{ background: "#1A1A1A", border: `1px solid ${accent}44`, color: accent, fontSize: 6, padding: "1px 5px", borderRadius: 3 }}>{sk}</span>)}
         </div>
+        <SectionBlock label="Education" accent={accent}>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#FAFAFA" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
@@ -3682,9 +3871,21 @@ function MiniBloom() {
             </div>
           ))}
         </SectionBlock>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 7 }}>
           {R.skills.slice(0, 8).map((sk, i) => <span key={i} style={{ background: "#F3E8FF", color: muted, fontSize: 6, padding: "1px 6px", borderRadius: 99, fontWeight: 600 }}>{sk}</span>)}
         </div>
+        <SectionBlock label="Education" accent={accent}>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 6.5, color: "#6B21A8" }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: "#6B21A8" }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#3B0764" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: "#6B21A8" }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
@@ -3727,6 +3928,15 @@ function MiniPrism({ photo } = {}) {
             </div>
           ))}
         </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 6.5, color: "#5B21B6" }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 700, fontSize: 7, color: "#3B0764" }}>{p.name}</span>{p.url && <div style={{ fontSize: 6.5, color: accent }}>{p.url}</div>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: "#5B21B6" }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
@@ -3760,9 +3970,21 @@ function MiniLens({ photo } = {}) {
             </div>
           ))}
         </SectionBlock>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 7 }}>
           {R.skills.slice(0, 8).map((sk, i) => <span key={i} style={{ background: "#E0F2FE", color: "#0369A1", fontSize: 6, padding: "1px 6px", borderRadius: 3, fontWeight: 600 }}>{sk}</span>)}
         </div>
+        <SectionBlock label="Education" accent={accent}>
+          {R.education.map(e => <div key={e.id} style={{ fontSize: 7, color: muted }}>{e.degree} · {e.school} · {e.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {R.certifications.map(c => <div key={c.id} style={{ fontSize: 7, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {R.projects.slice(0,1).map(p => <div key={p.id}><span style={{ fontWeight: 600, fontSize: 7 }}>{p.name}</span>{p.url && <span style={{ fontSize: 6.5, color: accent }}> · {p.url}</span>}</div>)}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6.5, color: muted }}>🌐 {R.personal.website} · in {R.personal.linkedin}</div>
+        </SectionBlock>
       </div>
     </div>
   );
