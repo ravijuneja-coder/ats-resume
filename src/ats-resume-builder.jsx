@@ -4173,93 +4173,115 @@ function MiniLens({ photo } = {}) {
 // ── MiniRaviAxiom: Axiom style using RAVI_RESUME data (real resume showcase) ──
 function MiniRaviAxiom() {
   const RV = R;
-  const accent = "#1A1A1A"; const sideText = "#374151"; const sideBg = "#F3F4F6"; const label = "#6B7280";
+  const sh = { fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1.5px solid #111827", paddingBottom: 2, marginBottom: 5 };
+  const muted = "#4B5563"; const light = "#6B7280";
+  const skillGroups = [
+    { label: "Core Design", items: ["User Interface Design", "Design Systems", "High-Fidelity UI", "Responsive Design", "Accessibility"] },
+    { label: "UX & Product", items: ["UX Research", "Information Architecture", "User Flows", "Wireframing", "Usability Testing"] },
+    { label: "Technical", items: ["HTML5 / CSS3", "Design-to-Code", "Developer Handoff"] },
+  ];
+  const tools = ["Figma", "Adobe XD", "Photoshop", "Zeplin", "Axure", "Sketch", "Illustrator"];
   return (
-    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex" }}>
-      {/* Left sidebar — light gray, clean */}
-      <div style={{ width: "34%", background: sideBg, padding: "14px 10px", display: "flex", flexDirection: "column", gap: 8, borderRight: "1px solid #E5E7EB" }}>
-        <div style={{ textAlign: "center", marginBottom: 2 }}>
-          <div style={{ fontSize: 9, fontWeight: 800, color: "#111827", lineHeight: 1.2, fontFamily: "var(--font-display)" }}>{RV.personal.name}</div>
-          <div style={{ fontSize: 5.5, color: "#6B7280", marginTop: 2, lineHeight: 1.3 }}>{RV.personal.title}</div>
-        </div>
-        <div style={{ height: 1, background: "#D1D5DB" }} />
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7, lineHeight: 1.5, height: "100%", display: "flex" }}>
+
+      {/* ── Left column: Contact · Skills · Tools · Certification ── */}
+      <div style={{ width: "30%", padding: "12px 9px 12px 10px", borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", gap: 7 }}>
+
+        {/* Contact */}
         <div>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Contact</div>
-          {[{ icon: "☎", val: RV.personal.phone }, { icon: "✉", val: RV.personal.email }, { icon: "⊙", val: RV.personal.location }].map((c, i) => (
-            <div key={i} style={{ fontSize: 5.5, color: sideText, marginBottom: 3, wordBreak: "break-all" }}>{c.icon} {c.val}</div>
-          ))}
-        </div>
-        <div>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Skills</div>
-          {RV.skills.slice(0, 8).map((sk, i) => (
-            <div key={i} style={{ fontSize: 5.5, color: sideText, marginBottom: 2.5, display: "flex", alignItems: "center", gap: 3 }}>
-              <span style={{ color: "#9CA3AF" }}>•</span> {sk.split(" ").slice(0, 3).join(" ")}
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", marginBottom: 5 }}>CONTACT</div>
+          {[{ icon: "☎", v: RV.personal.phone }, { icon: "✉", v: RV.personal.email }, { icon: "⊙", v: RV.personal.location }].map((c, i) => (
+            <div key={i} style={{ fontSize: 5.5, color: muted, marginBottom: 3, display: "flex", gap: 3, alignItems: "flex-start" }}>
+              <span style={{ color: light, flexShrink: 0 }}>{c.icon}</span>
+              <span style={{ wordBreak: "break-all" }}>{c.v}</span>
             </div>
           ))}
         </div>
-        <div style={{ height: 1, background: "#D1D5DB" }} />
-        <div>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Certification</div>
-          <div style={{ fontSize: 5.5, color: sideText, fontWeight: 600 }}>{RV.certifications[0]?.name}</div>
-          <div style={{ fontSize: 5.5, color: label }}>{RV.certifications[0]?.issuer} · {RV.certifications[0]?.year}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Portfolio</div>
-          <div style={{ fontSize: 5.5, color: "#2563EB", marginBottom: 2 }}>🌐 {RV.personal.website}</div>
-          <div style={{ fontSize: 5.5, color: "#2563EB" }}>in {RV.personal.linkedin}</div>
-        </div>
-      </div>
 
-      {/* Right content — white, clean black headers */}
-      <div style={{ flex: 1, padding: "14px 12px", display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* Summary */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Summary</div>
-          <div style={{ fontSize: 6.5, color: "#4B5563", lineHeight: 1.6 }}>{RV.summary.slice(0, 150)}…</div>
-        </div>
-        {/* Experience */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Experience</div>
-          {RV.experience.slice(0, 2).map(exp => (
-            <div key={exp.id} style={{ marginBottom: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: 700, fontSize: 7, color: "#111827" }}>{exp.role.slice(0, 28)}</span>
-                <span style={{ fontSize: 6, color: "#9CA3AF" }}>{exp.start}–{exp.end}</span>
-              </div>
-              <div style={{ fontSize: 6, color: "#374151", fontWeight: 500, marginBottom: 2 }}>{exp.company}</div>
-              {exp.bullets.slice(0, 1).map((b, i) => (
-                <div key={i} style={{ fontSize: 6, color: "#6B7280", paddingLeft: 7, position: "relative" }}>
-                  <span style={{ position: "absolute", left: 1 }}>•</span>{b.slice(0, 65)}…
+        {/* Skills */}
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", marginBottom: 5 }}>Skills</div>
+          {skillGroups.map(g => (
+            <div key={g.label} style={{ marginBottom: 5 }}>
+              <div style={{ fontSize: 6, fontWeight: 700, color: "#374151", marginBottom: 3 }}>{g.label}</div>
+              {g.items.map(s => (
+                <div key={s} style={{ fontSize: 5.5, color: muted, marginBottom: 2, paddingLeft: 7, position: "relative" }}>
+                  <span style={{ position: "absolute", left: 1, color: light }}>•</span>{s}
                 </div>
               ))}
             </div>
           ))}
         </div>
-        {/* Certifications */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Certifications</div>
-          {RV.certifications.map(c => (
-            <div key={c.id} style={{ fontSize: 6.5, display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontWeight: 600, color: "#111827" }}>{c.name}</span>
-              <span style={{ color: "#9CA3AF" }}>{c.issuer} · {c.year}</span>
-            </div>
-          ))}
-        </div>
-        {/* Projects */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Projects</div>
-          {RV.projects.slice(0, 1).map(p => (
-            <div key={p.id}>
-              <div style={{ fontWeight: 700, fontSize: 6.5, color: "#111827" }}>{p.name}</div>
-              {p.url && <div style={{ fontSize: 6, color: "#2563EB" }}>{p.url}</div>}
-            </div>
-          ))}
-        </div>
-        {/* Portfolio */}
+
+        {/* Tools */}
         <div>
-          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Portfolio & Links</div>
-          <div style={{ fontSize: 6, color: "#2563EB" }}>🌐 {RV.personal.website}</div>
-          <div style={{ fontSize: 6, color: "#2563EB" }}>in {RV.personal.linkedin}</div>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", marginBottom: 5 }}>Tools</div>
+          {tools.map(t => (
+            <div key={t} style={{ fontSize: 5.5, color: muted, marginBottom: 2 }}>{t}</div>
+          ))}
+        </div>
+
+        {/* Certification */}
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", marginBottom: 4 }}>Certification</div>
+          <div style={{ fontSize: 5.5, color: muted }}>Certified Usability Analyst (CUA) from HFI</div>
+        </div>
+      </div>
+
+      {/* ── Right column: Name · Summary · Key Impact · Experience ── */}
+      <div style={{ flex: 1, padding: "12px 11px", display: "flex", flexDirection: "column", gap: 0 }}>
+
+        {/* Name & title block */}
+        <div style={{ marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #E5E7EB" }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: "#111827", letterSpacing: "-0.02em", lineHeight: 1, fontFamily: "var(--font-display)" }}>{RV.personal.name}</div>
+          <div style={{ fontSize: 6, color: muted, marginTop: 3, lineHeight: 1.4 }}>{RV.personal.title}</div>
+          <div style={{ fontSize: 5.5, color: light, marginTop: 4 }}>{RV.personal.location} · Immediate Joiner</div>
+          <div style={{ fontSize: 5.5, color: "#2563EB", marginTop: 3 }}>
+            Portfolio: {RV.personal.website} · LinkedIn: {RV.personal.linkedin}
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div style={{ marginBottom: 7 }}>
+          <div style={sh}>Summary</div>
+          <div style={{ fontSize: 6, color: muted, lineHeight: 1.6 }}>{RV.summary.slice(0, 145)}…</div>
+        </div>
+
+        {/* Key Impact stats */}
+        <div style={{ marginBottom: 7 }}>
+          <div style={sh}>Key Impact</div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {[["67%", "UI Ticket Reduction"], ["60%", "Workflow Opt."], ["35%", "Engagement"], ["700+", "Screens"]].map(([stat, lbl]) => (
+              <div key={stat} style={{ flex: 1, border: "1px solid #E5E7EB", borderRadius: 3, padding: "4px 2px", textAlign: "center" }}>
+                <div style={{ fontSize: 9, fontWeight: 900, color: "#111827", lineHeight: 1 }}>{stat}</div>
+                <div style={{ fontSize: 4.5, color: light, marginTop: 1, lineHeight: 1.3 }}>{lbl}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Experience */}
+        <div style={{ marginBottom: 7 }}>
+          <div style={sh}>Experience</div>
+          {RV.experience.slice(0, 2).map(exp => (
+            <div key={exp.id} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 6.5, fontWeight: 700, color: "#111827" }}>{exp.role}</div>
+              <div style={{ fontSize: 5.5, color: light, marginBottom: 3 }}>{exp.company} · {exp.start}–{exp.end}</div>
+              {exp.bullets.slice(0, 1).map((b, i) => (
+                <div key={i} style={{ fontSize: 5.5, color: muted, paddingLeft: 7, position: "relative" }}>
+                  <span style={{ position: "absolute", left: 1 }}>•</span>{b.slice(0, 75)}…
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Certifications */}
+        <div>
+          <div style={sh}>Certifications</div>
+          {RV.certifications.map(c => (
+            <div key={c.id} style={{ fontSize: 6, color: muted }}>{c.name} · {c.issuer} · {c.year}</div>
+          ))}
         </div>
       </div>
     </div>
