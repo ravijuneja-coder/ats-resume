@@ -2019,208 +2019,79 @@ function HomePage({ setPage }) {
       </section>
 
       {/* Templates showcase */}
+      {(() => {
+        const [homeFilter, setHomeFilter] = React.useState("all");
+        const filters = ["all", "minimal", "modern", "corporate", "creative", "with photo"];
+        const filtered = TEMPLATES.filter(t => {
+          if (homeFilter === "all") return true;
+          if (homeFilter === "minimal") return ["clarity","form","slate","pure"].includes(t.id);
+          if (homeFilter === "modern") return ["apex","echo","edge","flow"].includes(t.id);
+          if (homeFilter === "corporate") return ["axiom","form","summit","prestige"].includes(t.id);
+          if (homeFilter === "creative") return ["nova","axiom","spark","bloom"].includes(t.id);
+          if (homeFilter === "with photo") return t.photo === true;
+          return true;
+        });
+        return (
       <section style={{ padding: "90px 24px", borderTop: "1px solid var(--c-border)", borderBottom: "1px solid var(--c-border)", background: "var(--c-bg)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-          {/* Header row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 52, flexWrap: "wrap", gap: 16 }}>
-            <div>
-              <div className="badge badge-blue" style={{ marginBottom: 12, fontSize: 12 }}>
-                <Icon.LayoutTemplate /> 19 professional templates
-              </div>
-              <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 10px", lineHeight: 1.1 }}>
-                Pick your perfect resume
-              </h2>
-              <p className="app-text2" style={{ fontSize: 16, margin: 0 }}>
-                Every template is ATS-optimized, recruiter-approved, and fully customizable.
-              </p>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <div className="badge badge-blue" style={{ marginBottom: 12, fontSize: 12 }}>
+              <Icon.LayoutTemplate /> {TEMPLATES.length} professional templates
             </div>
-            <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)}>
-              Browse All 19 <Icon.ArrowRight />
-            </button>
+            <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 12px", lineHeight: 1.1 }}>
+              Pick your perfect resume
+            </h2>
+            <p className="app-text2" style={{ fontSize: 16, maxWidth: 480, margin: "0 auto" }}>
+              Every template is ATS-optimized, recruiter-approved, and fully customizable.
+            </p>
           </div>
 
-          {/* Bento grid: 2 creative (tall) left + 3 photo (right column) */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gridTemplateRows: "auto auto", gap: 20 }}>
-
-            {/* Creative 1 — Nova (spans 1 row, tall) */}
-            {["nova", "spark"].map((id, i) => {
-              const t = TEMPLATES.find(x => x.id === id);
-              if (!t) return null;
-              const MiniPreview = MINI_PREVIEWS[t.id];
-              return (
-                <div key={t.id} onClick={() => setPage(PAGES.TEMPLATES)} className="card-hover"
-                  style={{ borderRadius: 18, overflow: "hidden", cursor: "pointer", border: "1.5px solid var(--c-border)", boxShadow: "0 6px 28px var(--c-shadow)", background: "var(--c-surface)", gridRow: i === 0 ? "1 / 3" : "auto" }}>
-                  <div style={{ height: i === 0 ? 540 : 260, overflow: "hidden", position: "relative" }}>
-                    <MiniPreview />
-                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent 55%, ${t.bg})`, pointerEvents: "none" }} />
-                    <div style={{ position: "absolute", top: 12, left: 12, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "4px 11px" }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
-                    </div>
-                  </div>
-                  <div style={{ padding: "14px 16px", borderTop: "1px solid var(--c-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t.name}</div>
-                      <div style={{ display: "flex", gap: 5 }}>
-                        <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
-                        <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>
-                      </div>
-                    </div>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: t.accent + "22", border: `1.5px solid ${t.accent}`, display: "flex", alignItems: "center", justifyContent: "center", color: t.accent }}>
-                      <Icon.ArrowRight />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* 3 Photo templates — right column stacked */}
-            {["portrait", "vista", "pulse"].map((id) => {
-              const t = TEMPLATES.find(x => x.id === id);
-              if (!t) return null;
-              const MiniPreview = MINI_PREVIEWS[t.id];
-              return (
-                <div key={t.id} onClick={() => setPage(PAGES.TEMPLATES)} className="card-hover"
-                  style={{ borderRadius: 18, overflow: "hidden", cursor: "pointer", border: "1.5px solid #E9D5FF", boxShadow: "0 6px 28px var(--c-shadow)", background: "var(--c-surface)" }}>
-                  <div style={{ height: 230, overflow: "hidden", position: "relative" }}>
-                    <MiniPreview photo={DUMMY_AVATAR} />
-                    <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to bottom, transparent 50%, ${t.bg})`, pointerEvents: "none" }} />
-                    <div style={{ position: "absolute", top: 10, left: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px" }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
-                    </div>
-                    <div style={{ position: "absolute", top: 10, right: 10, background: "#D946EF22", border: "1px solid #D946EF66", borderRadius: 99, padding: "3px 9px" }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#D946EF" }}>📸 Photo</span>
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px 14px", borderTop: "1px solid #E9D5FF", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div className="font-display" style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.name}</div>
-                      <div style={{ display: "flex", gap: 5 }}>
-                        <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
-                        <span style={{ background: "#FDF4FF", color: "#9333EA", border: "1px solid #E9D5FF", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>With Photo</span>
-                      </div>
-                    </div>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: t.accent + "22", border: `1.5px solid ${t.accent}`, display: "flex", alignItems: "center", justifyContent: "center", color: t.accent }}>
-                      <Icon.ArrowRight />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ── Featured Real Resume ── */}
-          <div style={{ marginTop: 28, borderRadius: 20, overflow: "hidden", border: "2px solid #E0E7FF", boxShadow: "0 12px 48px rgba(99,102,241,0.13)", background: "var(--c-surface)", cursor: "pointer" }}
-            className="card-hover" onClick={() => setPage(PAGES.REGISTER)}>
-
-            {/* Header bar */}
-            <div style={{ background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 99, padding: "4px 12px" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>✦ Real Resume Built with ResumeAI</span>
-                </div>
-                <span className="badge badge-green" style={{ fontSize: 10, background: "#065F46", color: "#34D399", border: "1px solid #34D399" }}>ATS ✓ Passed</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 11, color: "#C4B5FD" }}>Senior UX/UI Designer · Dubai, UAE</span>
-                <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 99, padding: "4px 12px", border: "1px solid rgba(255,255,255,0.25)" }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Resume preview body */}
-            <div style={{ display: "flex", gap: 0 }}>
-
-              {/* Left sidebar */}
-              <div style={{ width: 200, background: "#F5F3FF", borderRight: "1px solid #E9D5FF", padding: "16px 14px", flexShrink: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#4C1D95", fontFamily: "var(--font-display)", marginBottom: 2 }}>Ravi Juneja</div>
-                <div style={{ fontSize: 9, color: "#7C3AED", fontWeight: 600, marginBottom: 10, lineHeight: 1.4 }}>AI-Driven Product Designer | UX/UI | Design Systems</div>
-
-                <div style={{ fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Contact</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 2 }}>📞 +971-55-1408813</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 2 }}>✉ junejauxd@gmail.com</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 10 }}>📍 Dubai, UAE</div>
-
-                <div style={{ fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Portfolio</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 2 }}>🌐 behance.net/ravijuneja4b4d</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 10 }}>in linkedin.com/in/ravi-juneja</div>
-
-                <div style={{ fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Core Skills</div>
-                {["User Interface Design", "Design Systems", "High-Fidelity UI", "UX Research", "Accessibility WCAG", "Wireframing & Prototyping", "Figma · Adobe XD", "AI-Assisted Design"].map(s => (
-                  <div key={s} style={{ fontSize: 7.5, color: "#5B21B6", marginBottom: 3, display: "flex", alignItems: "center", gap: 5 }}>
-                    <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#7C3AED", flexShrink: 0 }} />
-                    {s}
-                  </div>
-                ))}
-
-                <div style={{ marginTop: 10, fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Certification</div>
-                <div style={{ fontSize: 8, color: "#5B21B6", fontWeight: 600 }}>Certified Usability Analyst</div>
-                <div style={{ fontSize: 7.5, color: "#6D28D9" }}>HFI · 2020</div>
-              </div>
-
-              {/* Main content */}
-              <div style={{ flex: 1, padding: "16px 20px" }}>
-
-                {/* Summary */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: "#4C1D95", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1.5px solid #7C3AED", paddingBottom: 3, marginBottom: 6 }}>Summary</div>
-                  <div style={{ fontSize: 9, color: "#374151", lineHeight: 1.6 }}>Senior Product Designer (UX/UI) with 10+ years of experience in SaaS and enterprise products, focused on high-quality UI, scalable design systems, and AI-driven design solutions.</div>
-                </div>
-
-                {/* Experience */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: "#4C1D95", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1.5px solid #7C3AED", paddingBottom: 3, marginBottom: 6 }}>Experience</div>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#1F2937" }}>Senior UI/UX/Product Designer</div>
-                      <div style={{ fontSize: 8, color: "#9CA3AF" }}>2019 – 2025</div>
-                    </div>
-                    <div style={{ fontSize: 8.5, color: "#7C3AED", fontWeight: 600, marginBottom: 3 }}>Birlasoft Limited · Noida, India</div>
-                    <div style={{ fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>
-                      <div style={{ marginBottom: 2 }}>• <strong>CMDS Claims:</strong> WCAG-compliant design system powering 700+ screens, reducing UI support tickets by 67%</div>
-                      <div style={{ marginBottom: 2 }}>• <strong>MailWave Cloud:</strong> SaaS email marketing platform UX, boosting user engagement by 35%</div>
-                      <div>• <strong>Hotel Hub (United Airlines):</strong> UX flows reducing gate agent workload by 60%</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#1F2937" }}>Senior UI/Product Designer</div>
-                      <div style={{ fontSize: 8, color: "#9CA3AF" }}>2018 – 2019</div>
-                    </div>
-                    <div style={{ fontSize: 8.5, color: "#7C3AED", fontWeight: 600 }}>Conduent Business Services · Noida, India</div>
-                  </div>
-                </div>
-
-                {/* Projects */}
-                <div>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: "#4C1D95", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1.5px solid #7C3AED", paddingBottom: 3, marginBottom: 6 }}>Portfolio Projects</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    {[
-                      { name: "CMDS Claims Healthcare", tag: "Healthcare · Payments", url: "behance.net/ravijuneja4b4d" },
-                      { name: "MailWave Cloud SaaS", tag: "Email Marketing SaaS", url: "behance.net/ravijuneja4b4d" },
-                    ].map(p => (
-                      <div key={p.name} style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 6, padding: "7px 9px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: "#4C1D95" }}>{p.name}</div>
-                        <div style={{ fontSize: 7.5, color: "#7C3AED", marginTop: 1 }}>{p.tag}</div>
-                        <div style={{ fontSize: 7.5, color: "#9333EA", marginTop: 3 }}>🔗 {p.url}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div style={{ borderTop: "1px solid #E9D5FF", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FAFAFF" }}>
-              <div style={{ fontSize: 11, color: "#6D28D9" }}>
-                ✦ Built with <strong>ResumeAI</strong> · Axiom Premium Template
-              </div>
-              <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); setPage(PAGES.REGISTER); }}>
-                Build Your Resume Like This <Icon.ArrowRight />
+          {/* Filter tabs */}
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 40 }}>
+            {filters.map(f => (
+              <button key={f} onClick={() => setHomeFilter(f)}
+                style={{ padding: "8px 20px", borderRadius: 99, border: homeFilter === f ? "none" : "1.5px solid var(--c-border)", background: homeFilter === f ? "var(--c-accent)" : "var(--c-surface)", color: homeFilter === f ? "#fff" : "var(--c-text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "all 0.15s", textTransform: "capitalize" }}>
+                {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
-            </div>
+            ))}
+          </div>
+
+          {/* Uniform template grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
+            {filtered.map(t => {
+              const MiniPreview = MINI_PREVIEWS[t.id];
+              const isPremiumTemplate = !FREE_TEMPLATES.includes(t.id);
+              return (
+                <div key={t.id} className="card-hover" onClick={() => { setPage(PAGES.REGISTER); }}
+                  style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease", position: "relative" }}>
+                  <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
+                    <div style={{ height: "100%" }}>
+                      {MiniPreview && (t.photo ? <MiniPreview photo={DUMMY_AVATAR} /> : <MiniPreview />)}
+                    </div>
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" || t.bg === "#0C0C0C" || t.bg === "#0F0F23" || t.bg === "#0C0A09" ? "#0F172A" : "#ffffff"})`, pointerEvents: "none" }} />
+                    {isPremiumTemplate && (
+                      <div style={{ position: "absolute", top: 10, left: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ padding: "12px 14px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div className="font-display" style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.name}</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
+                        {t.photo
+                          ? <span style={{ background: "#FDF4FF", color: "#9333EA", border: "1px solid #E9D5FF", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>📸 Photo</span>
+                          : <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>}
+                      </div>
+                    </div>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div style={{ textAlign: "center", marginTop: 48 }}>
@@ -2228,11 +2099,13 @@ function HomePage({ setPage }) {
               <Icon.Sparkles /> Start Building Free
             </button>
             <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)}>
-              View All Templates
+              View All Templates <Icon.ArrowRight />
             </button>
           </div>
         </div>
       </section>
+        );
+      })()}
 
       {/* Testimonials */}
       <section style={{ padding: "80px 0" }}>
