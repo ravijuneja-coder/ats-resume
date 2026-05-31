@@ -64,7 +64,7 @@ const SAMPLE_RESUME = {
   ],
   skills: ["TypeScript", "Go", "Python", "React", "Node.js", "PostgreSQL", "Redis", "Kafka", "Kubernetes", "AWS", "System Design", "CI/CD"],
   certifications: [{ id: 1, name: "AWS Solutions Architect", issuer: "Amazon", year: "2022" }],
-  projects: [{ id: 1, name: "OpenTelemetry Contrib", desc: "Contributor to CNCF project with 3k+ GitHub stars, added Go SDK instrumentation" }],
+  projects: [{ id: 1, name: "OpenTelemetry Contrib", url: "github.com/open-telemetry/opentelemetry-go", desc: "Contributor to CNCF project with 3k+ GitHub stars, added Go SDK instrumentation" }],
 };
 
 const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription" };
@@ -889,6 +889,31 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
               {p.desc && <p style={{ margin: "2px 0", color: muted }}>{p.desc}</p>}
             </div>
           ))}
+        </div>
+      )}
+      {(r.personal?.website || r.personal?.linkedin || r.personal?.github) && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={sh}>Portfolio & Links</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {r.personal.website && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 9, color: muted }}>🌐</span>
+                <span style={{ color: accent, fontSize: 10 }}>{r.personal.website}</span>
+              </div>
+            )}
+            {r.personal.linkedin && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 9, color: muted }}>in</span>
+                <span style={{ color: accent, fontSize: 10 }}>{r.personal.linkedin}</span>
+              </div>
+            )}
+            {r.personal.github && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 9, color: muted }}>⌥</span>
+                <span style={{ color: accent, fontSize: 10 }}>{r.personal.github}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </>
@@ -4174,11 +4199,11 @@ function PricingPage({ setPage, user, onUpgrade, onDowngrade, onStripeCheckout }
 const BLANK_RESUME = {
   personal: { name: "", title: "", email: "", phone: "", location: "", linkedin: "", github: "", website: "", photo: null },
   summary: "",
-  experience: [],
-  education: [],
+  experience: [{ id: 1, company: "", role: "", start: "", end: "", location: "", bullets: [""] }],
+  education: [{ id: 1, school: "", degree: "", year: "", gpa: "" }],
   skills: [],
-  certifications: [],
-  projects: [],
+  certifications: [{ id: 1, name: "", issuer: "", year: "" }],
+  projects: [{ id: 1, name: "", desc: "", start: "", end: "", url: "" }],
 };
 
 // ─── PLAN SYSTEM ──────────────────────────────────────────────────────────────
