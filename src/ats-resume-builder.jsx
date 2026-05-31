@@ -4170,6 +4170,92 @@ function MiniLens({ photo } = {}) {
   );
 }
 
+// ── MiniRaviAxiom: Axiom style using RAVI_RESUME data (real resume showcase) ──
+function MiniRaviAxiom() {
+  const RV = RAVI_RESUME;
+  const accent = "#7C3AED"; const sideText = "#EDE9FE"; const sideBg = "#4C1D95";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex" }}>
+      <div style={{ width: "34%", background: sideBg, padding: "14px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 12, margin: "0 auto 2px" }}>RJ</div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{RV.personal.name}</div>
+          <div style={{ fontSize: 6, color: "#C4B5FD", marginTop: 2, lineHeight: 1.3 }}>AI-Driven Product Designer</div>
+        </div>
+        <div style={{ borderTop: "1px solid #5B21B6", paddingTop: 7 }}>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Contact</div>
+          {[{ icon: "📞", val: RV.personal.phone }, { icon: "✉", val: RV.personal.email }, { icon: "📍", val: RV.personal.location }].map((c, i) => (
+            <div key={i} style={{ fontSize: 6, color: sideText, marginBottom: 3, wordBreak: "break-all" }}>{c.icon} {c.val}</div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Portfolio</div>
+          <div style={{ fontSize: 6, color: sideText, marginBottom: 2 }}>🌐 {RV.personal.website}</div>
+          <div style={{ fontSize: 6, color: sideText }}>in {RV.personal.linkedin}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Skills</div>
+          {RV.skills.slice(0, 7).map((sk, i) => (
+            <div key={i} style={{ fontSize: 6, color: sideText, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ flex: 1, height: 3, background: "#5B21B6", borderRadius: 2 }}>
+                <div style={{ height: "100%", background: "#A78BFA", borderRadius: 2, width: `${75 + (i % 3) * 8}%` }} />
+              </div>
+              {sk.split(" ").slice(0, 2).join(" ")}
+            </div>
+          ))}
+        </div>
+        <div>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Certification</div>
+          <div style={{ fontSize: 6, color: sideText, lineHeight: 1.4 }}>
+            <div style={{ fontWeight: 700 }}>CUA</div>
+            <div style={{ color: "#C4B5FD" }}>HFI · 2020</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ flex: 1, padding: "14px 12px", display: "flex", flexDirection: "column", gap: 7 }}>
+        <SectionBlock label="Profile" accent={accent}>
+          <div style={{ fontSize: 7, color: "#4B5563", lineHeight: 1.6 }}>{RV.summary.slice(0, 150)}…</div>
+        </SectionBlock>
+        <SectionBlock label="Experience" accent={accent}>
+          {RV.experience.slice(0, 2).map(exp => (
+            <div key={exp.id} style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 700, fontSize: 7, color: "#111827" }}>{exp.role.slice(0, 30)}</span>
+                <span style={{ fontSize: 6, color: "#9CA3AF" }}>{exp.start}–{exp.end}</span>
+              </div>
+              <div style={{ fontSize: 6.5, color: accent, fontWeight: 600, marginBottom: 2 }}>{exp.company}</div>
+              {exp.bullets.slice(0, 1).map((b, i) => (
+                <div key={i} style={{ fontSize: 6, color: "#6B7280", paddingLeft: 6, position: "relative" }}>
+                  <span style={{ position: "absolute", left: 1, color: accent }}>•</span>{b.slice(0, 65)}…
+                </div>
+              ))}
+            </div>
+          ))}
+        </SectionBlock>
+        <SectionBlock label="Certifications" accent={accent}>
+          {RV.certifications.map(c => (
+            <div key={c.id} style={{ fontSize: 7, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontWeight: 600 }}>{c.name}</span>
+              <span style={{ color: "#9CA3AF" }}>{c.issuer} · {c.year}</span>
+            </div>
+          ))}
+        </SectionBlock>
+        <SectionBlock label="Projects" accent={accent}>
+          {RV.projects.slice(0, 1).map(p => (
+            <div key={p.id}>
+              <div style={{ fontWeight: 700, fontSize: 7, color: "#111827" }}>{p.name}</div>
+              {p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}
+            </div>
+          ))}
+        </SectionBlock>
+        <SectionBlock label="Portfolio & Links" accent={accent}>
+          <div style={{ fontSize: 6, color: "#6B7280" }}>🌐 {RV.personal.website} · in {RV.personal.linkedin}</div>
+        </SectionBlock>
+      </div>
+    </div>
+  );
+}
+
 const MINI_PREVIEWS = {
   apex: MiniApex, clarity: MiniClarity, axiom: MiniAxiom, nova: MiniNova,
   echo: MiniEcho, form: MiniForm,
@@ -4322,119 +4408,72 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
           })}
         </div>
 
-        {/* ── Featured Real Resume Card ── */}
-        <div style={{ marginTop: 48 }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div className="badge badge-blue" style={{ fontSize: 12, marginBottom: 10 }}>✦ Real Resume Built with ResumeAI</div>
-            <h2 className="font-display" style={{ fontSize: "clamp(22px, 3vw, 36px)", fontWeight: 800, margin: "0 0 8px" }}>See what a real resume looks like</h2>
-            <p className="app-text2" style={{ fontSize: 15, maxWidth: 480, margin: "0 auto" }}>Built by a Senior UX/UI Designer with 10+ years of experience using the Axiom Premium template.</p>
+        {/* ── Featured Real Resume — same card format as all other templates ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24, marginTop: 0 }}>
+          <div
+            onMouseEnter={() => setHovered("ravi")}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => setSelected("ravi")}
+            style={{
+              borderRadius: 14, overflow: "hidden", cursor: "pointer",
+              border: selected === "ravi" ? "2.5px solid var(--c-accent)" : hovered === "ravi" ? "2px solid #7C3AED" : "2px solid var(--c-border)",
+              boxShadow: selected === "ravi"
+                ? "0 0 0 3px var(--c-glow), 0 20px 48px var(--c-shadow)"
+                : hovered === "ravi" ? "0 12px 36px var(--c-shadow)" : "0 2px 8px var(--c-shadow)",
+              transform: hovered === "ravi" && selected !== "ravi" ? "translateY(-3px)" : "translateY(0)",
+              transition: "all 0.2s ease",
+              position: "relative",
+            }}>
+            <div style={{ height: 340, overflow: "hidden", position: "relative" }}>
+              <div style={{ transform: "scale(1)", transformOrigin: "top left", height: "100%" }}>
+                <MiniRaviAxiom />
+              </div>
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 60%, #ffffff)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", top: 10, left: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
+              </div>
+              <div style={{ position: "absolute", top: 10, right: 10, background: "#EDE9FE", border: "1px solid #7C3AED", borderRadius: 99, padding: "3px 9px" }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#7C3AED" }}>✦ Real Resume</span>
+              </div>
+              {selected === "ravi" && (
+                <div style={{ position: "absolute", top: 12, right: 12, width: 26, height: 26, borderRadius: "50%", background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 2px 8px rgba(26,86,219,0.4)" }}>
+                  <Icon.Check size="3" />
+                </div>
+              )}
+            </div>
+            <div style={{ padding: "14px 16px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Axiom · Real Resume</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
+                  <span style={{ background: "#F5F3FF", color: "#7C3AED", border: "1px solid #DDD6FE", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>Corporate</span>
+                </div>
+              </div>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#7C3AED", flexShrink: 0 }} />
+            </div>
           </div>
+        </div>
 
-          <div style={{ borderRadius: 20, overflow: "hidden", border: "2px solid #E0E7FF", boxShadow: "0 12px 48px rgba(99,102,241,0.13)", background: "var(--c-surface)", cursor: "pointer" }}
-            className="card-hover" onClick={() => { onSelectTemplate?.("axiom"); setPage(PAGES.BUILDER); }}>
-
-            {/* Header */}
-            <div style={{ background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 99, padding: "4px 12px" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>✦ Real Resume · Axiom Premium Template</span>
-                </div>
-                <span style={{ background: "#065F46", color: "#34D399", border: "1px solid #34D399", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>ATS ✓ Passed</span>
+        {/* CTA bar — fixed at bottom, appears only after user picks a template */}
+        {selected === "ravi" && (
+          <div className="fade-in" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", boxShadow: "0 -4px 24px var(--c-shadow)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 40, height: 48, borderRadius: 6, overflow: "hidden", border: "1px solid var(--c-border)", flexShrink: 0 }}>
+                <div style={{ transform: "scale(0.13)", transformOrigin: "top left", width: "770%", height: "770%", pointerEvents: "none" }}><MiniRaviAxiom /></div>
               </div>
-              <button className="btn btn-sm" style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", fontSize: 12 }}
-                onClick={e => { e.stopPropagation(); onSelectTemplate?.("axiom"); setPage(PAGES.BUILDER); }}>
-                Use Axiom Template <Icon.ArrowRight />
-              </button>
-            </div>
-
-            <div style={{ display: "flex" }}>
-              {/* Left sidebar */}
-              <div style={{ width: 200, background: "#F5F3FF", borderRight: "1px solid #E9D5FF", padding: "16px 14px", flexShrink: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#4C1D95", fontFamily: "var(--font-display)", marginBottom: 2 }}>Ravi Juneja</div>
-                <div style={{ fontSize: 9, color: "#7C3AED", fontWeight: 600, marginBottom: 10, lineHeight: 1.4 }}>AI-Driven Product Designer | UX/UI | Design Systems</div>
-                <div style={{ fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Contact</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 2 }}>📞 +971-55-1408813</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 2 }}>✉ junejauxd@gmail.com</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 10 }}>📍 Dubai, UAE</div>
-                <div style={{ fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Portfolio</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 2 }}>🌐 behance.net/ravijuneja4b4d</div>
-                <div style={{ fontSize: 8, color: "#6D28D9", marginBottom: 10 }}>in linkedin.com/in/ravi-juneja</div>
-                <div style={{ fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Core Skills</div>
-                {["User Interface Design", "Design Systems", "High-Fidelity UI", "UX Research", "Accessibility WCAG", "Wireframing & Prototyping", "Figma · Adobe XD", "AI-Assisted Design"].map(s => (
-                  <div key={s} style={{ fontSize: 7.5, color: "#5B21B6", marginBottom: 3, display: "flex", alignItems: "center", gap: 5 }}>
-                    <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#7C3AED", flexShrink: 0 }} />
-                    {s}
-                  </div>
-                ))}
-                <div style={{ marginTop: 10, fontSize: 8, fontWeight: 700, color: "#7C3AED", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>Certification</div>
-                <div style={{ fontSize: 8, color: "#5B21B6", fontWeight: 600 }}>Certified Usability Analyst</div>
-                <div style={{ fontSize: 7.5, color: "#6D28D9" }}>HFI · 2020</div>
-              </div>
-
-              {/* Main content */}
-              <div style={{ flex: 1, padding: "16px 20px" }}>
-                <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                  {[["67%", "UI Support Ticket Reduction"], ["60%", "Aviation Workflow Optimization"], ["35%", "SaaS Engagement Increase"], ["700+", "Screens via design system"]].map(([stat, label]) => (
-                    <div key={stat} style={{ flex: 1, background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 8, padding: "8px 6px", textAlign: "center" }}>
-                      <div style={{ fontSize: 15, fontWeight: 900, color: "#4C1D95", fontFamily: "var(--font-display)" }}>{stat}</div>
-                      <div style={{ fontSize: 7.5, color: "#7C3AED", lineHeight: 1.3 }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: "#4C1D95", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1.5px solid #7C3AED", paddingBottom: 3, marginBottom: 6 }}>Summary</div>
-                  <div style={{ fontSize: 9, color: "#374151", lineHeight: 1.6 }}>Senior Product Designer (UX/UI) with 10+ years of experience in SaaS and enterprise products, focused on high-quality UI, scalable design systems, and AI-driven design solutions.</div>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: "#4C1D95", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1.5px solid #7C3AED", paddingBottom: 3, marginBottom: 6 }}>Experience</div>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#1F2937" }}>Senior UI/UX/Product Designer</div>
-                      <div style={{ fontSize: 8, color: "#9CA3AF" }}>2019 – 2025</div>
-                    </div>
-                    <div style={{ fontSize: 8.5, color: "#7C3AED", fontWeight: 600, marginBottom: 3 }}>Birlasoft Limited · Noida, India</div>
-                    <div style={{ fontSize: 8, color: "#4B5563", lineHeight: 1.5 }}>
-                      <div style={{ marginBottom: 2 }}>• <strong>CMDS Claims:</strong> WCAG-compliant design system, 700+ screens, 67% fewer UI support tickets</div>
-                      <div style={{ marginBottom: 2 }}>• <strong>MailWave Cloud:</strong> SaaS email marketing platform UX, +35% user engagement</div>
-                      <div>• <strong>Hotel Hub (United Airlines):</strong> Gate agent UX, −60% workload</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#1F2937" }}>Senior UI/Product Designer</div>
-                      <div style={{ fontSize: 8, color: "#9CA3AF" }}>2018 – 2019</div>
-                    </div>
-                    <div style={{ fontSize: 8.5, color: "#7C3AED", fontWeight: 600 }}>Conduent Business Services · Noida, India</div>
-                    <div style={{ fontSize: 8, color: "#4B5563", marginTop: 3 }}>• Electronic Payment Card fintech UI — issuance, validation, payments & dashboards</div>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: "#4C1D95", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "1.5px solid #7C3AED", paddingBottom: 3, marginBottom: 6 }}>Portfolio Projects</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    {[
-                      { name: "CMDS Claims – Healthcare Design System", tag: "Healthcare · Payments", url: "behance.net/ravijuneja4b4d" },
-                      { name: "MailWave Cloud – Email Marketing SaaS", tag: "Email Marketing SaaS", url: "behance.net/ravijuneja4b4d" },
-                    ].map(p => (
-                      <div key={p.name} style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 6, padding: "7px 9px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: "#4C1D95" }}>{p.name}</div>
-                        <div style={{ fontSize: 7.5, color: "#7C3AED", marginTop: 1 }}>{p.tag}</div>
-                        <div style={{ fontSize: 7.5, color: "#9333EA", marginTop: 3 }}>🔗 {p.url}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div>
+                <div className="font-display" style={{ fontWeight: 800, fontSize: 17 }}>Axiom template selected</div>
+                <div className="app-text2" style={{ fontSize: 13 }}>ATS-safe · Corporate · Fully editable</div>
               </div>
             </div>
-
-            <div style={{ borderTop: "1px solid #E9D5FF", padding: "10px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FAFAFF" }}>
-              <div style={{ fontSize: 11, color: "#6D28D9" }}>✦ Built with <strong>ResumeAI</strong> · Axiom Premium Template · Available for Premium users</div>
-              <button className="btn btn-primary btn-sm"
-                onClick={e => { e.stopPropagation(); onSelectTemplate?.("axiom"); setPage(PAGES.BUILDER); }}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn btn-secondary btn-lg" onClick={() => setSelected("")}>Change</button>
+              <button className="btn btn-primary btn-lg" onClick={() => { onSelectTemplate?.("axiom"); setPage(PAGES.BUILDER); }}>
                 Use This Template <Icon.ArrowRight />
               </button>
             </div>
           </div>
-        </div>
+        )}
 
         {/* CTA bar — fixed at bottom, appears only after user picks a template */}
         {selected && (
