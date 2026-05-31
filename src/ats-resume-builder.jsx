@@ -2029,10 +2029,10 @@ function HomePage({ setPage }) {
                 <Icon.LayoutTemplate /> 19 professional templates
               </div>
               <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 10px", lineHeight: 1.1 }}>
-                Recruiter-approved designs
+                Pick your perfect resume
               </h2>
               <p className="app-text2" style={{ fontSize: 16, margin: 0 }}>
-                ATS-safe, beautiful, and fully customizable.
+                Every template is ATS-optimized, recruiter-approved, and fully customizable.
               </p>
             </div>
             <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)}>
