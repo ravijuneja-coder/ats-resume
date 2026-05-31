@@ -2086,7 +2086,7 @@ function HomePage({ setPage }) {
                     </div>
                     <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" || t.bg === "#0C0C0C" || t.bg === "#0F0F23" || t.bg === "#0C0A09" ? "#0F172A" : "#ffffff"})`, pointerEvents: "none" }} />
                     {isPremiumTemplate && (
-                      <div style={{ position: "absolute", top: 10, left: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
+                      <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
                         <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
                       </div>
                     )}
@@ -5047,7 +5047,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                   }} />
                   {isPremiumTemplate && (
                     <div style={{
-                      position: "absolute", top: 10, left: 10,
+                      position: "absolute", top: 10, right: 10,
                       background: "linear-gradient(135deg,#F59E0B,#D97706)",
                       borderRadius: 99, padding: "3px 9px",
                       display: "flex", alignItems: "center", gap: 4,
@@ -5058,7 +5058,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                   )}
                   {isSelected && (
                     <div style={{
-                      position: "absolute", top: 12, right: 12,
+                      position: "absolute", top: 12, left: 12,
                       width: 26, height: 26, borderRadius: "50%",
                       background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center",
                       color: "#fff", boxShadow: "0 2px 8px rgba(26,86,219,0.4)",
