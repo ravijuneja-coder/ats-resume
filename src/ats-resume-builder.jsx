@@ -2508,16 +2508,17 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
         {/* ── Color Customizer ── */}
         {(() => {
           const tplAccent = TEMPLATES.find(t => t.id === template)?.accent || "#1A86D0";
+          const hasHeaderBand = ["echo","flow","summit","bloom","vista","lens","axiom","portrait","prism"].includes(template);
           const anyCustom = customAccent || customBg || customText || customHeaderBg || customMuted;
           const colorRows = [
             {
               label: "Accent", value: customAccent, set: setCustomAccent, def: tplAccent,
               presets: ["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"],
             },
-            {
+            ...(hasHeaderBand ? [{
               label: "Header BG", value: customHeaderBg, set: setCustomHeaderBg, def: tplAccent,
               presets: ["#1D4ED8","#7C3AED","#0D9488","#DC2626","#EA580C","#EC4899","#059669","#0891B2","#111827","#4C1D95","#9333EA","#B45309"],
-            },
+            }] : []),
             {
               label: "Background", value: customBg, set: setCustomBg, def: "#FFFFFF",
               presets: ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#0F172A","#111827","#1C1917","#0C0A09"],
