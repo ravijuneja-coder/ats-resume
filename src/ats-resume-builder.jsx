@@ -4406,10 +4406,8 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
               </div>
             );
           })}
-        </div>
 
-        {/* ── Featured Real Resume — same card format as all other templates ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24, marginTop: 0 }}>
+          {/* ── Ravi's Real Resume — inside the same grid as all other cards ── */}
           <div
             onMouseEnter={() => setHovered("ravi")}
             onMouseLeave={() => setHovered(null)}
