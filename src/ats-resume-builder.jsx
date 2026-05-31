@@ -4172,15 +4172,15 @@ function MiniLens({ photo } = {}) {
 
 // ── MiniRaviAxiom: Axiom style using RAVI_RESUME data (real resume showcase) ──
 function MiniRaviAxiom() {
-  const RV = RAVI_RESUME;
+  const RV = R;
   const accent = "#7C3AED"; const sideText = "#EDE9FE"; const sideBg = "#4C1D95";
   return (
     <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex" }}>
       <div style={{ width: "34%", background: sideBg, padding: "14px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ width: 34, height: 34, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 12, margin: "0 auto 2px" }}>RJ</div>
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 12, margin: "0 auto 2px" }}>{RV.personal.name.split(" ").map(n => n[0]).join("")}</div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{RV.personal.name}</div>
-          <div style={{ fontSize: 6, color: "#C4B5FD", marginTop: 2, lineHeight: 1.3 }}>AI-Driven Product Designer</div>
+          <div style={{ fontSize: 6, color: "#C4B5FD", marginTop: 2, lineHeight: 1.3 }}>{RV.personal.title}</div>
         </div>
         <div style={{ borderTop: "1px solid #5B21B6", paddingTop: 7 }}>
           <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Contact</div>
