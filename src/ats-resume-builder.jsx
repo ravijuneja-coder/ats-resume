@@ -1022,6 +1022,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
     r.personal.location && `📍 ${r.personal.location}`,
     r.personal.linkedin && `in ${r.personal.linkedin}`,
     r.personal.github && `⚡ ${r.personal.github}`,
+    r.personal.website && `🌐 ${r.personal.website}`,
   ].filter(Boolean);
 
   // ── SIDEBAR TEMPLATES (two-column) ──────────────────────────────────────────
