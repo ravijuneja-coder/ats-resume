@@ -4173,84 +4173,94 @@ function MiniLens({ photo } = {}) {
 // ── MiniRaviAxiom: Axiom style using RAVI_RESUME data (real resume showcase) ──
 function MiniRaviAxiom() {
   const RV = R;
-  const accent = "#7C3AED"; const sideText = "#EDE9FE"; const sideBg = "#4C1D95";
+  const accent = "#1A1A1A"; const sideText = "#374151"; const sideBg = "#F3F4F6"; const label = "#6B7280";
   return (
     <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFFFF", fontSize: 7.5, lineHeight: 1.45, height: "100%", display: "flex" }}>
-      <div style={{ width: "34%", background: sideBg, padding: "14px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ width: 34, height: 34, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 12, margin: "0 auto 2px" }}>{RV.personal.name.split(" ").map(n => n[0]).join("")}</div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 8, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{RV.personal.name}</div>
-          <div style={{ fontSize: 6, color: "#C4B5FD", marginTop: 2, lineHeight: 1.3 }}>{RV.personal.title}</div>
+      {/* Left sidebar — light gray, clean */}
+      <div style={{ width: "34%", background: sideBg, padding: "14px 10px", display: "flex", flexDirection: "column", gap: 8, borderRight: "1px solid #E5E7EB" }}>
+        <div style={{ textAlign: "center", marginBottom: 2 }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: "#111827", lineHeight: 1.2, fontFamily: "var(--font-display)" }}>{RV.personal.name}</div>
+          <div style={{ fontSize: 5.5, color: "#6B7280", marginTop: 2, lineHeight: 1.3 }}>{RV.personal.title}</div>
         </div>
-        <div style={{ borderTop: "1px solid #5B21B6", paddingTop: 7 }}>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Contact</div>
-          {[{ icon: "📞", val: RV.personal.phone }, { icon: "✉", val: RV.personal.email }, { icon: "📍", val: RV.personal.location }].map((c, i) => (
-            <div key={i} style={{ fontSize: 6, color: sideText, marginBottom: 3, wordBreak: "break-all" }}>{c.icon} {c.val}</div>
+        <div style={{ height: 1, background: "#D1D5DB" }} />
+        <div>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Contact</div>
+          {[{ icon: "☎", val: RV.personal.phone }, { icon: "✉", val: RV.personal.email }, { icon: "⊙", val: RV.personal.location }].map((c, i) => (
+            <div key={i} style={{ fontSize: 5.5, color: sideText, marginBottom: 3, wordBreak: "break-all" }}>{c.icon} {c.val}</div>
           ))}
         </div>
         <div>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Portfolio</div>
-          <div style={{ fontSize: 6, color: sideText, marginBottom: 2 }}>🌐 {RV.personal.website}</div>
-          <div style={{ fontSize: 6, color: sideText }}>in {RV.personal.linkedin}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Skills</div>
-          {RV.skills.slice(0, 7).map((sk, i) => (
-            <div key={i} style={{ fontSize: 6, color: sideText, marginBottom: 3, display: "flex", alignItems: "center", gap: 4 }}>
-              <div style={{ flex: 1, height: 3, background: "#5B21B6", borderRadius: 2 }}>
-                <div style={{ height: "100%", background: "#A78BFA", borderRadius: 2, width: `${75 + (i % 3) * 8}%` }} />
-              </div>
-              {sk.split(" ").slice(0, 2).join(" ")}
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Skills</div>
+          {RV.skills.slice(0, 8).map((sk, i) => (
+            <div key={i} style={{ fontSize: 5.5, color: sideText, marginBottom: 2.5, display: "flex", alignItems: "center", gap: 3 }}>
+              <span style={{ color: "#9CA3AF" }}>•</span> {sk.split(" ").slice(0, 3).join(" ")}
             </div>
           ))}
         </div>
+        <div style={{ height: 1, background: "#D1D5DB" }} />
         <div>
-          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#A78BFA", marginBottom: 4 }}>Certification</div>
-          <div style={{ fontSize: 6, color: sideText, lineHeight: 1.4 }}>
-            <div style={{ fontWeight: 700 }}>CUA</div>
-            <div style={{ color: "#C4B5FD" }}>HFI · 2020</div>
-          </div>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Certification</div>
+          <div style={{ fontSize: 5.5, color: sideText, fontWeight: 600 }}>{RV.certifications[0]?.name}</div>
+          <div style={{ fontSize: 5.5, color: label }}>{RV.certifications[0]?.issuer} · {RV.certifications[0]?.year}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: accent, marginBottom: 4 }}>Portfolio</div>
+          <div style={{ fontSize: 5.5, color: "#2563EB", marginBottom: 2 }}>🌐 {RV.personal.website}</div>
+          <div style={{ fontSize: 5.5, color: "#2563EB" }}>in {RV.personal.linkedin}</div>
         </div>
       </div>
-      <div style={{ flex: 1, padding: "14px 12px", display: "flex", flexDirection: "column", gap: 7 }}>
-        <SectionBlock label="Profile" accent={accent}>
-          <div style={{ fontSize: 7, color: "#4B5563", lineHeight: 1.6 }}>{RV.summary.slice(0, 150)}…</div>
-        </SectionBlock>
-        <SectionBlock label="Experience" accent={accent}>
+
+      {/* Right content — white, clean black headers */}
+      <div style={{ flex: 1, padding: "14px 12px", display: "flex", flexDirection: "column", gap: 0 }}>
+        {/* Summary */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Summary</div>
+          <div style={{ fontSize: 6.5, color: "#4B5563", lineHeight: 1.6 }}>{RV.summary.slice(0, 150)}…</div>
+        </div>
+        {/* Experience */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Experience</div>
           {RV.experience.slice(0, 2).map(exp => (
             <div key={exp.id} style={{ marginBottom: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: 700, fontSize: 7, color: "#111827" }}>{exp.role.slice(0, 30)}</span>
+                <span style={{ fontWeight: 700, fontSize: 7, color: "#111827" }}>{exp.role.slice(0, 28)}</span>
                 <span style={{ fontSize: 6, color: "#9CA3AF" }}>{exp.start}–{exp.end}</span>
               </div>
-              <div style={{ fontSize: 6.5, color: accent, fontWeight: 600, marginBottom: 2 }}>{exp.company}</div>
+              <div style={{ fontSize: 6, color: "#374151", fontWeight: 500, marginBottom: 2 }}>{exp.company}</div>
               {exp.bullets.slice(0, 1).map((b, i) => (
-                <div key={i} style={{ fontSize: 6, color: "#6B7280", paddingLeft: 6, position: "relative" }}>
-                  <span style={{ position: "absolute", left: 1, color: accent }}>•</span>{b.slice(0, 65)}…
+                <div key={i} style={{ fontSize: 6, color: "#6B7280", paddingLeft: 7, position: "relative" }}>
+                  <span style={{ position: "absolute", left: 1 }}>•</span>{b.slice(0, 65)}…
                 </div>
               ))}
             </div>
           ))}
-        </SectionBlock>
-        <SectionBlock label="Certifications" accent={accent}>
+        </div>
+        {/* Certifications */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Certifications</div>
           {RV.certifications.map(c => (
-            <div key={c.id} style={{ fontSize: 7, display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontWeight: 600 }}>{c.name}</span>
+            <div key={c.id} style={{ fontSize: 6.5, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontWeight: 600, color: "#111827" }}>{c.name}</span>
               <span style={{ color: "#9CA3AF" }}>{c.issuer} · {c.year}</span>
             </div>
           ))}
-        </SectionBlock>
-        <SectionBlock label="Projects" accent={accent}>
+        </div>
+        {/* Projects */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Projects</div>
           {RV.projects.slice(0, 1).map(p => (
             <div key={p.id}>
-              <div style={{ fontWeight: 700, fontSize: 7, color: "#111827" }}>{p.name}</div>
-              {p.url && <div style={{ fontSize: 6, color: accent }}>{p.url}</div>}
+              <div style={{ fontWeight: 700, fontSize: 6.5, color: "#111827" }}>{p.name}</div>
+              {p.url && <div style={{ fontSize: 6, color: "#2563EB" }}>{p.url}</div>}
             </div>
           ))}
-        </SectionBlock>
-        <SectionBlock label="Portfolio & Links" accent={accent}>
-          <div style={{ fontSize: 6, color: "#6B7280" }}>🌐 {RV.personal.website} · in {RV.personal.linkedin}</div>
-        </SectionBlock>
+        </div>
+        {/* Portfolio */}
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 800, color: "#111827", textTransform: "uppercase", letterSpacing: "0.08em", borderBottom: "2px solid #111827", paddingBottom: 2, marginBottom: 5 }}>Portfolio & Links</div>
+          <div style={{ fontSize: 6, color: "#2563EB" }}>🌐 {RV.personal.website}</div>
+          <div style={{ fontSize: 6, color: "#2563EB" }}>in {RV.personal.linkedin}</div>
+        </div>
       </div>
     </div>
   );
