@@ -5468,7 +5468,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
 
 // ─── COVER LETTER PREVIEW ────────────────────────────────────────────────────
 
-function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic", customAccent = "", customBg = "", customText = "", customMuted = "", customNameColor = "" }) {
+function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic", customAccent = "", customBg = "", customText = "", customMuted = "", customNameColor = "", hiddenFields = new Set() }) {
   const name = personal.name || "Your Name";
   const pTitle = personal.title || "Professional Title";
   const email = personal.email || "";
