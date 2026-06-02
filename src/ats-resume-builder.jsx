@@ -5468,7 +5468,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
 
 // ─── COVER LETTER PREVIEW ────────────────────────────────────────────────────
 
-function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic" }) {
+function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic", customAccent = "", customBg = "", customText = "", customMuted = "", customNameColor = "" }) {
   const name = personal.name || "Your Name";
   const pTitle = personal.title || "Professional Title";
   const email = personal.email || "";
@@ -5487,8 +5487,8 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic" 
   const closing = cl.closing || "";
   const signoff = cl.signoff || "Sincerely,";
 
-  const ph = (text, label) => text
-    ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85 }}>{text}</p>
+  const ph = (text, label, bodyColor) => text
+    ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: bodyColor || "#333" }}>{text}</p>
     : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#ccc", fontStyle: "italic" }}>{label}</p>;
 
   const RecipientBlock = ({ textColor = "#333", mutedColor = "#888" }) => (
@@ -5501,70 +5501,84 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic" 
   );
 
   if (templateId === "cl-modern") {
+    const accent = customAccent || "#1A56DB";
+    const bg = customBg || "#F8FAFF";
+    const textC = customText || "#1F2937";
+    const mutedC = customMuted || "#6B7280";
+    const nameC = customNameColor || "#fff";
     return (
       <div style={{ minHeight: 700, fontFamily: "'Poppins',sans-serif" }}>
-        <div style={{ background: "linear-gradient(135deg,#1A56DB,#0EA5E9)", padding: "32px 44px 28px" }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>{name}</div>
-          <div style={{ fontSize: 13, color: "#BAE6FD", marginTop: 5 }}>{pTitle}</div>
+        <div style={{ background: `linear-gradient(135deg,${accent},${accent}cc)`, padding: "32px 44px 28px" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: nameC }}>{name}</div>
+          <div style={{ fontSize: 13, color: `${nameC}bb`, marginTop: 5 }}>{pTitle}</div>
           <div style={{ display: "flex", gap: 18, marginTop: 10, flexWrap: "wrap" }}>
-            {[email, phone, loc].filter(Boolean).map((v, i) => <span key={i} style={{ fontSize: 11, color: "#E0F2FE" }}>{v}</span>)}
+            {[email, phone, loc].filter(Boolean).map((v, i) => <span key={i} style={{ fontSize: 11, color: `${nameC}99` }}>{v}</span>)}
           </div>
         </div>
-        <div style={{ background: "#F8FAFF", padding: "32px 44px", minHeight: 500, color: "#1F2937" }}>
-          <RecipientBlock textColor="#1F2937" mutedColor="#6B7280" />
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 18, color: "#1A56DB" }}>{salutation}</div>
-          {ph(opening, "Your opening paragraph will appear here…")}
-          {ph(body, "Your main body paragraph will appear here…")}
-          {ph(closing, "Your closing paragraph will appear here…")}
-          <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>{signoff}</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#1A56DB", marginTop: 24 }}>{name}</div>
-          <div style={{ borderTop: "1px solid #DBEAFE", marginTop: 24, paddingTop: 14, fontSize: 11, color: "#94A3B8" }}>{contacts}</div>
+        <div style={{ background: bg, padding: "32px 44px", minHeight: 500, color: textC }}>
+          <RecipientBlock textColor={textC} mutedColor={mutedC} />
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 18, color: accent }}>{salutation}</div>
+          {ph(opening, "Your opening paragraph will appear here…", textC)}
+          {ph(body, "Your main body paragraph will appear here…", textC)}
+          {ph(closing, "Your closing paragraph will appear here…", textC)}
+          <div style={{ fontSize: 12, color: mutedC, marginTop: 4 }}>{signoff}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 24 }}>{name}</div>
+          <div style={{ borderTop: `1px solid ${accent}33`, marginTop: 24, paddingTop: 14, fontSize: 11, color: mutedC }}>{contacts}</div>
         </div>
       </div>
     );
   }
 
   if (templateId === "cl-minimal") {
+    const bg = customBg || "#FAFAFA";
+    const nameC = customNameColor || "#111";
+    const textC = customText || "#222";
+    const mutedC = customMuted || "#666";
+    const accent = customAccent || "#374151";
     return (
-      <div style={{ background: "#FAFAFA", padding: "48px 56px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: "#222" }}>
+      <div style={{ background: bg, padding: "48px 56px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: textC }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#111", letterSpacing: "-0.02em" }}>{name}</div>
-          {date && <div style={{ fontSize: 11, color: "#aaa" }}>{date}</div>}
+          <div style={{ fontSize: 26, fontWeight: 800, color: nameC, letterSpacing: "-0.02em" }}>{name}</div>
+          {date && <div style={{ fontSize: 11, color: mutedC }}>{date}</div>}
         </div>
-        <div style={{ height: 1, background: "#E5E7EB", marginBottom: 18 }} />
-        <div style={{ fontSize: 11, color: "#666", marginBottom: 28 }}>{contacts}</div>
+        <div style={{ height: 1, background: accent + "44", marginBottom: 18 }} />
+        <div style={{ fontSize: 11, color: mutedC, marginBottom: 28 }}>{contacts}</div>
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 600, fontSize: 11, color: "#111" }}>{recName}{recTitle ? `, ${recTitle}` : ""}</div>
-          {company && <div style={{ fontSize: 11, color: "#888" }}>{company}</div>}
-          {role && <div style={{ fontSize: 11, color: "#888" }}>{role}</div>}
+          <div style={{ fontWeight: 600, fontSize: 11, color: textC }}>{recName}{recTitle ? `, ${recTitle}` : ""}</div>
+          {company && <div style={{ fontSize: 11, color: mutedC }}>{company}</div>}
+          {role && <div style={{ fontSize: 11, color: mutedC }}>{role}</div>}
         </div>
-        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18 }}>{salutation}</div>
-        {ph(opening, "Your opening paragraph will appear here…")}
-        {ph(body, "Your main body paragraph will appear here…")}
-        {ph(closing, "Your closing paragraph will appear here…")}
-        <div style={{ fontSize: 12, color: "#555" }}>{signoff}</div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginTop: 28 }}>{name}</div>
+        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: textC }}>{salutation}</div>
+        {ph(opening, "Your opening paragraph will appear here…", textC)}
+        {ph(body, "Your main body paragraph will appear here…", textC)}
+        {ph(closing, "Your closing paragraph will appear here…", textC)}
+        <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: nameC, marginTop: 28 }}>{name}</div>
       </div>
     );
   }
 
   if (templateId === "cl-creative") {
-    const accent = "#7C3AED";
+    const accent = customAccent || "#7C3AED";
+    const bg = customBg || "#fff";
+    const nameC = customNameColor || "#3B0764";
+    const textC = customText || "#333";
+    const mutedC = customMuted || "#888";
     return (
       <div style={{ minHeight: 700, fontFamily: "'Poppins',sans-serif", display: "flex" }}>
-        <div style={{ width: 36, background: "linear-gradient(180deg,#7C3AED,#A855F7)", flexShrink: 0 }} />
-        <div style={{ flex: 1, padding: "40px 44px", background: "#fff", color: "#333" }}>
-          <div style={{ marginBottom: 24, paddingBottom: 18, borderBottom: "1px solid #EDE9FE" }}>
-            <div style={{ fontSize: 26, fontWeight: 800, color: "#3B0764" }}>{name}</div>
+        <div style={{ width: 36, background: `linear-gradient(180deg,${accent},${accent}aa)`, flexShrink: 0 }} />
+        <div style={{ flex: 1, padding: "40px 44px", background: bg, color: textC }}>
+          <div style={{ marginBottom: 24, paddingBottom: 18, borderBottom: `1px solid ${accent}33` }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: nameC }}>{name}</div>
             <div style={{ fontSize: 12, color: accent, fontWeight: 600, marginTop: 5 }}>{pTitle}</div>
-            <div style={{ fontSize: 11, color: "#888", marginTop: 8 }}>{contacts}</div>
+            <div style={{ fontSize: 11, color: mutedC, marginTop: 8 }}>{contacts}</div>
           </div>
-          <RecipientBlock textColor="#3B0764" mutedColor="#888" />
+          <RecipientBlock textColor={nameC} mutedColor={mutedC} />
           <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 18, color: accent }}>{salutation}</div>
-          {ph(opening, "Your opening paragraph will appear here…")}
-          {ph(body, "Your main body paragraph will appear here…")}
-          {ph(closing, "Your closing paragraph will appear here…")}
-          <div style={{ fontSize: 12, color: "#555" }}>{signoff}</div>
+          {ph(opening, "Your opening paragraph will appear here…", textC)}
+          {ph(body, "Your main body paragraph will appear here…", textC)}
+          {ph(closing, "Your closing paragraph will appear here…", textC)}
+          <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>
           <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 28 }}>{name}</div>
         </div>
       </div>
@@ -5572,46 +5586,51 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic" 
   }
 
   if (templateId === "cl-executive") {
+    const bg = customBg || "#0F172A";
+    const accent = customAccent || "#F59E0B";
+    const nameC = customNameColor || "#fff";
+    const textC = customText || "#CBD5E1";
+    const mutedC = customMuted || "#64748B";
+    const bodyC = customText || "#94A3B8";
     return (
-      <div style={{ background: "#0F172A", padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif" }}>
-        <div style={{ borderBottom: "1px solid #1E293B", paddingBottom: 22, marginBottom: 26 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>{name}</div>
-          <div style={{ fontSize: 12, color: "#F59E0B", fontWeight: 600, marginTop: 5 }}>{pTitle}</div>
-          <div style={{ fontSize: 11, color: "#64748B", marginTop: 8 }}>{contacts}</div>
+      <div style={{ background: bg, padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif" }}>
+        <div style={{ borderBottom: `1px solid ${mutedC}44`, paddingBottom: 22, marginBottom: 26 }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: nameC }}>{name}</div>
+          <div style={{ fontSize: 12, color: accent, fontWeight: 600, marginTop: 5 }}>{pTitle}</div>
+          <div style={{ fontSize: 11, color: mutedC, marginTop: 8 }}>{contacts}</div>
         </div>
-        <RecipientBlock textColor="#CBD5E1" mutedColor="#64748B" />
-        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: "#94A3B8" }}>{salutation}</div>
-        {opening
-          ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#94A3B8" }}>{opening}</p>
-          : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#334155", fontStyle: "italic" }}>Your opening paragraph will appear here…</p>}
-        {body
-          ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#94A3B8" }}>{body}</p>
-          : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#334155", fontStyle: "italic" }}>Your main body paragraph will appear here…</p>}
-        {closing
-          ? <p style={{ marginBottom: 28, fontSize: 11, lineHeight: 1.85, color: "#94A3B8" }}>{closing}</p>
-          : <p style={{ marginBottom: 28, fontSize: 11, lineHeight: 1.85, color: "#334155", fontStyle: "italic" }}>Your closing paragraph will appear here…</p>}
-        <div style={{ borderTop: "1px solid #1E293B", paddingTop: 18 }}>
-          <div style={{ fontSize: 12, color: "#64748B" }}>{signoff}</div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#F59E0B", marginTop: 24 }}>{name}</div>
+        <RecipientBlock textColor={textC} mutedColor={mutedC} />
+        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: bodyC }}>{salutation}</div>
+        {ph(opening, "Your opening paragraph will appear here…", bodyC)}
+        {ph(body, "Your main body paragraph will appear here…", bodyC)}
+        {ph(closing, "Your closing paragraph will appear here…", bodyC)}
+        <div style={{ borderTop: `1px solid ${mutedC}44`, paddingTop: 18 }}>
+          <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 24 }}>{name}</div>
         </div>
       </div>
     );
   }
 
   // Default: cl-classic
+  const accent = customAccent || "#1A56DB";
+  const bg = customBg || "#fff";
+  const nameC = customNameColor || "#0F0F0F";
+  const textC = customText || "#222";
+  const mutedC = customMuted || "#555";
   return (
-    <div style={{ background: "#fff", padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: "#222" }}>
-      <div style={{ borderBottom: "2px solid #1A56DB", paddingBottom: 18, marginBottom: 26 }}>
-        <div style={{ fontSize: 26, fontWeight: 800, color: "#0F0F0F" }}>{name}</div>
-        <div style={{ fontSize: 12, color: "#555", marginTop: 5 }}>{contacts}</div>
+    <div style={{ background: bg, padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: textC }}>
+      <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 18, marginBottom: 26 }}>
+        <div style={{ fontSize: 26, fontWeight: 800, color: nameC }}>{name}</div>
+        <div style={{ fontSize: 12, color: mutedC, marginTop: 5 }}>{contacts}</div>
       </div>
-      <RecipientBlock textColor="#111" mutedColor="#555" />
-      <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18 }}>{salutation}</div>
-      {ph(opening, "Your opening paragraph will appear here…")}
-      {ph(body, "Your main body paragraph will appear here…")}
-      {ph(closing, "Your closing paragraph will appear here…")}
-      <div style={{ fontSize: 12, color: "#333" }}>{signoff}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: "#1A56DB", marginTop: 28 }}>{name}</div>
+      <RecipientBlock textColor={textC} mutedColor={mutedC} />
+      <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: textC }}>{salutation}</div>
+      {ph(opening, "Your opening paragraph will appear here…", textC)}
+      {ph(body, "Your main body paragraph will appear here…", textC)}
+      {ph(closing, "Your closing paragraph will appear here…", textC)}
+      <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: accent, marginTop: 28 }}>{name}</div>
     </div>
   );
 }
