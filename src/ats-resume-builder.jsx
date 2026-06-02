@@ -6171,6 +6171,8 @@ export default function App() {
 
   const [resume, setResumeState] = useState(BLANK_RESUME);
   const [selectedTemplate, setTemplateState] = useState("clarity");
+  const [coverLetterTemplate, setCoverLetterTemplate] = useState("cl-classic");
+  const [coverLetter, setCoverLetter] = useState(BLANK_COVER_LETTER);
   const [upgradeModal, setUpgradeModal] = useState(null); // feature key or null
 
   // Load the correct user's data from localStorage whenever the account changes
