@@ -5430,8 +5430,8 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
           </div>
         )}
 
-        {/* CTA bar — fixed at bottom, appears only after user picks a template */}
-        {selected && (
+        {/* CTA bar — fixed at bottom, appears only after user picks a resume template */}
+        {docType === "resume" && selected && (
           <div className="fade-in" style={{
             position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
             padding: "16px 32px",
