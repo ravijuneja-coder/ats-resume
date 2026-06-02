@@ -5887,7 +5887,9 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
           <button className="btn btn-secondary btn-sm" onClick={() => window.print()}><Icon.Download /> Export PDF</button>
         </div>
         <div style={{ flex: 1, overflow: "auto" }}>
-          <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId} />
+          <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId}
+            customAccent={customAccent} customBg={customBg} customText={customText}
+            customMuted={customMuted} customNameColor={customNameColor} />
         </div>
       </div>
     </div>
