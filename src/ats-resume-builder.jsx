@@ -5847,25 +5847,58 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
         {section === "content" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Letter Body</h2>
-            <div>
-              <label className="label">Opening Paragraph <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter.opening || "").length} chars)</span></label>
-              <textarea className="input" rows={4} placeholder="Introduce yourself and express your interest in the role. Mention where you found the job posting."
-                value={coverLetter.opening || ""} onChange={e => update("opening", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Main Body <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter.body || "").length} chars)</span></label>
-              <textarea className="input" rows={5} placeholder="Highlight 2-3 specific achievements relevant to the role. Connect your experience to what the company needs."
-                value={coverLetter.body || ""} onChange={e => update("body", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Closing Paragraph <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter.closing || "").length} chars)</span></label>
-              <textarea className="input" rows={3} placeholder="Express enthusiasm, request an interview, and thank the reader for their time."
-                value={coverLetter.closing || ""} onChange={e => update("closing", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Sign-off</label>
-              <input className="input" placeholder="Sincerely," value={coverLetter.signoff || ""} onChange={e => update("signoff", e.target.value)} />
-            </div>
+
+            {/* Reusable field renderer with remove/restore toggle */}
+            {[
+              { key: "opening", label: "Opening Paragraph", rows: 4, placeholder: "Introduce yourself and express your interest in the role. Mention where you found the job posting." },
+              { key: "body",    label: "Main Body",          rows: 5, placeholder: "Highlight 2-3 specific achievements relevant to the role. Connect your experience to what the company needs." },
+              { key: "closing", label: "Closing Paragraph",  rows: 3, placeholder: "Express enthusiasm, request an interview, and thank the reader for their time." },
+            ].map(({ key, label, rows, placeholder }) =>
+              isHidden(key) ? (
+                <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "var(--c-surface2)", border: "1px dashed var(--c-border)", borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: "var(--c-text3)", fontStyle: "italic" }}>{label} removed</span>
+                  <button onClick={() => toggleField(key)} style={{ fontSize: 12, fontWeight: 600, color: "var(--c-accent)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 4 }}>
+                    <Icon.Plus /> Add back
+                  </button>
+                </div>
+              ) : (
+                <div key={key}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                    <label className="label" style={{ margin: 0 }}>
+                      {label} <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter[key] || "").length} chars)</span>
+                    </label>
+                    <button onClick={() => toggleField(key)} title={`Remove ${label}`}
+                      style={{ fontSize: 11, fontWeight: 600, color: "var(--c-danger)", background: "none", border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: "2px 8px", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 4, opacity: 0.7 }}>
+                      <Icon.X /> Remove
+                    </button>
+                  </div>
+                  <textarea className="input" rows={rows} placeholder={placeholder}
+                    value={coverLetter[key] || ""} onChange={e => update(key, e.target.value)} />
+                </div>
+              )
+            )}
+
+            {/* Sign-off with remove toggle */}
+            {isHidden("signoff") ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "var(--c-surface2)", border: "1px dashed var(--c-border)", borderRadius: 8 }}>
+                <span style={{ fontSize: 13, color: "var(--c-text3)", fontStyle: "italic" }}>Sign-off removed</span>
+                <button onClick={() => toggleField("signoff")} style={{ fontSize: 12, fontWeight: 600, color: "var(--c-accent)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 4 }}>
+                  <Icon.Plus /> Add back
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                  <label className="label" style={{ margin: 0 }}>Sign-off</label>
+                  <button onClick={() => toggleField("signoff")} title="Remove Sign-off"
+                    style={{ fontSize: 11, fontWeight: 600, color: "var(--c-danger)", background: "none", border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: "2px 8px", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 4, opacity: 0.7 }}>
+                    <Icon.X /> Remove
+                  </button>
+                </div>
+                <input className="input" placeholder="Sincerely," value={coverLetter.signoff || ""} onChange={e => update("signoff", e.target.value)} />
+              </div>
+            )}
+
             <div className="ai-panel">
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--c-accent)" }}>✍️ Writing Tips</div>
               {[
