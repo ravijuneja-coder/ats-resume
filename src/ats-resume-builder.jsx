@@ -6192,6 +6192,13 @@ const BLANK_RESUME = {
 };
 
 const BLANK_COVER_LETTER = {
+  // Sender overrides (pre-filled from resume on first load)
+  senderName: "",
+  senderTitle: "",
+  senderEmail: "",
+  senderPhone: "",
+  senderLocation: "",
+  // Letter details
   date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
   recipientName: "Hiring Manager",
   recipientTitle: "",
