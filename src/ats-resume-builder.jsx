@@ -134,7 +134,7 @@ const RAVI_RESUME = {
   ],
 };
 
-const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription" };
+const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter" };
 
 // ─── SKILL SUGGESTIONS DB ────────────────────────────────────────────────────
 
