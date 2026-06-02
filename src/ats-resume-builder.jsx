@@ -5114,7 +5114,7 @@ const COVER_LETTER_TEMPLATES = [
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
 
-function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity", user, onNeedUpgrade }) {
+function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity", user, onNeedUpgrade, onSelectCoverLetterTemplate }) {
   const premium = isPremium(user);
   const [selected, setSelected] = useState("");
   const [filter, setFilter] = useState("all");
