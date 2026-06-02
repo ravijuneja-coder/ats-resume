@@ -5708,6 +5708,80 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
           )}
         </div>
 
+        {/* ── Color Customizer ── */}
+        {(() => {
+          const tplAccent = COVER_LETTER_TEMPLATES.find(t => t.id === templateId)?.accent || "#1A56DB";
+          const anyCustom = customAccent || customBg || customText || customMuted || customNameColor;
+          const colorRows = [
+            { label: "Accent",     value: customAccent,    set: setCustomAccent,    def: tplAccent,
+              presets: ["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"] },
+            { label: "Name Color", value: customNameColor, set: setCustomNameColor, def: "#FFFFFF",
+              presets: ["#FFFFFF","#F1F5F9","#111827","#1E293B","#1D4ED8","#7C3AED","#0D9488","#DC2626","#F59E0B","#EC4899","#059669","#0891B2"] },
+            { label: "Background", value: customBg,        set: setCustomBg,        def: "#FFFFFF",
+              presets: ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#0F172A","#111827","#1C1917","#0C0A09"] },
+            { label: "Sub-heading",value: customText,      set: setCustomText,      def: "#111111",
+              presets: ["#111827","#1E293B","#0F172A","#374151","#1D4ED8","#065F46","#4C1D95","#7C2D12","#FFFFFF","#F1F5F9","#E2E8F0","#CBD5E1"] },
+            { label: "Details",    value: customMuted,     set: setCustomMuted,     def: "#6B7280",
+              presets: ["#6B7280","#475569","#94A3B8","#9CA3AF","#374151","#1D4ED8","#0D9488","#7C3AED","#DC2626","#B45309","#059669","#EC4899"] },
+          ];
+          return (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 4px 8px" }}>
+                <div className="app-text3" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Colors</div>
+                {anyCustom && (
+                  <button onClick={resetColors} style={{ fontSize: 10, color: "var(--c-accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                    Reset all
+                  </button>
+                )}
+              </div>
+              {colorRows.map(({ label, value, set, def, presets }) => {
+                const isLight = c => ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#F1F5F9","#E2E8F0","#CBD5E1"].includes(c);
+                const active = value || def;
+                return (
+                  <div key={label} style={{ marginBottom: 12, padding: "0 4px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 10, color: "var(--c-text3)", fontWeight: 600 }}>{label}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <div style={{ width: 14, height: 14, borderRadius: 3, background: active, border: "1px solid var(--c-border)" }} />
+                        <span style={{ fontSize: 10, color: "var(--c-text3)", fontFamily: "monospace" }}>{active}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 7 }}>
+                      <button title="Template default" onClick={() => set("")}
+                        style={{ width: 22, height: 22, borderRadius: 4, background: def, border: "none", cursor: "pointer", position: "relative", outline: !value ? "2.5px solid var(--c-accent)" : "1px solid rgba(0,0,0,0.1)", outlineOffset: 1, flexShrink: 0 }}>
+                        {!value && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: isLight(def) ? "#111" : "#fff", fontSize: 10, fontWeight: 800 }}>✓</span>}
+                      </button>
+                      {presets.map(c => (
+                        <button key={c} title={c} onClick={() => set(c)}
+                          style={{ width: 22, height: 22, borderRadius: 4, background: c, border: "1px solid rgba(0,0,0,0.08)", cursor: "pointer", position: "relative", outline: value === c ? "2.5px solid var(--c-accent)" : "1px solid rgba(0,0,0,0.08)", outlineOffset: 1, transition: "transform 0.1s", transform: value === c ? "scale(1.18)" : "scale(1)", flexShrink: 0 }}>
+                          {value === c && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: isLight(c) ? "#111" : "#fff", fontSize: 10, fontWeight: 800 }}>✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "5px 8px" }}>
+                      <label title="Pick custom color" style={{ display: "flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: active, border: "2px solid var(--c-border)", boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)", position: "relative", overflow: "hidden" }}>
+                          <input type="color" value={active} onChange={e => set(e.target.value)}
+                            style={{ position: "absolute", inset: 0, width: "200%", height: "200%", opacity: 0, cursor: "pointer", padding: 0, border: "none" }} />
+                        </div>
+                      </label>
+                      <input value={value || def}
+                        onChange={e => { const v = e.target.value; if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) set(v); }}
+                        onBlur={e => { const v = e.target.value; if (/^#[0-9A-Fa-f]{6}$/.test(v)) set(v); else set(value); }}
+                        maxLength={7} placeholder={def}
+                        style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 12, fontFamily: "monospace", color: "var(--c-text)", padding: 0 }} />
+                      {value && (
+                        <button onClick={() => set("")} title="Reset to default"
+                          style={{ fontSize: 13, color: "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, flexShrink: 0 }}>✕</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={() => window.print()}>
           <Icon.Download /> Export PDF
         </button>
