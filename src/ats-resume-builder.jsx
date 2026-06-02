@@ -5933,7 +5933,8 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
         <div style={{ flex: 1, overflow: "auto" }}>
           <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId}
             customAccent={customAccent} customBg={customBg} customText={customText}
-            customMuted={customMuted} customNameColor={customNameColor} />
+            customMuted={customMuted} customNameColor={customNameColor}
+            hiddenFields={hiddenFields} />
         </div>
       </div>
     </div>
