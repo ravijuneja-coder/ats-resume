@@ -6310,7 +6310,7 @@ export default function App() {
           currentTemplate={selectedTemplate} user={user} onNeedUpgrade={needUpgrade}
           onSelectCoverLetterTemplate={setCoverLetterTemplate} />;
       case PAGES.COVER_LETTER: return user
-        ? <CoverLetterBuilderPage coverLetter={coverLetter} setCoverLetter={setCoverLetter} resume={resume} templateId={coverLetterTemplate} />
+        ? <CoverLetterBuilderPage coverLetter={coverLetter} setCoverLetter={setCoverLetter} resume={resume} templateId={coverLetterTemplate} onTemplateChange={setCoverLetterTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.PRICING: return (user && isPremium(user))
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
