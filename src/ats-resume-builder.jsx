@@ -5466,6 +5466,304 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
   );
 }
 
+// ─── COVER LETTER PREVIEW ────────────────────────────────────────────────────
+
+function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic" }) {
+  const name = personal.name || "Your Name";
+  const pTitle = personal.title || "Professional Title";
+  const email = personal.email || "";
+  const phone = personal.phone || "";
+  const loc = personal.location || "";
+  const contacts = [email, phone, loc].filter(Boolean).join(" · ");
+
+  const date = cl.date || "";
+  const recName = cl.recipientName || "Hiring Manager";
+  const recTitle = cl.recipientTitle || "";
+  const company = cl.company || "";
+  const role = cl.role || "";
+  const salutation = cl.salutation || "Dear Hiring Manager,";
+  const opening = cl.opening || "";
+  const body = cl.body || "";
+  const closing = cl.closing || "";
+  const signoff = cl.signoff || "Sincerely,";
+
+  const ph = (text, label) => text
+    ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85 }}>{text}</p>
+    : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#ccc", fontStyle: "italic" }}>{label}</p>;
+
+  const RecipientBlock = ({ textColor = "#333", mutedColor = "#888" }) => (
+    <div style={{ marginBottom: 20 }}>
+      {date && <div style={{ fontSize: 11, color: mutedColor, marginBottom: 16 }}>{date}</div>}
+      <div style={{ fontWeight: 600, fontSize: 11, color: textColor }}>{recName}{recTitle ? `, ${recTitle}` : ""}</div>
+      {company && <div style={{ fontSize: 11, color: mutedColor }}>{company}</div>}
+      {role && <div style={{ fontSize: 11, color: mutedColor }}>{role}</div>}
+    </div>
+  );
+
+  if (templateId === "cl-modern") {
+    return (
+      <div style={{ minHeight: 700, fontFamily: "'Poppins',sans-serif" }}>
+        <div style={{ background: "linear-gradient(135deg,#1A56DB,#0EA5E9)", padding: "32px 44px 28px" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>{name}</div>
+          <div style={{ fontSize: 13, color: "#BAE6FD", marginTop: 5 }}>{pTitle}</div>
+          <div style={{ display: "flex", gap: 18, marginTop: 10, flexWrap: "wrap" }}>
+            {[email, phone, loc].filter(Boolean).map((v, i) => <span key={i} style={{ fontSize: 11, color: "#E0F2FE" }}>{v}</span>)}
+          </div>
+        </div>
+        <div style={{ background: "#F8FAFF", padding: "32px 44px", minHeight: 500, color: "#1F2937" }}>
+          <RecipientBlock textColor="#1F2937" mutedColor="#6B7280" />
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 18, color: "#1A56DB" }}>{salutation}</div>
+          {ph(opening, "Your opening paragraph will appear here…")}
+          {ph(body, "Your main body paragraph will appear here…")}
+          {ph(closing, "Your closing paragraph will appear here…")}
+          <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>{signoff}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#1A56DB", marginTop: 24 }}>{name}</div>
+          <div style={{ borderTop: "1px solid #DBEAFE", marginTop: 24, paddingTop: 14, fontSize: 11, color: "#94A3B8" }}>{contacts}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-minimal") {
+    return (
+      <div style={{ background: "#FAFAFA", padding: "48px 56px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: "#222" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10 }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: "#111", letterSpacing: "-0.02em" }}>{name}</div>
+          {date && <div style={{ fontSize: 11, color: "#aaa" }}>{date}</div>}
+        </div>
+        <div style={{ height: 1, background: "#E5E7EB", marginBottom: 18 }} />
+        <div style={{ fontSize: 11, color: "#666", marginBottom: 28 }}>{contacts}</div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 11, color: "#111" }}>{recName}{recTitle ? `, ${recTitle}` : ""}</div>
+          {company && <div style={{ fontSize: 11, color: "#888" }}>{company}</div>}
+          {role && <div style={{ fontSize: 11, color: "#888" }}>{role}</div>}
+        </div>
+        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18 }}>{salutation}</div>
+        {ph(opening, "Your opening paragraph will appear here…")}
+        {ph(body, "Your main body paragraph will appear here…")}
+        {ph(closing, "Your closing paragraph will appear here…")}
+        <div style={{ fontSize: 12, color: "#555" }}>{signoff}</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginTop: 28 }}>{name}</div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-creative") {
+    const accent = "#7C3AED";
+    return (
+      <div style={{ minHeight: 700, fontFamily: "'Poppins',sans-serif", display: "flex" }}>
+        <div style={{ width: 36, background: "linear-gradient(180deg,#7C3AED,#A855F7)", flexShrink: 0 }} />
+        <div style={{ flex: 1, padding: "40px 44px", background: "#fff", color: "#333" }}>
+          <div style={{ marginBottom: 24, paddingBottom: 18, borderBottom: "1px solid #EDE9FE" }}>
+            <div style={{ fontSize: 26, fontWeight: 800, color: "#3B0764" }}>{name}</div>
+            <div style={{ fontSize: 12, color: accent, fontWeight: 600, marginTop: 5 }}>{pTitle}</div>
+            <div style={{ fontSize: 11, color: "#888", marginTop: 8 }}>{contacts}</div>
+          </div>
+          <RecipientBlock textColor="#3B0764" mutedColor="#888" />
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 18, color: accent }}>{salutation}</div>
+          {ph(opening, "Your opening paragraph will appear here…")}
+          {ph(body, "Your main body paragraph will appear here…")}
+          {ph(closing, "Your closing paragraph will appear here…")}
+          <div style={{ fontSize: 12, color: "#555" }}>{signoff}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 28 }}>{name}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-executive") {
+    return (
+      <div style={{ background: "#0F172A", padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif" }}>
+        <div style={{ borderBottom: "1px solid #1E293B", paddingBottom: 22, marginBottom: 26 }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>{name}</div>
+          <div style={{ fontSize: 12, color: "#F59E0B", fontWeight: 600, marginTop: 5 }}>{pTitle}</div>
+          <div style={{ fontSize: 11, color: "#64748B", marginTop: 8 }}>{contacts}</div>
+        </div>
+        <RecipientBlock textColor="#CBD5E1" mutedColor="#64748B" />
+        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: "#94A3B8" }}>{salutation}</div>
+        {opening
+          ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#94A3B8" }}>{opening}</p>
+          : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#334155", fontStyle: "italic" }}>Your opening paragraph will appear here…</p>}
+        {body
+          ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#94A3B8" }}>{body}</p>
+          : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#334155", fontStyle: "italic" }}>Your main body paragraph will appear here…</p>}
+        {closing
+          ? <p style={{ marginBottom: 28, fontSize: 11, lineHeight: 1.85, color: "#94A3B8" }}>{closing}</p>
+          : <p style={{ marginBottom: 28, fontSize: 11, lineHeight: 1.85, color: "#334155", fontStyle: "italic" }}>Your closing paragraph will appear here…</p>}
+        <div style={{ borderTop: "1px solid #1E293B", paddingTop: 18 }}>
+          <div style={{ fontSize: 12, color: "#64748B" }}>{signoff}</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#F59E0B", marginTop: 24 }}>{name}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default: cl-classic
+  return (
+    <div style={{ background: "#fff", padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: "#222" }}>
+      <div style={{ borderBottom: "2px solid #1A56DB", paddingBottom: 18, marginBottom: 26 }}>
+        <div style={{ fontSize: 26, fontWeight: 800, color: "#0F0F0F" }}>{name}</div>
+        <div style={{ fontSize: 12, color: "#555", marginTop: 5 }}>{contacts}</div>
+      </div>
+      <RecipientBlock textColor="#111" mutedColor="#555" />
+      <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18 }}>{salutation}</div>
+      {ph(opening, "Your opening paragraph will appear here…")}
+      {ph(body, "Your main body paragraph will appear here…")}
+      {ph(closing, "Your closing paragraph will appear here…")}
+      <div style={{ fontSize: 12, color: "#333" }}>{signoff}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: "#1A56DB", marginTop: 28 }}>{name}</div>
+    </div>
+  );
+}
+
+// ─── COVER LETTER BUILDER PAGE ────────────────────────────────────────────────
+
+function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateId = "cl-classic" }) {
+  const [section, setSection] = useState("recipient");
+  const update = (field, val) => setCoverLetter(prev => ({ ...prev, [field]: val }));
+
+  const sections = [
+    { id: "sender",    label: "Sender Info",   icon: <Icon.User /> },
+    { id: "recipient", label: "Recipient",      icon: <Icon.Briefcase /> },
+    { id: "content",   label: "Letter Body",    icon: <Icon.FileText /> },
+  ];
+
+  const tpl = COVER_LETTER_TEMPLATES.find(t => t.id === templateId);
+
+  return (
+    <div className="builder-layout" style={{ display: "flex", height: "calc(100vh - 58px)", overflow: "hidden" }}>
+      {/* Sidebar */}
+      <div className="builder-sidebar app-surface" style={{ width: 220, borderRight: "1px solid var(--c-border)", padding: "16px 12px", display: "flex", flexDirection: "column", gap: 4, flexShrink: 0, overflowY: "auto" }}>
+        <div style={{ marginBottom: 8 }}>
+          <div className="app-text3" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 12px 6px" }}>Cover Letter</div>
+        </div>
+        {sections.map(s => (
+          <button key={s.id} className={cn("sidebar-item", section === s.id && "active")} onClick={() => setSection(s.id)}>
+            {s.icon}
+            <span style={{ fontSize: 13 }}>{s.label}</span>
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <div className="divider" style={{ margin: "8px 0" }} />
+        <div style={{ marginBottom: 8 }}>
+          <div className="app-text3" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 4px 6px" }}>Template</div>
+          <div style={{ padding: "6px 8px", background: "var(--c-surface2)", borderRadius: 8, fontSize: 12, color: "var(--c-text2)", display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: tpl?.accent || "var(--c-accent)", flexShrink: 0 }} />
+            {tpl?.name || "Classic"} · Cover Letter
+          </div>
+        </div>
+        <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={() => window.print()}>
+          <Icon.Download /> Export PDF
+        </button>
+      </div>
+
+      {/* Editor */}
+      <div className="builder-editor app-bg" style={{ flex: "0 0 420px", borderRight: "1px solid var(--c-border)", overflowY: "auto", padding: 20 }}>
+        {section === "sender" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Sender Info</h2>
+            <div className="ai-panel">
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>ℹ️ Pulled from your Resume</div>
+              <div style={{ fontSize: 12, color: "var(--c-text2)", lineHeight: 1.6 }}>
+                Your name, title, email, phone and location come from your resume. To change them, edit in the Resume Builder.
+              </div>
+            </div>
+            <div className="card" style={{ padding: 16 }}>
+              {[
+                { label: "Name",     value: resume?.personal?.name },
+                { label: "Title",    value: resume?.personal?.title },
+                { label: "Email",    value: resume?.personal?.email },
+                { label: "Phone",    value: resume?.personal?.phone },
+                { label: "Location", value: resume?.personal?.location },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: "flex", gap: 12, marginBottom: 8, fontSize: 13 }}>
+                  <span style={{ color: "var(--c-text3)", width: 64, flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontWeight: 500 }}>{value || <span style={{ color: "var(--c-text3)", fontStyle: "italic" }}>Not set</span>}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {section === "recipient" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Recipient Details</h2>
+            {[
+              { key: "date",          label: "Date",                      placeholder: "June 2, 2026" },
+              { key: "company",       label: "Company Name",               placeholder: "Acme Corp" },
+              { key: "role",          label: "Position Applied For",       placeholder: "Senior Software Engineer" },
+              { key: "recipientName", label: "Recipient Name",             placeholder: "Hiring Manager" },
+              { key: "recipientTitle",label: "Recipient Title (optional)", placeholder: "Head of Engineering" },
+            ].map(f => (
+              <div key={f.key}>
+                <label className="label">{f.label}</label>
+                <input className="input" placeholder={f.placeholder} value={coverLetter[f.key] || ""} onChange={e => update(f.key, e.target.value)} />
+              </div>
+            ))}
+            <div>
+              <label className="label">Salutation</label>
+              <input className="input" placeholder="Dear Hiring Manager," value={coverLetter.salutation || ""} onChange={e => update("salutation", e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        {section === "content" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Letter Body</h2>
+            <div>
+              <label className="label">Opening Paragraph <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter.opening || "").length} chars)</span></label>
+              <textarea className="input" rows={4} placeholder="Introduce yourself and express your interest in the role. Mention where you found the job posting."
+                value={coverLetter.opening || ""} onChange={e => update("opening", e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Main Body <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter.body || "").length} chars)</span></label>
+              <textarea className="input" rows={5} placeholder="Highlight 2-3 specific achievements relevant to the role. Connect your experience to what the company needs."
+                value={coverLetter.body || ""} onChange={e => update("body", e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Closing Paragraph <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter.closing || "").length} chars)</span></label>
+              <textarea className="input" rows={3} placeholder="Express enthusiasm, request an interview, and thank the reader for their time."
+                value={coverLetter.closing || ""} onChange={e => update("closing", e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Sign-off</label>
+              <input className="input" placeholder="Sincerely," value={coverLetter.signoff || ""} onChange={e => update("signoff", e.target.value)} />
+            </div>
+            <div className="ai-panel">
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--c-accent)" }}>✍️ Writing Tips</div>
+              {[
+                "Keep it to one page — 3-4 short paragraphs",
+                "Mirror language from the job description",
+                "Open with impact — your biggest relevant achievement",
+                "Close with a clear call to action",
+              ].map((tip, i) => (
+                <div key={i} style={{ fontSize: 12, color: "var(--c-text2)", marginBottom: 4, display: "flex", gap: 6 }}>
+                  <span style={{ color: "var(--c-accent2)", flexShrink: 0 }}>✓</span> {tip}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Live Preview */}
+      <div className="builder-preview-wrap" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+        <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 16px", flexShrink: 0, background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text2)" }}>Live Preview</span>
+            <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
+            <div className="badge badge-gray" style={{ fontSize: 10 }}>{tpl?.name || "Classic"} Cover Letter</div>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => window.print()}><Icon.Download /> Export PDF</button>
+        </div>
+        <div style={{ flex: 1, overflow: "auto" }}>
+          <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PRICING PAGE ─────────────────────────────────────────────────────────────
 
 function PricingPage({ setPage, user, onUpgrade, onDowngrade, onStripeCheckout }) {
