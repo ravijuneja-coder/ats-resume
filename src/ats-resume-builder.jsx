@@ -5401,7 +5401,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button className="btn btn-secondary btn-lg" onClick={() => setSelected("")}>Change</button>
-                <button className="btn btn-primary btn-lg" onClick={() => setPage(PAGES.BUILDER)}>
+                <button className="btn btn-primary btn-lg" onClick={() => { onSelectCoverLetterTemplate?.(selected); setPage(PAGES.COVER_LETTER); }}>
                   Use This Template <Icon.ArrowRight />
                 </button>
               </div>
