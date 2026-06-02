@@ -5410,7 +5410,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
         })()}
 
         {/* CTA bar — fixed at bottom, appears only after user picks a template */}
-        {selected === "ravi" && (
+        {docType === "resume" && selected === "ravi" && (
           <div className="fade-in" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", boxShadow: "0 -4px 24px var(--c-shadow)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ width: 40, height: 48, borderRadius: 6, overflow: "hidden", border: "1px solid var(--c-border)", flexShrink: 0 }}>
