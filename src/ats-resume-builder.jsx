@@ -6278,7 +6278,11 @@ export default function App() {
             onTemplateChange={setSelectedTemplate} user={user} onNeedUpgrade={needUpgrade} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.TEMPLATES: return <TemplatesPage setPage={setPage} onSelectTemplate={setSelectedTemplate}
-          currentTemplate={selectedTemplate} user={user} onNeedUpgrade={needUpgrade} />;
+          currentTemplate={selectedTemplate} user={user} onNeedUpgrade={needUpgrade}
+          onSelectCoverLetterTemplate={setCoverLetterTemplate} />;
+      case PAGES.COVER_LETTER: return user
+        ? <CoverLetterBuilderPage coverLetter={coverLetter} setCoverLetter={setCoverLetter} resume={resume} templateId={coverLetterTemplate} />
+        : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.PRICING: return (user && isPremium(user))
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
         : <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
