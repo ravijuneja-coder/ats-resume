@@ -5618,8 +5618,9 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic" 
 
 // ─── COVER LETTER BUILDER PAGE ────────────────────────────────────────────────
 
-function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateId = "cl-classic" }) {
+function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateId = "cl-classic", onTemplateChange }) {
   const [section, setSection] = useState("recipient");
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const update = (field, val) => setCoverLetter(prev => ({ ...prev, [field]: val }));
 
   const sections = [
@@ -5645,13 +5646,41 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
         ))}
         <div style={{ flex: 1 }} />
         <div className="divider" style={{ margin: "8px 0" }} />
+
+        {/* Template switcher */}
         <div style={{ marginBottom: 8 }}>
           <div className="app-text3" style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", padding: "0 4px 6px" }}>Template</div>
-          <div style={{ padding: "6px 8px", background: "var(--c-surface2)", borderRadius: 8, fontSize: 12, color: "var(--c-text2)", display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: tpl?.accent || "var(--c-accent)", flexShrink: 0 }} />
-            {tpl?.name || "Classic"} · Cover Letter
-          </div>
+          <button className="btn btn-secondary btn-sm" style={{ width: "100%", justifyContent: "space-between" }}
+            onClick={() => setShowTemplatePicker(p => !p)}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: tpl?.accent || "var(--c-accent)", flexShrink: 0 }} />
+              {tpl?.name || "Classic"}
+            </span>
+            <Icon.ChevronRight />
+          </button>
+
+          {showTemplatePicker && (
+            <div style={{ marginTop: 8, background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 10, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+              {COVER_LETTER_TEMPLATES.map(t => (
+                <button key={t.id}
+                  onClick={() => { onTemplateChange?.(t.id); setShowTemplatePicker(false); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+                    borderRadius: 7, border: t.id === templateId ? `1.5px solid var(--c-accent)` : "1.5px solid var(--c-border)",
+                    background: t.id === templateId ? "var(--c-accent-light)" : "var(--c-surface2)",
+                    cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-body)",
+                    color: t.id === templateId ? "var(--c-accent)" : "var(--c-text2)",
+                    width: "100%", textAlign: "left",
+                  }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                  {t.name}
+                  {t.id === templateId && <span style={{ marginLeft: "auto", fontSize: 11 }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
         <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={() => window.print()}>
           <Icon.Download /> Export PDF
         </button>
