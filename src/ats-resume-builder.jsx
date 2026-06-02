@@ -5553,10 +5553,10 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic",
           {role && <div style={{ fontSize: 11, color: mutedC }}>{role}</div>}
         </div>
         <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: textC }}>{salutation}</div>
-        {ph(opening, "Your opening paragraph will appear here…", textC)}
-        {ph(body, "Your main body paragraph will appear here…", textC)}
-        {ph(closing, "Your closing paragraph will appear here…", textC)}
-        <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>
+        {ph(opening, "Your opening paragraph will appear here…", textC, "opening")}
+        {ph(body, "Your main body paragraph will appear here…", textC, "body")}
+        {ph(closing, "Your closing paragraph will appear here…", textC, "closing")}
+        {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
         <div style={{ fontSize: 15, fontWeight: 700, color: nameC, marginTop: 28 }}>{name}</div>
       </div>
     );
