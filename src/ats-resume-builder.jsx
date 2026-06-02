@@ -5642,6 +5642,14 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const update = (field, val) => setCoverLetter(prev => ({ ...prev, [field]: val }));
 
+  // Color customization
+  const [customAccent,    setCustomAccent]    = useLocalStorage("cl-custom-accent", "");
+  const [customBg,        setCustomBg]        = useLocalStorage("cl-custom-bg", "");
+  const [customText,      setCustomText]      = useLocalStorage("cl-custom-text", "");
+  const [customMuted,     setCustomMuted]     = useLocalStorage("cl-custom-muted", "");
+  const [customNameColor, setCustomNameColor] = useLocalStorage("cl-custom-namecolor", "");
+  const resetColors = () => { setCustomAccent(""); setCustomBg(""); setCustomText(""); setCustomMuted(""); setCustomNameColor(""); };
+
   const sections = [
     { id: "sender",    label: "Sender Info",   icon: <Icon.User /> },
     { id: "recipient", label: "Recipient",      icon: <Icon.Briefcase /> },
