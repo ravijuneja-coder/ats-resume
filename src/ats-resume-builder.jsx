@@ -5716,6 +5716,19 @@ const BLANK_RESUME = {
   projects: [{ id: 1, name: "", desc: "", start: "", end: "", url: "" }],
 };
 
+const BLANK_COVER_LETTER = {
+  date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+  recipientName: "Hiring Manager",
+  recipientTitle: "",
+  company: "",
+  role: "",
+  salutation: "Dear Hiring Manager,",
+  opening: "",
+  body: "",
+  closing: "",
+  signoff: "Sincerely,",
+};
+
 // ─── PLAN SYSTEM ──────────────────────────────────────────────────────────────
 
 const FREE_TEMPLATES = ["clarity", "form", "slate"];
