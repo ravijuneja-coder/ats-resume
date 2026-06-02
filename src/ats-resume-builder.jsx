@@ -4965,6 +4965,153 @@ const MINI_PREVIEWS = {
   aura: MiniAura, frame: MiniFrame,
 };
 
+// ─── COVER LETTER MINI PREVIEWS ──────────────────────────────────────────────
+
+const CL_BODY_1 = "I am writing to express my strong interest in the Software Engineer position at your company. With 6+ years of experience building scalable systems and leading cross-functional teams, I am confident I would be a valuable addition.";
+const CL_BODY_2 = "In my current role at Stripe, I architected a microservices migration that reduced p99 latency by 42%. I thrive in fast-paced environments and am passionate about clean architecture and developer experience.";
+const CL_BODY_3 = "I am excited about the opportunity to bring my skills in TypeScript, Go, and distributed systems to your team. I look forward to discussing how I can contribute to your mission.";
+
+function MiniCLClassic() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#fff", color: "#222", fontSize: 7, lineHeight: 1.55, height: "100%", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 9 }}>
+      <div style={{ borderBottom: "2px solid #1A56DB", paddingBottom: 10, marginBottom: 2 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#0F0F0F", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 6.5, color: "#555", marginTop: 2 }}>{R.personal.email} · {R.personal.phone} · {R.personal.location}</div>
+      </div>
+      <div style={{ fontSize: 6.5, color: "#888" }}>June 2, 2026</div>
+      <div>
+        <div style={{ fontSize: 7, fontWeight: 700, color: "#0F0F0F" }}>Hiring Manager</div>
+        <div style={{ fontSize: 6.5, color: "#555" }}>Acme Corp · San Francisco, CA</div>
+      </div>
+      <div style={{ fontSize: 7, color: "#222" }}>Dear Hiring Manager,</div>
+      <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+      <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+      <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+      <div style={{ marginTop: "auto" }}>
+        <div style={{ fontSize: 7, color: "#222" }}>Sincerely,</div>
+        <div style={{ fontSize: 8, fontWeight: 700, color: "#1A56DB", marginTop: 6 }}>{R.personal.name}</div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLModern() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#F8FAFF", color: "#222", fontSize: 7, lineHeight: 1.55, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "linear-gradient(135deg,#1A56DB,#0EA5E9)", padding: "16px 18px 14px" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 7, color: "#BAE6FD", marginTop: 3 }}>{R.personal.title}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
+          {[R.personal.email, R.personal.location].map((v, i) => <span key={i} style={{ fontSize: 6, color: "#E0F2FE" }}>{v}</span>)}
+        </div>
+      </div>
+      <div style={{ padding: "12px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+        <div style={{ fontSize: 6.5, color: "#888" }}>June 2, 2026</div>
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 700 }}>Hiring Manager</div>
+          <div style={{ fontSize: 6.5, color: "#555" }}>Acme Corp · San Francisco, CA</div>
+        </div>
+        <div style={{ fontSize: 7, fontWeight: 600, color: "#1A56DB" }}>Dear Hiring Manager,</div>
+        <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+        <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+        <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+        <div style={{ marginTop: "auto", paddingTop: 6, borderTop: "1px solid #DBEAFE" }}>
+          <div style={{ fontSize: 7, color: "#555" }}>Sincerely,</div>
+          <div style={{ fontSize: 8, fontWeight: 800, color: "#1A56DB", marginTop: 4 }}>{R.personal.name}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLMinimal() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FAFAFA", color: "#222", fontSize: 7, lineHeight: 1.55, height: "100%", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#111", letterSpacing: "-0.02em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 6, color: "#aaa" }}>June 2, 2026</div>
+      </div>
+      <div style={{ height: 1, background: "#E5E7EB", marginBottom: 2 }} />
+      <div style={{ fontSize: 6.5, color: "#666" }}>{R.personal.email} · {R.personal.phone}</div>
+      <div>
+        <div style={{ fontSize: 7, fontWeight: 600, color: "#111" }}>Acme Corp</div>
+        <div style={{ fontSize: 6.5, color: "#888" }}>Hiring Manager · San Francisco, CA</div>
+      </div>
+      <div style={{ fontSize: 7 }}>Dear Hiring Manager,</div>
+      <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+      <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+      <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+      <div style={{ marginTop: "auto" }}>
+        <div style={{ fontSize: 7, color: "#555" }}>Best regards,</div>
+        <div style={{ fontSize: 8, fontWeight: 700, color: "#111", marginTop: 5 }}>{R.personal.name}</div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLCreative() {
+  const accent = "#7C3AED";
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#fff", fontSize: 7, lineHeight: 1.55, height: "100%", display: "flex" }}>
+      <div style={{ width: 28, background: "linear-gradient(180deg,#7C3AED,#A855F7)", flexShrink: 0 }} />
+      <div style={{ flex: 1, padding: "16px 16px", display: "flex", flexDirection: "column", gap: 7 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#3B0764", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+          <div style={{ fontSize: 6.5, color: accent, fontWeight: 600, marginTop: 2 }}>{R.personal.title}</div>
+          <div style={{ fontSize: 6, color: "#888", marginTop: 3 }}>{R.personal.email} · {R.personal.phone}</div>
+        </div>
+        <div style={{ height: 1, background: "#EDE9FE" }} />
+        <div style={{ fontSize: 6.5, color: "#888" }}>June 2, 2026</div>
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 700, color: "#3B0764" }}>Hiring Manager</div>
+          <div style={{ fontSize: 6.5, color: "#888" }}>Acme Corp · San Francisco, CA</div>
+        </div>
+        <div style={{ fontSize: 7, fontWeight: 600, color: accent }}>Dear Hiring Manager,</div>
+        <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+        <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+        <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+        <div style={{ marginTop: "auto", paddingTop: 6 }}>
+          <div style={{ fontSize: 7, color: "#555" }}>Warm regards,</div>
+          <div style={{ fontSize: 8, fontWeight: 800, color: accent, marginTop: 4 }}>{R.personal.name}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLExecutive() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#0F172A", color: "#E2E8F0", fontSize: 7, lineHeight: 1.55, height: "100%", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ paddingBottom: 10, borderBottom: "1px solid #1E293B" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 6.5, color: "#F59E0B", fontWeight: 600, marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ fontSize: 6, color: "#64748B", marginTop: 3 }}>{R.personal.email} · {R.personal.phone} · {R.personal.location}</div>
+      </div>
+      <div style={{ fontSize: 6.5, color: "#475569" }}>June 2, 2026</div>
+      <div>
+        <div style={{ fontSize: 7, fontWeight: 700, color: "#CBD5E1" }}>Hiring Manager</div>
+        <div style={{ fontSize: 6.5, color: "#64748B" }}>Acme Corp · San Francisco, CA</div>
+      </div>
+      <div style={{ fontSize: 7, color: "#94A3B8" }}>Dear Hiring Manager,</div>
+      <div style={{ fontSize: 6.5, color: "#94A3B8", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+      <div style={{ fontSize: 6.5, color: "#94A3B8", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+      <div style={{ fontSize: 6.5, color: "#94A3B8", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+      <div style={{ marginTop: "auto", paddingTop: 6, borderTop: "1px solid #1E293B" }}>
+        <div style={{ fontSize: 7, color: "#64748B" }}>Sincerely,</div>
+        <div style={{ fontSize: 8, fontWeight: 800, color: "#F59E0B", marginTop: 5 }}>{R.personal.name}</div>
+      </div>
+    </div>
+  );
+}
+
+const COVER_LETTER_TEMPLATES = [
+  { id: "cl-classic",   name: "Classic",   tag: "Professional", accent: "#1A56DB", preview: MiniCLClassic   },
+  { id: "cl-modern",    name: "Modern",    tag: "Contemporary", accent: "#0EA5E9", preview: MiniCLModern    },
+  { id: "cl-minimal",   name: "Minimal",   tag: "Clean",        accent: "#6B7280", preview: MiniCLMinimal   },
+  { id: "cl-creative",  name: "Creative",  tag: "Bold",         accent: "#7C3AED", preview: MiniCLCreative  },
+  { id: "cl-executive", name: "Executive", tag: "Corporate",    accent: "#F59E0B", preview: MiniCLExecutive },
+];
+
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
 
 function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity", user, onNeedUpgrade }) {
@@ -4973,6 +5120,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
   const [filter, setFilter] = useState("all");
   const [hovered, setHovered] = useState(null);
   const [previewing, setPreviewing] = useState(null); // template id being previewed
+  const [docType, setDocType] = useState("resume"); // "resume" | "coverletter"
   const filters = ["all", "minimal", "modern", "corporate", "creative", "with photo"];
 
   const filteredTemplates = TEMPLATES.filter(t => {
@@ -4991,27 +5139,57 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
     <div className="app-bg" style={{ minHeight: "100vh", padding: "40px 20px", paddingBottom: selected ? 100 : 40 }}>
       <div style={{ padding: "0 24px" }}>
         {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div className="badge badge-blue" style={{ marginBottom: 12, fontSize: 13 }}>19 professional templates</div>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
           <h1 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 12px" }}>
-            Pick your perfect resume
+            Pick your perfect template
           </h1>
-          <p className="app-text2" style={{ fontSize: 17, maxWidth: 460, margin: "0 auto 24px" }}>
-            Every template is ATS-optimized, recruiter-approved, and fully customizable.
+          <p className="app-text2" style={{ fontSize: 17, maxWidth: 480, margin: "0 auto 28px" }}>
+            ATS-optimized, recruiter-approved, and fully customizable.
           </p>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            {filters.map(f => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={f === filter ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"}
-                style={{ textTransform: "capitalize" }}>
-                {f}
+
+          {/* Resume / Cover Letter switcher */}
+          <div style={{ display: "inline-flex", background: "var(--c-surface)", border: "1.5px solid var(--c-border)", borderRadius: 12, padding: 4, gap: 4, marginBottom: 24 }}>
+            {[
+              { id: "resume",      label: "Resume",       icon: <Icon.FileText size="16" /> },
+              { id: "coverletter", label: "Cover Letter", icon: <Icon.FileText size="16" /> },
+            ].map(({ id, label, icon }) => (
+              <button key={id} onClick={() => { setDocType(id); setSelected(""); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 7, padding: "8px 20px",
+                  borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "var(--font-body)",
+                  fontSize: 14, fontWeight: 700, transition: "all 0.18s",
+                  background: docType === id ? "var(--c-accent)" : "transparent",
+                  color: docType === id ? "#fff" : "var(--c-text2)",
+                  boxShadow: docType === id ? "0 2px 8px rgba(26,86,219,0.25)" : "none",
+                }}>
+                {icon} {label}
               </button>
             ))}
           </div>
+
+          {/* Style filters — only for resumes */}
+          {docType === "resume" && (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              {filters.map(f => (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={f === filter ? "btn btn-primary btn-sm" : "btn btn-secondary btn-sm"}
+                  style={{ textTransform: "capitalize" }}>
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {docType === "resume" && (
+            <div className="badge badge-blue" style={{ marginTop: 16, fontSize: 13 }}>29 professional templates</div>
+          )}
+          {docType === "coverletter" && (
+            <div className="badge badge-blue" style={{ marginTop: 4, fontSize: 13 }}>5 cover letter templates</div>
+          )}
         </div>
 
-        {/* Template grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 }}>
+        {/* Resume template grid */}
+        {docType === "resume" && <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 }}>
           {filteredTemplates.map(t => {
             const MiniPreview = MINI_PREVIEWS[t.id];
             const isSelected = selected === t.id;
@@ -5148,7 +5326,88 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#7C3AED", flexShrink: 0 }} />
             </div>
           </div>
-        </div>
+        </div>}
+
+        {/* Cover letter template grid */}
+        {docType === "coverletter" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 }}>
+            {COVER_LETTER_TEMPLATES.map(t => {
+              const isSelected = selected === t.id;
+              const isHovered = hovered === t.id;
+              const Preview = t.preview;
+              return (
+                <div key={t.id}
+                  onMouseEnter={() => setHovered(t.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => setSelected(t.id)}
+                  style={{
+                    borderRadius: 14, overflow: "hidden", cursor: "pointer",
+                    border: isSelected ? "2.5px solid var(--c-accent)" : "2px solid var(--c-border)",
+                    boxShadow: isSelected
+                      ? "0 0 0 3px var(--c-glow), 0 20px 48px var(--c-shadow)"
+                      : isHovered ? "0 12px 36px var(--c-shadow)" : "0 2px 8px var(--c-shadow)",
+                    transform: isHovered && !isSelected ? "translateY(-3px)" : "translateY(0)",
+                    transition: "all 0.2s ease",
+                    position: "relative",
+                  }}>
+                  <div style={{ height: 340, overflow: "hidden", position: "relative" }}>
+                    <Preview />
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(transparent, #ffffff)", pointerEvents: "none" }} />
+                    {isSelected && (
+                      <div style={{ position: "absolute", top: 12, left: 12, width: 26, height: 26, borderRadius: "50%", background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 2px 8px rgba(26,86,219,0.4)" }}>
+                        <Icon.Check size="3" />
+                      </div>
+                    )}
+                    {isHovered && !isSelected && (
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.18)", backdropFilter: "blur(1px)" }}>
+                        <div style={{ background: "#fff", color: "var(--c-accent)", fontWeight: 700, fontSize: 13, padding: "8px 20px", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.2)", fontFamily: "var(--font-body)" }}>
+                          Select Template
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ padding: "12px 16px 14px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t.name}</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
+                        <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>
+                      </div>
+                    </div>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* CTA bar for cover letter template */}
+        {docType === "coverletter" && selected && (() => {
+          const clTpl = COVER_LETTER_TEMPLATES.find(t => t.id === selected);
+          const Preview = clTpl?.preview;
+          return (
+            <div className="fade-in" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, padding: "16px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", boxShadow: "0 -4px 24px var(--c-shadow)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 40, height: 48, borderRadius: 6, overflow: "hidden", border: "1px solid var(--c-border)", flexShrink: 0 }}>
+                  <div style={{ transform: "scale(0.13)", transformOrigin: "top left", width: "770%", height: "770%", pointerEvents: "none" }}>
+                    {Preview && <Preview />}
+                  </div>
+                </div>
+                <div>
+                  <div className="font-display" style={{ fontWeight: 800, fontSize: 17 }}>{clTpl?.name} Cover Letter selected</div>
+                  <div className="app-text2" style={{ fontSize: 13 }}>ATS-safe · {clTpl?.tag} · Fully editable</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn btn-secondary btn-lg" onClick={() => setSelected("")}>Change</button>
+                <button className="btn btn-primary btn-lg" onClick={() => setPage(PAGES.BUILDER)}>
+                  Use This Template <Icon.ArrowRight />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* CTA bar — fixed at bottom, appears only after user picks a template */}
         {selected === "ravi" && (
