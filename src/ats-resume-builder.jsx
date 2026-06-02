@@ -5605,11 +5605,11 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic",
         </div>
         <RecipientBlock textColor={textC} mutedColor={mutedC} />
         <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: bodyC }}>{salutation}</div>
-        {ph(opening, "Your opening paragraph will appear here…", bodyC)}
-        {ph(body, "Your main body paragraph will appear here…", bodyC)}
-        {ph(closing, "Your closing paragraph will appear here…", bodyC)}
+        {ph(opening, "Your opening paragraph will appear here…", bodyC, "opening")}
+        {ph(body, "Your main body paragraph will appear here…", bodyC, "body")}
+        {ph(closing, "Your closing paragraph will appear here…", bodyC, "closing")}
         <div style={{ borderTop: `1px solid ${mutedC}44`, paddingTop: 18 }}>
-          <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>
+          {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
           <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 24 }}>{name}</div>
         </div>
       </div>
