@@ -5640,7 +5640,14 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic",
 function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateId = "cl-classic", onTemplateChange }) {
   const [section, setSection] = useState("recipient");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [hiddenFields, setHiddenFields] = useState(new Set());
   const update = (field, val) => setCoverLetter(prev => ({ ...prev, [field]: val }));
+  const toggleField = (field) => setHiddenFields(prev => {
+    const next = new Set(prev);
+    next.has(field) ? next.delete(field) : next.add(field);
+    return next;
+  });
+  const isHidden = (field) => hiddenFields.has(field);
 
   // Color customization
   const [customAccent,    setCustomAccent]    = useLocalStorage("cl-custom-accent", "");
