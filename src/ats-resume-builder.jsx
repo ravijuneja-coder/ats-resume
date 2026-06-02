@@ -5469,11 +5469,12 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
 // ─── COVER LETTER PREVIEW ────────────────────────────────────────────────────
 
 function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic", customAccent = "", customBg = "", customText = "", customMuted = "", customNameColor = "", hiddenFields = new Set() }) {
-  const name = personal.name || "Your Name";
-  const pTitle = personal.title || "Professional Title";
-  const email = personal.email || "";
-  const phone = personal.phone || "";
-  const loc = personal.location || "";
+  // Prefer cover letter sender overrides, fall back to resume personal data
+  const name   = (cl.senderName     || personal.name     || "Your Name");
+  const pTitle = (cl.senderTitle    || personal.title    || "Professional Title");
+  const email  = (cl.senderEmail    || personal.email    || "");
+  const phone  = (cl.senderPhone    || personal.phone    || "");
+  const loc    = (cl.senderLocation || personal.location || "");
   const contacts = [email, phone, loc].filter(Boolean).join(" · ");
 
   const date = cl.date || "";
