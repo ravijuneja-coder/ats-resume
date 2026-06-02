@@ -5487,9 +5487,13 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic",
   const closing = cl.closing || "";
   const signoff = cl.signoff || "Sincerely,";
 
-  const ph = (text, label, bodyColor) => text
-    ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: bodyColor || "#333" }}>{text}</p>
-    : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#ccc", fontStyle: "italic" }}>{label}</p>;
+  const ph = (text, label, bodyColor, fieldKey) => {
+    if (fieldKey && hiddenFields.has(fieldKey)) return null;
+    return text
+      ? <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: bodyColor || "#333" }}>{text}</p>
+      : <p style={{ marginBottom: 16, fontSize: 11, lineHeight: 1.85, color: "#ccc", fontStyle: "italic" }}>{label}</p>;
+  };
+  const showSignoff = !hiddenFields.has("signoff");
 
   const RecipientBlock = ({ textColor = "#333", mutedColor = "#888" }) => (
     <div style={{ marginBottom: 20 }}>
