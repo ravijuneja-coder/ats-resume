@@ -5804,25 +5804,49 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Sender Info</h2>
             <div className="ai-panel">
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>ℹ️ Pulled from your Resume</div>
-              <div style={{ fontSize: 12, color: "var(--c-text2)", lineHeight: 1.6 }}>
-                Your name, title, email, phone and location come from your resume. To change them, edit in the Resume Builder.
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>ℹ️ Pre-filled from your Resume</div>
+              <div style={{ fontSize: 12, color: "var(--c-text2)", lineHeight: 1.6, marginBottom: 8 }}>
+                Edit any field below — changes apply only to this cover letter.
               </div>
+              <button className="btn btn-ghost btn-sm" style={{ fontSize: 12, padding: "4px 10px" }}
+                onClick={() => {
+                  const p = resume?.personal || {};
+                  setCoverLetter(prev => ({
+                    ...prev,
+                    senderName: p.name || "", senderTitle: p.title || "",
+                    senderEmail: p.email || "", senderPhone: p.phone || "",
+                    senderLocation: p.location || "",
+                  }));
+                }}>
+                ↺ Re-sync from Resume
+              </button>
             </div>
-            <div className="card" style={{ padding: 16 }}>
-              {[
-                { label: "Name",     value: resume?.personal?.name },
-                { label: "Title",    value: resume?.personal?.title },
-                { label: "Email",    value: resume?.personal?.email },
-                { label: "Phone",    value: resume?.personal?.phone },
-                { label: "Location", value: resume?.personal?.location },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ display: "flex", gap: 12, marginBottom: 8, fontSize: 13 }}>
-                  <span style={{ color: "var(--c-text3)", width: 64, flexShrink: 0 }}>{label}</span>
-                  <span style={{ fontWeight: 500 }}>{value || <span style={{ color: "var(--c-text3)", fontStyle: "italic" }}>Not set</span>}</span>
+            {[
+              { key: "senderName",     label: "Full Name",    placeholder: resume?.personal?.name     || "Your Name",          field: "name" },
+              { key: "senderTitle",    label: "Title",        placeholder: resume?.personal?.title    || "Professional Title",  field: "title" },
+              { key: "senderEmail",    label: "Email",        placeholder: resume?.personal?.email    || "you@example.com",     field: "email" },
+              { key: "senderPhone",    label: "Phone",        placeholder: resume?.personal?.phone    || "+1 (555) 000-0000",   field: "phone" },
+              { key: "senderLocation", label: "Location",     placeholder: resume?.personal?.location || "City, Country",      field: "location" },
+            ].map(({ key, label, placeholder, field }) => {
+              const resumeVal = resume?.personal?.[field] || "";
+              const clVal = coverLetter[key];
+              const displayVal = clVal !== undefined && clVal !== "" ? clVal : resumeVal;
+              return (
+                <div key={key}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                    <label className="label" style={{ margin: 0 }}>{label}</label>
+                    {clVal && clVal !== resumeVal && (
+                      <button onClick={() => update(key, "")} style={{ fontSize: 11, color: "var(--c-text3)", background: "none", border: "none", cursor: "pointer" }}>
+                        ↺ Reset
+                      </button>
+                    )}
+                  </div>
+                  <input className="input" placeholder={placeholder}
+                    value={displayVal}
+                    onChange={e => update(key, e.target.value)} />
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
 
