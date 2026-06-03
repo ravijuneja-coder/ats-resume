@@ -5389,10 +5389,9 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
               );
             })}
           </div>
-        )}
 
         {/* CTA bar for cover letter template */}
-        {docType === "coverletter" && selected && (() => {
+        {COVER_LETTER_TEMPLATES.some(t => t.id === selected) && (() => {
           const clTpl = COVER_LETTER_TEMPLATES.find(t => t.id === selected);
           const Preview = clTpl?.preview;
           return (
