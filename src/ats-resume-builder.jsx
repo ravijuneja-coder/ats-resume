@@ -5325,9 +5325,21 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
           </div>
         </div>}
 
-        {/* Cover letter template grid */}
-        {docType === "coverletter" && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 }}>
+        {/* Cover letter template grid — always visible below the tab row */}
+        <div style={{ marginTop: 48, marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+            <div style={{ flex: 1, height: 1, background: "var(--c-border)" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="font-display" style={{ fontWeight: 800, fontSize: 20 }}>Cover Letter Templates</span>
+              <span className="badge badge-blue" style={{ fontSize: 12 }}>5 templates</span>
+            </div>
+            <div style={{ flex: 1, height: 1, background: "var(--c-border)" }} />
+          </div>
+          <p className="app-text2" style={{ textAlign: "center", fontSize: 15, marginBottom: 24 }}>
+            Pair any resume with a matching cover letter — ATS-safe &amp; fully editable.
+          </p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 }}>
             {COVER_LETTER_TEMPLATES.map(t => {
               const isSelected = selected === t.id;
               const isHovered = hovered === t.id;
