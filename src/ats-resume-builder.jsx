@@ -5326,7 +5326,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
         </div>}
 
         {/* Cover letter template grid — always visible below the tab row */}
-        <div style={{ marginTop: 56, marginBottom: 24, textAlign: "center" }}>
+        <div style={{ marginTop: 16, marginBottom: 24, textAlign: "center" }}>
           <h2 className="font-display" style={{ fontSize: "clamp(20px, 3vw, 32px)", fontWeight: 800, margin: "0 0 10px" }}>
             Cover Letter Templates
           </h2>
