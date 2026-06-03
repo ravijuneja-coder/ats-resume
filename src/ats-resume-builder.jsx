@@ -5183,9 +5183,6 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
           {docType === "resume" && (
             <div className="badge badge-blue" style={{ marginTop: 16, fontSize: 13 }}>29 professional templates</div>
           )}
-          {docType === "coverletter" && (
-            <div className="badge badge-blue" style={{ marginTop: 4, fontSize: 13 }}>5 cover letter templates</div>
-          )}
         </div>
 
         {/* Resume template grid */}
