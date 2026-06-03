@@ -80,57 +80,57 @@ const SAMPLE_RESUME = {
 
 const RAVI_RESUME = {
   personal: {
-    name: "Ravi Juneja",
-    title: "AI-Driven Product Designer | UX/UI | Design Systems | Enterprise & SaaS",
-    email: "junejauxd@gmail.com",
-    phone: "+971-55-1408813",
-    location: "Bur Dubai, Dubai, UAE",
-    linkedin: "linkedin.com/in/ravi-juneja",
+    name: "Jordan Lee",
+    title: "Senior Product Designer | UX/UI | Design Systems | Enterprise & SaaS",
+    email: "jordan.lee@email.com",
+    phone: "+1-555-0100",
+    location: "San Francisco, CA",
+    linkedin: "linkedin.com/in/jordan-lee",
     github: "",
-    website: "behance.net/ravijuneja4b4d",
+    website: "portfolio.jordanlee.com",
     photo: null,
   },
-  summary: "Senior Product Designer (UX/UI) with 10+ years of experience in SaaS and enterprise products, focused on high-quality UI, scalable design systems, and AI-driven design solutions.",
+  summary: "Senior Product Designer with 10+ years of experience in SaaS and enterprise products, focused on high-quality UI, scalable design systems, and AI-driven design solutions.",
   experience: [
     {
-      id: 1, company: "Freelance / Self-Employed", role: "UX/UI & Product Design · AI-Driven Design Upskilling",
-      start: "2025", end: "Present", location: "Dubai, UAE",
+      id: 1, company: "Freelance / Self-Employed", role: "UX/UI & Product Design",
+      start: "2025", end: "Present", location: "Remote",
       bullets: [
         "Designing end-to-end product experiences including user flows, wireframes, and high-fidelity UI for web and mobile applications",
-        "Upskilling in AI-assisted UX workflows using Claude and Figma AI",
+        "Upskilling in AI-assisted UX workflows and modern design tooling",
         "Building scalable design systems and developing portfolio-ready case studies",
       ],
     },
     {
-      id: 2, company: "Birlasoft Limited", role: "Senior UI/UX/Product Designer",
-      start: "2019", end: "2025", location: "Noida, India",
+      id: 2, company: "TechCorp Inc.", role: "Senior UI/UX/Product Designer",
+      start: "2019", end: "2025", location: "San Francisco, CA",
       bullets: [
-        "CMDS Claims: Built WCAG-compliant design system powering 700+ screens, reducing UI support tickets by 67%",
-        "MailWave Cloud: Designed SaaS email marketing platform UX, boosting user engagement by 35%",
-        "Hotel Hub (United Airlines): Streamlined UX flows reducing gate agent workload by 60%",
+        "Built WCAG-compliant design system powering 700+ screens, reducing UI support tickets by 67%",
+        "Designed SaaS email marketing platform UX, boosting user engagement by 35%",
+        "Streamlined UX flows reducing support workload by 60%",
       ],
     },
     {
-      id: 3, company: "Conduent Business Services India LLP", role: "Senior UI/Product Designer",
-      start: "2018", end: "2019", location: "Noida, India",
+      id: 3, company: "DesignStudio LLC", role: "Senior UI/Product Designer",
+      start: "2018", end: "2019", location: "New York, NY",
       bullets: [
-        "Designed high-fidelity UI for Electronic Payment Card fintech product covering issuance, validation, payments, and transaction dashboards",
+        "Designed high-fidelity UI for fintech product covering payments, validation, and transaction dashboards",
       ],
     },
   ],
   education: [
-    { id: 1, school: "HFI (Human Factors International)", degree: "Certified Usability Analyst (CUA)", year: "2020", gpa: "" },
+    { id: 1, school: "Human Factors International", degree: "Certified Usability Analyst (CUA)", year: "2020", gpa: "" },
   ],
   skills: [
     "User Interface Design (UI)", "Design Systems", "High-Fidelity UI Design", "Responsive Web & Mobile Design",
     "Accessibility (WCAG 2.1/2.2)", "UX Research", "User Flows & Journey Mapping", "Wireframing & Prototyping",
-    "Figma", "Adobe XD", "Figma AI", "Claude Design", "Zeplin", "Axure", "Sketch",
+    "Figma", "Adobe XD", "Zeplin", "Axure", "Sketch",
     "AI-Assisted Design Workflows", "Agile/Scrum", "Stakeholder Management", "Team Leadership",
   ],
   certifications: [{ id: 1, name: "Certified Usability Analyst (CUA)", issuer: "HFI", year: "2020" }],
   projects: [
-    { id: 1, name: "CMDS Claims – Healthcare Design System", url: "behance.net/ravijuneja4b4d", desc: "700+ screens, WCAG-compliant, 67% reduction in UI support tickets via reusable components and token-driven design", start: "2021", end: "2024" },
-    { id: 2, name: "MailWave Cloud – Email Marketing SaaS", url: "behance.net/ravijuneja4b4d", desc: "Simplified automation workflows and boosted user engagement by 35% through intuitive UX flows", start: "2022", end: "2023" },
+    { id: 1, name: "Healthcare Design System", url: "portfolio.jordanlee.com", desc: "700+ screens, WCAG-compliant, 67% reduction in UI support tickets via reusable components and token-driven design", start: "2021", end: "2024" },
+    { id: 2, name: "SaaS Email Marketing Platform", url: "portfolio.jordanlee.com", desc: "Simplified automation workflows and boosted user engagement by 35% through intuitive UX flows", start: "2022", end: "2023" },
   ],
 };
 
@@ -1698,6 +1698,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
 
 function HomePage({ setPage }) {
   const [homeFilter, setHomeFilter] = useState("all");
+  const [homeDocType, setHomeDocType] = useState("resume");
   const features = [
     { icon: <Icon.Target />, title: "ATS Optimization", desc: "Real-time scoring against 98% of ATS systems used by Fortune 500 companies" },
     { icon: <Icon.Sparkles />, title: "AI-Powered Writing", desc: "Generate professional summaries, rewrite bullets, and get keyword suggestions instantly" },
@@ -2051,62 +2052,118 @@ function HomePage({ setPage }) {
 
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 40 }}>
-            <div className="badge badge-blue" style={{ marginBottom: 12, fontSize: 12 }}>
-              <Icon.LayoutTemplate /> {TEMPLATES.length} professional templates
-            </div>
             <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 48px)", fontWeight: 800, margin: "0 0 12px", lineHeight: 1.1 }}>
-              Pick your perfect resume
+              Pick your perfect template
             </h2>
-            <p className="app-text2" style={{ fontSize: 16, maxWidth: 480, margin: "0 auto" }}>
-              Every template is ATS-optimized, recruiter-approved, and fully customizable.
+            <p className="app-text2" style={{ fontSize: 16, maxWidth: 480, margin: "0 auto 24px" }}>
+              ATS-optimized, recruiter-approved, and fully customizable.
             </p>
+
+            {/* Resume / Cover Letter tabs */}
+            <div style={{ display: "inline-flex", background: "var(--c-surface)", border: "1.5px solid var(--c-border)", borderRadius: 12, padding: 4, gap: 4, marginBottom: 20 }}>
+              {[
+                { id: "resume", label: "Resume", icon: <Icon.FileText size="16" /> },
+                { id: "coverletter", label: "Cover Letter", icon: <Icon.FileText size="16" /> },
+              ].map(({ id, label, icon }) => (
+                <button key={id} onClick={() => { setHomeDocType(id); setHomeFilter("all"); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 7, padding: "8px 20px",
+                    borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "var(--font-body)",
+                    fontSize: 14, fontWeight: 700, transition: "all 0.18s",
+                    background: homeDocType === id ? "var(--c-accent)" : "transparent",
+                    color: homeDocType === id ? "#fff" : "var(--c-text2)",
+                    boxShadow: homeDocType === id ? "0 2px 8px rgba(26,86,219,0.25)" : "none",
+                  }}>
+                  {icon} {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Style filters — resume only */}
+            {homeDocType === "resume" && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
+                {filters.map(f => (
+                  <button key={f} onClick={() => setHomeFilter(f)}
+                    style={{ padding: "8px 20px", borderRadius: 99, border: homeFilter === f ? "none" : "1.5px solid var(--c-border)", background: homeFilter === f ? "var(--c-accent)" : "var(--c-surface)", color: homeFilter === f ? "#fff" : "var(--c-text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "all 0.15s", textTransform: "capitalize" }}>
+                    {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: homeDocType === "coverletter" ? 16 : 0 }}>
+              {homeDocType === "resume"
+                ? <div className="badge badge-blue" style={{ fontSize: 12 }}><Icon.LayoutTemplate /> {TEMPLATES.length} professional templates</div>
+                : <div className="badge badge-blue" style={{ fontSize: 12 }}>{COVER_LETTER_TEMPLATES.length} cover letter templates</div>
+              }
+            </div>
           </div>
 
-          {/* Filter tabs */}
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 40 }}>
-            {filters.map(f => (
-              <button key={f} onClick={() => setHomeFilter(f)}
-                style={{ padding: "8px 20px", borderRadius: 99, border: homeFilter === f ? "none" : "1.5px solid var(--c-border)", background: homeFilter === f ? "var(--c-accent)" : "var(--c-surface)", color: homeFilter === f ? "#fff" : "var(--c-text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "all 0.15s", textTransform: "capitalize" }}>
-                {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
+          {/* Cover letter template grid */}
+          {homeDocType === "coverletter" && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20, marginBottom: 48 }}>
+              {COVER_LETTER_TEMPLATES.map(t => {
+                const Preview = t.preview;
+                return (
+                  <div key={t.id} className="card-hover" onClick={() => setPage(PAGES.REGISTER)}
+                    style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease" }}>
+                    <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
+                      <Preview />
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(transparent, #ffffff)", pointerEvents: "none" }} />
+                    </div>
+                    <div style={{ padding: "12px 14px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div className="font-display" style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.name}</div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
+                          <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>
+                        </div>
+                      </div>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Uniform template grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
-            {filtered.map(t => {
-              const MiniPreview = MINI_PREVIEWS[t.id];
-              const isPremiumTemplate = !FREE_TEMPLATES.includes(t.id);
-              return (
-                <div key={t.id} className="card-hover" onClick={() => { setPage(PAGES.REGISTER); }}
-                  style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease", position: "relative" }}>
-                  <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
-                    <div style={{ height: "100%" }}>
-                      {MiniPreview && (t.photo ? <MiniPreview photo={DUMMY_AVATAR} /> : <MiniPreview />)}
-                    </div>
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" || t.bg === "#0C0C0C" || t.bg === "#0F0F23" || t.bg === "#0C0A09" ? "#0F172A" : "#ffffff"})`, pointerEvents: "none" }} />
-                    {isPremiumTemplate && (
-                      <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
+          {/* Resume template grid */}
+          {homeDocType === "resume" && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
+              {filtered.map(t => {
+                const MiniPreview = MINI_PREVIEWS[t.id];
+                const isPremiumTemplate = !FREE_TEMPLATES.includes(t.id);
+                return (
+                  <div key={t.id} className="card-hover" onClick={() => { setPage(PAGES.REGISTER); }}
+                    style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease", position: "relative" }}>
+                    <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
+                      <div style={{ height: "100%" }}>
+                        {MiniPreview && (t.photo ? <MiniPreview photo={DUMMY_AVATAR} /> : <MiniPreview />)}
                       </div>
-                    )}
-                  </div>
-                  <div style={{ padding: "12px 14px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div>
-                      <div className="font-display" style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.name}</div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
-                        {t.photo
-                          ? <span style={{ background: "#FDF4FF", color: "#9333EA", border: "1px solid #E9D5FF", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>📸 Photo</span>
-                          : <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>}
-                      </div>
+                      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" || t.bg === "#0C0C0C" || t.bg === "#0F0F23" || t.bg === "#0C0A09" ? "#0F172A" : "#ffffff"})`, pointerEvents: "none" }} />
+                      {isPremiumTemplate && (
+                        <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                    <div style={{ padding: "12px 14px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div className="font-display" style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{t.name}</div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <span className="badge badge-green" style={{ fontSize: 10 }}>ATS ✓</span>
+                          {t.photo
+                            ? <span style={{ background: "#FDF4FF", color: "#9333EA", border: "1px solid #E9D5FF", fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600 }}>📸 Photo</span>
+                            : <span className="badge badge-gray" style={{ fontSize: 10 }}>{t.tag}</span>}
+                        </div>
+                      </div>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           <div style={{ textAlign: "center", marginTop: 48 }}>
             <button className="btn btn-primary btn-lg" onClick={() => setPage(PAGES.REGISTER)} style={{ marginRight: 12 }}>
@@ -2354,7 +2411,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
 
   return (
     <div className="app-bg" style={{ minHeight: "100vh" }}>
-      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} onClose={() => setShowCVPreview(false)} />}
+      {showCVPreview && <CVPreviewModal resume={resume} templateId={template} onClose={() => setShowCVPreview(false)} />}
       <div style={{ padding: "32px 24px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
@@ -2405,7 +2462,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
               </div>
               <div style={{ padding: "12px 16px", borderTop: "1px solid var(--c-border)", display: "flex", gap: 8 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => setShowCVPreview(true)}><Icon.Eye /> Full Preview</button>
-                <button className="btn btn-ghost btn-sm"><Icon.Download /> Download</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.BUILDER)}><Icon.Download /> Download</button>
               </div>
             </div>
           </div>
@@ -5104,12 +5161,152 @@ function MiniCLExecutive() {
   );
 }
 
+function MiniCLElegant() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFF9FB", fontSize: 7, lineHeight: 1.55, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#fff", borderBottom: "3px solid #EC4899", padding: "14px 18px 12px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#831843", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+          <div style={{ fontSize: 6.5, color: "#EC4899", fontWeight: 600, marginTop: 2 }}>{R.personal.title}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 6, color: "#9D174D" }}>{R.personal.email}</div>
+          <div style={{ fontSize: 6, color: "#9D174D" }}>{R.personal.location}</div>
+        </div>
+      </div>
+      <div style={{ padding: "12px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: 6.5, color: "#aaa" }}>June 2, 2026</div>
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 700, color: "#831843" }}>Hiring Manager</div>
+          <div style={{ fontSize: 6.5, color: "#9D174D" }}>Acme Corp · San Francisco, CA</div>
+        </div>
+        <div style={{ fontSize: 7, fontWeight: 600, color: "#EC4899" }}>Dear Hiring Manager,</div>
+        <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+        <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+        <div style={{ fontSize: 6.5, color: "#555", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+        <div style={{ marginTop: "auto", paddingTop: 6 }}>
+          <div style={{ fontSize: 7, color: "#aaa" }}>With warm regards,</div>
+          <div style={{ fontSize: 8, fontWeight: 800, color: "#EC4899", marginTop: 4 }}>{R.personal.name}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLTech() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#0D1117", fontSize: 7, lineHeight: 1.55, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#161B22", borderBottom: "2px solid #0EA5E9", padding: "14px 18px 12px" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#E6EDF3", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 6.5, color: "#0EA5E9", fontWeight: 600, marginTop: 2, fontFamily: "monospace" }}>{R.personal.title}</div>
+        <div style={{ fontSize: 6, color: "#8B949E", marginTop: 4 }}>{R.personal.email} · {R.personal.phone}</div>
+      </div>
+      <div style={{ padding: "12px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: 6.5, color: "#30363D", fontFamily: "monospace" }}>// June 2, 2026</div>
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 700, color: "#C9D1D9" }}>Hiring Manager</div>
+          <div style={{ fontSize: 6.5, color: "#8B949E" }}>Acme Corp · San Francisco, CA</div>
+        </div>
+        <div style={{ fontSize: 7, fontWeight: 600, color: "#0EA5E9" }}>Dear Hiring Manager,</div>
+        <div style={{ fontSize: 6.5, color: "#8B949E", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+        <div style={{ fontSize: 6.5, color: "#8B949E", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+        <div style={{ fontSize: 6.5, color: "#8B949E", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+        <div style={{ marginTop: "auto", paddingTop: 6, borderTop: "1px solid #21262D" }}>
+          <div style={{ fontSize: 7, color: "#30363D" }}>Sincerely,</div>
+          <div style={{ fontSize: 8, fontWeight: 800, color: "#0EA5E9", marginTop: 4 }}>{R.personal.name}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLNature() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#F0FDF4", fontSize: 7, lineHeight: 1.55, height: "100%", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 7 }}>
+      <div style={{ paddingBottom: 10, borderBottom: "2px solid #16A34A" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#14532D", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 6.5, color: "#16A34A", fontWeight: 600, marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ fontSize: 6, color: "#4B7C5A", marginTop: 3 }}>{R.personal.email} · {R.personal.phone} · {R.personal.location}</div>
+      </div>
+      <div style={{ fontSize: 6.5, color: "#86EFAC" }}>June 2, 2026</div>
+      <div>
+        <div style={{ fontSize: 7, fontWeight: 700, color: "#14532D" }}>Hiring Manager</div>
+        <div style={{ fontSize: 6.5, color: "#4B7C5A" }}>Acme Corp · San Francisco, CA</div>
+      </div>
+      <div style={{ fontSize: 7, color: "#14532D" }}>Dear Hiring Manager,</div>
+      <div style={{ fontSize: 6.5, color: "#374151", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+      <div style={{ fontSize: 6.5, color: "#374151", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+      <div style={{ fontSize: 6.5, color: "#374151", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+      <div style={{ marginTop: "auto" }}>
+        <div style={{ fontSize: 7, color: "#4B7C5A" }}>Best regards,</div>
+        <div style={{ fontSize: 8, fontWeight: 700, color: "#16A34A", marginTop: 5 }}>{R.personal.name}</div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLBold() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#fff", fontSize: 7, lineHeight: 1.55, height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#DC2626", padding: "16px 18px 14px" }}>
+        <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", letterSpacing: "-0.02em", textTransform: "uppercase" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 6.5, color: "#FCA5A5", marginTop: 3 }}>{R.personal.title}</div>
+      </div>
+      <div style={{ padding: "12px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: 6, color: "#aaa" }}>{R.personal.email} · {R.personal.phone} · June 2, 2026</div>
+        <div>
+          <div style={{ fontSize: 7, fontWeight: 700, color: "#111" }}>Hiring Manager</div>
+          <div style={{ fontSize: 6.5, color: "#666" }}>Acme Corp · San Francisco, CA</div>
+        </div>
+        <div style={{ fontSize: 7, fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.04em" }}>Dear Hiring Manager,</div>
+        <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+        <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+        <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+        <div style={{ marginTop: "auto", borderTop: "2px solid #DC2626", paddingTop: 6 }}>
+          <div style={{ fontSize: 7, color: "#888" }}>Sincerely,</div>
+          <div style={{ fontSize: 8, fontWeight: 900, color: "#DC2626", marginTop: 4, textTransform: "uppercase", letterSpacing: "-0.01em" }}>{R.personal.name}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniCLAcademic() {
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: "#FFFBF5", fontSize: 7, lineHeight: 1.6, height: "100%", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 7 }}>
+      <div style={{ textAlign: "center", paddingBottom: 8, borderBottom: "1px solid #D97706" }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#78350F", letterSpacing: "0.04em", textTransform: "uppercase" }}>{R.personal.name}</div>
+        <div style={{ fontSize: 6.5, color: "#B45309", marginTop: 2 }}>{R.personal.title}</div>
+        <div style={{ fontSize: 6, color: "#92400E", marginTop: 2 }}>{R.personal.email} · {R.personal.phone} · {R.personal.location}</div>
+      </div>
+      <div style={{ fontSize: 6.5, color: "#aaa", textAlign: "right" }}>June 2, 2026</div>
+      <div>
+        <div style={{ fontSize: 7, fontWeight: 600, color: "#78350F" }}>Hiring Manager</div>
+        <div style={{ fontSize: 6.5, color: "#92400E" }}>Acme Corp · San Francisco, CA</div>
+      </div>
+      <div style={{ fontSize: 7, color: "#111" }}>Dear Hiring Manager,</div>
+      <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_1}</div>
+      <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_2}</div>
+      <div style={{ fontSize: 6.5, color: "#444", lineHeight: 1.6 }}>{CL_BODY_3}</div>
+      <div style={{ marginTop: "auto" }}>
+        <div style={{ fontSize: 7, color: "#92400E" }}>Respectfully yours,</div>
+        <div style={{ fontSize: 8, fontWeight: 700, color: "#78350F", marginTop: 4 }}>{R.personal.name}</div>
+      </div>
+    </div>
+  );
+}
+
 const COVER_LETTER_TEMPLATES = [
   { id: "cl-classic",   name: "Classic",   tag: "Professional", accent: "#1A56DB", preview: MiniCLClassic   },
   { id: "cl-modern",    name: "Modern",    tag: "Contemporary", accent: "#0EA5E9", preview: MiniCLModern    },
   { id: "cl-minimal",   name: "Minimal",   tag: "Clean",        accent: "#6B7280", preview: MiniCLMinimal   },
   { id: "cl-creative",  name: "Creative",  tag: "Bold",         accent: "#7C3AED", preview: MiniCLCreative  },
   { id: "cl-executive", name: "Executive", tag: "Corporate",    accent: "#F59E0B", preview: MiniCLExecutive },
+  { id: "cl-elegant",   name: "Elegant",   tag: "Sophisticated", accent: "#EC4899", preview: MiniCLElegant  },
+  { id: "cl-tech",      name: "Tech",      tag: "Developer",    accent: "#0EA5E9", preview: MiniCLTech      },
+  { id: "cl-nature",    name: "Nature",    tag: "Fresh",        accent: "#16A34A", preview: MiniCLNature    },
+  { id: "cl-bold",      name: "Bold",      tag: "Impact",       accent: "#DC2626", preview: MiniCLBold      },
+  { id: "cl-academic",  name: "Academic",  tag: "Formal",       accent: "#B45309", preview: MiniCLAcademic  },
 ];
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
@@ -5327,10 +5524,7 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
 
         {/* Cover letter template grid — always visible below the tab row */}
         <div style={{ marginTop: 16, marginBottom: 24, textAlign: "center" }}>
-          <h2 className="font-display" style={{ fontSize: "clamp(20px, 3vw, 32px)", fontWeight: 800, margin: "0 0 10px" }}>
-            Cover Letter Templates
-          </h2>
-          <div className="badge badge-blue" style={{ fontSize: 13 }}>5 cover letter templates</div>
+          <div className="badge badge-blue" style={{ fontSize: 13 }}>{COVER_LETTER_TEMPLATES.length} cover letter templates</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 }}>
             {COVER_LETTER_TEMPLATES.map(t => {
@@ -5614,6 +5808,152 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic",
           {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
           <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 24 }}>{name}</div>
         </div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-elegant") {
+    const accent = customAccent || "#EC4899";
+    const bg = customBg || "#FFF9FB";
+    const nameC = customNameColor || "#831843";
+    const textC = customText || "#333";
+    const mutedC = customMuted || "#9D174D";
+    return (
+      <div style={{ minHeight: 700, fontFamily: "'Poppins',sans-serif", background: bg }}>
+        <div style={{ background: "#fff", borderBottom: `3px solid ${accent}`, padding: "28px 44px 22px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: nameC }}>{name}</div>
+            <div style={{ fontSize: 12, color: accent, fontWeight: 600, marginTop: 5 }}>{pTitle}</div>
+          </div>
+          <div style={{ textAlign: "right", fontSize: 11, color: mutedC }}>
+            <div>{email}</div>
+            <div>{phone}</div>
+            <div>{loc}</div>
+          </div>
+        </div>
+        <div style={{ padding: "32px 44px", color: textC }}>
+          <RecipientBlock textColor={nameC} mutedColor={mutedC} />
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 18, color: accent }}>{salutation}</div>
+          {ph(opening, "Your opening paragraph will appear here…", textC, "opening")}
+          {ph(body, "Your main body paragraph will appear here…", textC, "body")}
+          {ph(closing, "Your closing paragraph will appear here…", textC, "closing")}
+          {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
+          <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 28 }}>{name}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-tech") {
+    const accent = customAccent || "#0EA5E9";
+    const bg = customBg || "#0D1117";
+    const nameC = customNameColor || "#E6EDF3";
+    const textC = customText || "#C9D1D9";
+    const mutedC = customMuted || "#8B949E";
+    return (
+      <div style={{ background: bg, minHeight: 700, fontFamily: "'Poppins',sans-serif" }}>
+        <div style={{ background: "#161B22", borderBottom: `2px solid ${accent}`, padding: "28px 44px 22px" }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: nameC }}>{name}</div>
+          <div style={{ fontSize: 12, color: accent, fontWeight: 600, marginTop: 5, fontFamily: "monospace" }}>{pTitle}</div>
+          <div style={{ fontSize: 11, color: mutedC, marginTop: 8 }}>{contacts}</div>
+        </div>
+        <div style={{ padding: "32px 44px", color: textC }}>
+          {date && <div style={{ fontSize: 11, color: "#30363D", fontFamily: "monospace", marginBottom: 20 }}>// {date}</div>}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 600, fontSize: 11, color: textC }}>{recName}{recTitle ? `, ${recTitle}` : ""}</div>
+            {company && <div style={{ fontSize: 11, color: mutedC }}>{company}</div>}
+            {role && <div style={{ fontSize: 11, color: mutedC }}>{role}</div>}
+          </div>
+          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 18, color: accent }}>{salutation}</div>
+          {ph(opening, "Your opening paragraph will appear here…", textC, "opening")}
+          {ph(body, "Your main body paragraph will appear here…", textC, "body")}
+          {ph(closing, "Your closing paragraph will appear here…", textC, "closing")}
+          <div style={{ borderTop: `1px solid #21262D`, paddingTop: 18 }}>
+            {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
+            <div style={{ fontSize: 15, fontWeight: 800, color: accent, marginTop: 24 }}>{name}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-nature") {
+    const accent = customAccent || "#16A34A";
+    const bg = customBg || "#F0FDF4";
+    const nameC = customNameColor || "#14532D";
+    const textC = customText || "#374151";
+    const mutedC = customMuted || "#4B7C5A";
+    return (
+      <div style={{ background: bg, padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: textC }}>
+        <div style={{ borderBottom: `2px solid ${accent}`, paddingBottom: 18, marginBottom: 26 }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: nameC }}>{name}</div>
+          <div style={{ fontSize: 12, color: accent, fontWeight: 600, marginTop: 5 }}>{pTitle}</div>
+          <div style={{ fontSize: 11, color: mutedC, marginTop: 8 }}>{contacts}</div>
+        </div>
+        <RecipientBlock textColor={nameC} mutedColor={mutedC} />
+        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: textC }}>{salutation}</div>
+        {ph(opening, "Your opening paragraph will appear here…", textC, "opening")}
+        {ph(body, "Your main body paragraph will appear here…", textC, "body")}
+        {ph(closing, "Your closing paragraph will appear here…", textC, "closing")}
+        {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
+        <div style={{ fontSize: 15, fontWeight: 700, color: accent, marginTop: 28 }}>{name}</div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-bold") {
+    const accent = customAccent || "#DC2626";
+    const bg = customBg || "#fff";
+    const nameC = customNameColor || "#fff";
+    const textC = customText || "#111";
+    const mutedC = customMuted || "#555";
+    return (
+      <div style={{ minHeight: 700, fontFamily: "'Poppins',sans-serif", background: bg }}>
+        <div style={{ background: accent, padding: "28px 44px 22px" }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: nameC, letterSpacing: "-0.02em", textTransform: "uppercase" }}>{name}</div>
+          <div style={{ fontSize: 12, color: `${nameC}cc`, marginTop: 6 }}>{pTitle}</div>
+        </div>
+        <div style={{ padding: "32px 44px", color: textC }}>
+          <div style={{ fontSize: 11, color: mutedC, marginBottom: 22 }}>{contacts}</div>
+          <RecipientBlock textColor={textC} mutedColor={mutedC} />
+          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 18, color: accent, textTransform: "uppercase", letterSpacing: "0.04em" }}>{salutation}</div>
+          {ph(opening, "Your opening paragraph will appear here…", textC, "opening")}
+          {ph(body, "Your main body paragraph will appear here…", textC, "body")}
+          {ph(closing, "Your closing paragraph will appear here…", textC, "closing")}
+          <div style={{ borderTop: `2px solid ${accent}`, paddingTop: 18 }}>
+            {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
+            <div style={{ fontSize: 16, fontWeight: 900, color: accent, marginTop: 24, textTransform: "uppercase", letterSpacing: "-0.01em" }}>{name}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (templateId === "cl-academic") {
+    const accent = customAccent || "#B45309";
+    const bg = customBg || "#FFFBF5";
+    const nameC = customNameColor || "#78350F";
+    const textC = customText || "#333";
+    const mutedC = customMuted || "#92400E";
+    return (
+      <div style={{ background: bg, padding: "44px 52px", minHeight: 700, fontFamily: "'Poppins',sans-serif", color: textC }}>
+        <div style={{ textAlign: "center", borderBottom: `1px solid ${accent}66`, paddingBottom: 20, marginBottom: 28 }}>
+          <div style={{ fontSize: 26, fontWeight: 800, color: nameC, letterSpacing: "0.04em", textTransform: "uppercase" }}>{name}</div>
+          <div style={{ fontSize: 12, color: accent, marginTop: 6 }}>{pTitle}</div>
+          <div style={{ fontSize: 11, color: mutedC, marginTop: 8 }}>{contacts}</div>
+        </div>
+        {date && <div style={{ fontSize: 11, color: mutedC, textAlign: "right", marginBottom: 20 }}>{date}</div>}
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontWeight: 600, fontSize: 11, color: textC }}>{recName}{recTitle ? `, ${recTitle}` : ""}</div>
+          {company && <div style={{ fontSize: 11, color: mutedC }}>{company}</div>}
+          {role && <div style={{ fontSize: 11, color: mutedC }}>{role}</div>}
+        </div>
+        <div style={{ fontWeight: 500, fontSize: 12, marginBottom: 18, color: textC }}>{salutation}</div>
+        {ph(opening, "Your opening paragraph will appear here…", textC, "opening")}
+        {ph(body, "Your main body paragraph will appear here…", textC, "body")}
+        {ph(closing, "Your closing paragraph will appear here…", textC, "closing")}
+        {showSignoff && <div style={{ fontSize: 12, color: mutedC }}>{signoff}</div>}
+        <div style={{ fontSize: 15, fontWeight: 700, color: nameC, marginTop: 28 }}>{name}</div>
       </div>
     );
   }
@@ -6382,7 +6722,7 @@ export default function App() {
   const [resume, setResumeState] = useState(BLANK_RESUME);
   const [selectedTemplate, setTemplateState] = useState("clarity");
   const [coverLetterTemplate, setCoverLetterTemplate] = useState("cl-classic");
-  const [coverLetter, setCoverLetter] = useState(BLANK_COVER_LETTER);
+  const [coverLetter, setCoverLetterState] = useState(BLANK_COVER_LETTER);
   const [upgradeModal, setUpgradeModal] = useState(null); // feature key or null
 
   // Load the correct user's data from localStorage whenever the account changes
@@ -6391,6 +6731,7 @@ export default function App() {
     const rKey = `ats-resume-${user.email}`;
     const tKey = `ats-template-${user.email}`;
     const pKey = `ats-plan-${user.email}`;
+    const clKey = `ats-coverletter-${user.email}`;
     try {
       const saved = localStorage.getItem(rKey);
       if (saved) setResumeState(JSON.parse(saved));
@@ -6398,6 +6739,8 @@ export default function App() {
     } catch { setResumeState(BLANK_RESUME); }
     try { const savedT = localStorage.getItem(tKey); setTemplateState(savedT ? JSON.parse(savedT) : "clarity"); }
     catch { setTemplateState("clarity"); }
+    try { const savedCL = localStorage.getItem(clKey); if (savedCL) setCoverLetterState(JSON.parse(savedCL)); }
+    catch {}
     // Load plan
     const savedPlan = localStorage.getItem(pKey) || "free";
     const savedPlanStart = localStorage.getItem(`ats-plan-start-${user.email}`) || null;
@@ -6415,6 +6758,14 @@ export default function App() {
   const setSelectedTemplate = (val) => {
     setTemplateState(val);
     if (user?.email) { try { localStorage.setItem(`ats-template-${user.email}`, JSON.stringify(val)); } catch {} }
+  };
+
+  const setCoverLetter = (val) => {
+    setCoverLetterState(prev => {
+      const next = typeof val === "function" ? val(prev) : val;
+      if (user?.email) { try { localStorage.setItem(`ats-coverletter-${user.email}`, JSON.stringify(next)); } catch {} }
+      return next;
+    });
   };
 
   const [paymentToast, setPaymentToast] = useState(""); // success / cancelled
