@@ -5326,18 +5326,11 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
         </div>}
 
         {/* Cover letter template grid — always visible below the tab row */}
-        <div style={{ marginTop: 48, marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-            <div style={{ flex: 1, height: 1, background: "var(--c-border)" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span className="font-display" style={{ fontWeight: 800, fontSize: 20 }}>Cover Letter Templates</span>
-              <span className="badge badge-blue" style={{ fontSize: 12 }}>5 templates</span>
-            </div>
-            <div style={{ flex: 1, height: 1, background: "var(--c-border)" }} />
-          </div>
-          <p className="app-text2" style={{ textAlign: "center", fontSize: 15, marginBottom: 24 }}>
-            Pair any resume with a matching cover letter — ATS-safe &amp; fully editable.
-          </p>
+        <div style={{ marginTop: 56, marginBottom: 24, textAlign: "center" }}>
+          <h2 className="font-display" style={{ fontSize: "clamp(20px, 3vw, 32px)", fontWeight: 800, margin: "0 0 10px" }}>
+            Cover Letter Templates
+          </h2>
+          <div className="badge badge-blue" style={{ fontSize: 13 }}>5 cover letter templates</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 24 }}>
             {COVER_LETTER_TEMPLATES.map(t => {
