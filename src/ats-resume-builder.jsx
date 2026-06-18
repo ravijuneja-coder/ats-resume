@@ -1696,7 +1696,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 
-function HomePage({ setPage }) {
+function HomePage({ setPage, user }) {
   const [homeFilter, setHomeFilter] = useState("all");
   const [homeDocType, setHomeDocType] = useState("resume");
   const features = [
@@ -1760,7 +1760,7 @@ function HomePage({ setPage }) {
           </p>
 
           <div className="fade-in-delay-3" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button className="btn btn-primary btn-xl" onClick={() => setPage(PAGES.REGISTER)}>
+            <button className="btn btn-primary btn-xl" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)}>
               Build Your Resume — It's Free <Icon.ArrowRight />
             </button>
             <button className="btn btn-secondary btn-xl" onClick={() => setPage(PAGES.TEMPLATES)}>
@@ -2105,7 +2105,7 @@ function HomePage({ setPage }) {
               {COVER_LETTER_TEMPLATES.map(t => {
                 const Preview = t.preview;
                 return (
-                  <div key={t.id} className="card-hover" onClick={() => setPage(PAGES.REGISTER)}
+                  <div key={t.id} className="card-hover" onClick={() => setPage(user ? PAGES.COVER_LETTER : PAGES.REGISTER)}
                     style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease" }}>
                     <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
                       <Preview />
@@ -2134,7 +2134,7 @@ function HomePage({ setPage }) {
                 const MiniPreview = MINI_PREVIEWS[t.id];
                 const isPremiumTemplate = !FREE_TEMPLATES.includes(t.id);
                 return (
-                  <div key={t.id} className="card-hover" onClick={() => { setPage(PAGES.REGISTER); }}
+                  <div key={t.id} className="card-hover" onClick={() => { setPage(user ? PAGES.BUILDER : PAGES.REGISTER); }}
                     style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease", position: "relative" }}>
                     <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
                       <div style={{ height: "100%" }}>
@@ -2166,7 +2166,7 @@ function HomePage({ setPage }) {
           )}
 
           <div style={{ textAlign: "center", marginTop: 48 }}>
-            <button className="btn btn-primary btn-lg" onClick={() => setPage(PAGES.REGISTER)} style={{ marginRight: 12 }}>
+            <button className="btn btn-primary btn-lg" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)} style={{ marginRight: 12 }}>
               <Icon.Sparkles /> Start Building Free
             </button>
             <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)}>
@@ -2217,7 +2217,7 @@ function HomePage({ setPage }) {
           Your next interview is one resume away.
         </h2>
         <p style={{ fontSize: 17, opacity: 0.85, margin: "0 0 28px" }}>Start free. No credit card. Build in minutes.</p>
-        <button className="btn btn-xl" onClick={() => setPage(PAGES.REGISTER)}
+        <button className="btn btn-xl" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)}
           style={{ background: "#fff", color: "var(--c-accent)", fontWeight: 700 }}>
           Create My Resume Now <Icon.ArrowRight />
         </button>
@@ -6828,9 +6828,9 @@ export default function App() {
 
   const renderPage = () => {
     switch (page) {
-      case PAGES.HOME: return <HomePage setPage={setPage} />;
-      case PAGES.LOGIN: return <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
-      case PAGES.REGISTER: return <AuthPage mode="register" setPage={setPage} setUser={setUser} />;
+      case PAGES.HOME: return <HomePage setPage={setPage} user={user} />;
+      case PAGES.LOGIN: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} /> : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
+      case PAGES.REGISTER: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} /> : <AuthPage mode="register" setPage={setPage} setUser={setUser} />;
       case PAGES.DASHBOARD: return user
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
@@ -6850,7 +6850,7 @@ export default function App() {
       case PAGES.SUBSCRIPTION: return user
         ? <SubscriptionPage user={user} setPage={setPage} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
-      default: return <HomePage setPage={setPage} />;
+      default: return <HomePage setPage={setPage} user={user} />;
     }
   };
 
