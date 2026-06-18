@@ -2399,9 +2399,10 @@ function CVPreviewModal({ resume, templateId, customAccent = "", customBg = "", 
   );
 }
 
-function DashboardPage({ setPage, user, resume, setResume, template }) {
+function DashboardPage({ setPage, user, resume, setResume, template, coverLetter, coverLetterTemplate = "cl-classic" }) {
   const [showCVPreview, setShowCVPreview] = useState(false);
   const { score } = computeATSScore(resume);
+  const hasCoverLetter = !!(coverLetter?.opening || coverLetter?.body || coverLetter?.closing || coverLetter?.company);
   const stats = [
     { label: "ATS Score", value: `${score}`, unit: "/100", color: "var(--c-accent)" },
     { label: "Sections", value: `${computeSectionCount(resume)}`, unit: "filled", color: "var(--c-accent2)" },
@@ -2440,7 +2441,7 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
         </div>
 
         {/* Main grid */}
-        <div className="dashboard-main" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start" }}>
+        <div className="dashboard-main" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, alignItems: "start" }}>
           {/* Resume card */}
           <div className="card" style={{ padding: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -2463,6 +2464,42 @@ function DashboardPage({ setPage, user, resume, setResume, template }) {
               <div style={{ padding: "12px 16px", borderTop: "1px solid var(--c-border)", display: "flex", gap: 8 }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => setShowCVPreview(true)}><Icon.Eye /> Full Preview</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.BUILDER)}><Icon.Download /> Download</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Cover Letter card */}
+          <div className="card" style={{ padding: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>My Cover Letter</h2>
+                <div className="app-text3" style={{ fontSize: 13 }}>{hasCoverLetter ? "Last edited just now" : "Not started yet"}</div>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-primary btn-sm" onClick={() => setPage(PAGES.COVER_LETTER)}>
+                  <Icon.Zap /> {hasCoverLetter ? "Edit" : "Start"}
+                </button>
+              </div>
+            </div>
+            <div style={{ border: "1px solid var(--c-border)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ height: 240, overflow: "hidden", position: "relative" }}>
+                <div style={{ transform: "scale(0.52)", transformOrigin: "top left", width: "192%", pointerEvents: "none" }}>
+                  <CoverLetterPreview cl={coverLetter || {}} personal={resume?.personal} templateId={coverLetterTemplate} />
+                </div>
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(transparent, var(--c-surface))" }} />
+                {!hasCoverLetter && (
+                  <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(var(--c-surface-rgb, 255,255,255),0.85)", backdropFilter: "blur(2px)" }}>
+                    <Icon.FileText size="32" style={{ color: "var(--c-text3)", marginBottom: 10 }} />
+                    <div style={{ fontSize: 13, color: "var(--c-text2)", fontWeight: 600 }}>No cover letter yet</div>
+                    <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => setPage(PAGES.COVER_LETTER)}>
+                      Create Cover Letter
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: "12px 16px", borderTop: "1px solid var(--c-border)", display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.COVER_LETTER)}><Icon.Eye /> Open Editor</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.TEMPLATES)}><Icon.LayoutTemplate /> Change Style</button>
               </div>
             </div>
           </div>
@@ -6829,10 +6866,10 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case PAGES.HOME: return <HomePage setPage={setPage} user={user} />;
-      case PAGES.LOGIN: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} /> : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
-      case PAGES.REGISTER: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} /> : <AuthPage mode="register" setPage={setPage} setUser={setUser} />;
+      case PAGES.LOGIN: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
+      case PAGES.REGISTER: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="register" setPage={setPage} setUser={setUser} />;
       case PAGES.DASHBOARD: return user
-        ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
+        ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.BUILDER: return user
         ? <BuilderPage key={user.email} resume={resume} setResume={setResume} template={selectedTemplate}
@@ -6845,7 +6882,7 @@ export default function App() {
         ? <CoverLetterBuilderPage coverLetter={coverLetter} setCoverLetter={setCoverLetter} resume={resume} templateId={coverLetterTemplate} onTemplateChange={setCoverLetterTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.PRICING: return (user && isPremium(user))
-        ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} />
+        ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} />
         : <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
       case PAGES.SUBSCRIPTION: return user
         ? <SubscriptionPage user={user} setPage={setPage} />
