@@ -14,9 +14,13 @@ import jsPDF from "jspdf";
 // inside one of them, pull the boundary back to just before that block.
 function collectBreakSafeBoundaries(el, canvasScale) {
   const rootTop = el.getBoundingClientRect().top;
-  const blocks = el.querySelectorAll(":scope > * > *, :scope > *");
+  const blocks = el.querySelectorAll("*");
   const spans = [];
   blocks.forEach(node => {
+    // Only leaf-ish blocks: protecting every ancestor container too would let
+    // a whole section's span win over its own bullets and pull the boundary
+    // back further than necessary. We want the smallest enclosing block.
+    if (node.children.length > 0) return;
     const r = node.getBoundingClientRect();
     if (r.height <= 0) return;
     spans.push({
