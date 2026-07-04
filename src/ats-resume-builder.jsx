@@ -1,5 +1,216 @@
 import { useState, useEffect, useRef } from "react";
 import mammoth from "mammoth";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
+// ─── PDF EXPORT (client-side render, no browser print dialog) ────────────────
+// Renders `el` to canvas and slices it into A4 pages, so the exported PDF has
+// no browser-injected header/footer (URL, title, page numbers, date).
+//
+// A naive fixed-height slice can cut straight through a section (e.g. the
+// Skills tag row), leaving half on one page and half on the next with a hard
+// seam at the cut. To avoid that, we collect the top/bottom of every
+// section-level block inside `el` and, whenever a page boundary would fall
+// inside one of them, pull the boundary back to just before that block.
+function collectBreakSafeBoundaries(el, canvasScale) {
+  const rootTop = el.getBoundingClientRect().top;
+  const blocks = el.querySelectorAll(":scope > * > *, :scope > *");
+  const spans = [];
+  blocks.forEach(node => {
+    const r = node.getBoundingClientRect();
+    if (r.height <= 0) return;
+    spans.push({
+      top: (r.top - rootTop) * canvasScale,
+      bottom: (r.bottom - rootTop) * canvasScale,
+    });
+  });
+  return spans;
+}
+
+// Walks up from `el` to find the first ancestor with a non-transparent
+// background-color, so the exported PDF page can be filled edge-to-edge with
+// it instead of leaving white margins around a colored template. Returns an
+// [r, g, b] triplet since that's what jsPDF's setFillColor needs.
+function findEffectiveBackgroundColor(el) {
+  let node = el;
+  while (node && node instanceof Element) {
+    const bg = getComputedStyle(node).backgroundColor;
+    const m = bg && bg.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/);
+    if (m && (m[4] === undefined || parseFloat(m[4]) > 0)) {
+      return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
+    }
+    node = node.parentElement;
+  }
+  return [255, 255, 255];
+}
+
+// Computes where page breaks fall inside `el` at 1:1 CSS-pixel scale (i.e.
+// against `el.getBoundingClientRect()`, not a rasterized canvas), given the
+// on-screen height of one A4 page's worth of content (`pageContentHpx`).
+// Shared by the PDF export (which scales the result up to canvas pixels) and
+// the live in-app preview overlay, so the on-screen page-break markers always
+// match where the PDF will actually split.
+function computePageBreaksPx(el, pageContentHpx) {
+  const totalHpx = el.getBoundingClientRect().height;
+  const blockSpans = collectBreakSafeBoundaries(el, 1);
+
+  const findSafeBoundary = (y, sliceStartPx) => {
+    const minY = sliceStartPx + pageContentHpx * 0.5;
+    let safeY = y;
+    for (const span of blockSpans) {
+      if (span.top < y && span.bottom > y && span.top >= minY) {
+        safeY = Math.min(safeY, span.top);
+      }
+    }
+    return safeY;
+  };
+
+  const breaks = [];
+  let renderedPx = 0;
+  while (renderedPx < totalHpx) {
+    const naiveEnd = Math.min(renderedPx + pageContentHpx, totalHpx);
+    const sliceEnd = naiveEnd >= totalHpx ? naiveEnd : findSafeBoundary(naiveEnd, renderedPx);
+    const sliceHpx = Math.max(1, sliceEnd - renderedPx);
+    renderedPx += sliceHpx;
+    if (renderedPx < totalHpx) breaks.push(renderedPx);
+  }
+  return breaks;
+}
+
+// Overlays dashed "Page N / Page N+1" break lines on top of `targetSelector`'s
+// element at the exact spots where exportElementToPDF would split the PDF,
+// so the live preview shows the same pagination the download will produce.
+// Recomputes on resize and whenever `deps` changes (resume content, margins,
+// template, etc. — anything that can shift the layout).
+function PageBreakOverlay({ targetSelector, margins, deps, onPageCountChange }) {
+  const [breaks, setBreaks] = useState([]);
+
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const recompute = () => {
+      const el = document.querySelector(targetSelector);
+      if (!el || el.getBoundingClientRect().width === 0) { setBreaks([]); onPageCountChange?.(1); return; }
+      const PAGE_W_MM = 210, PAGE_H_MM = 297;
+      const { top = 40, bottom = 40, left = 48, right = 48 } = margins || {};
+      const widthPx = el.getBoundingClientRect().width;
+      const marginLRfrac = (left + right) / (widthPx + left + right);
+      const contentWmm = PAGE_W_MM * (1 - marginLRfrac);
+      const pxPerMm = widthPx / contentWmm;
+      const contentHmm = PAGE_H_MM - ((top + bottom) / pxPerMm);
+      const pageContentHpx = contentHmm * pxPerMm;
+      const newBreaks = computePageBreaksPx(el, pageContentHpx);
+      setBreaks(newBreaks);
+      onPageCountChange?.(newBreaks.length + 1);
+    };
+
+    rafRef.current = requestAnimationFrame(recompute);
+    const el = document.querySelector(targetSelector);
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(recompute);
+    });
+    if (el) ro.observe(el);
+    window.addEventListener("resize", recompute);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      ro.disconnect();
+      window.removeEventListener("resize", recompute);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetSelector, margins?.top, margins?.bottom, margins?.left, margins?.right, deps]);
+
+  if (breaks.length === 0) return null;
+
+  return (
+    <>
+      {breaks.map((y, i) => (
+        <div key={i} style={{ position: "absolute", left: 0, right: 0, top: y, pointerEvents: "none", zIndex: 5 }}>
+          <div style={{ borderTop: "2px dashed #EF4444", position: "relative" }}>
+            <span style={{
+              position: "absolute", right: 8, top: -10,
+              background: "#EF4444", color: "#fff", fontSize: 10, fontWeight: 700,
+              padding: "1px 7px", borderRadius: 4, letterSpacing: "0.02em",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+            }}>
+              Page {i + 1} ↓ Page {i + 2}
+            </span>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// `margins` is the default applied to every page. `pageOverrides` is an
+// optional { [pageIndex]: { top, bottom, left, right } } map (0-based) for
+// pages that should use different margins than the default — the override
+// only changes that page's whitespace/inset, not where content breaks, since
+// re-flowing slice boundaries off a per-page value would be circular (the
+// page a given override applies to depends on where breaks fall, which would
+// then depend on the override).
+async function exportElementToPDF(el, filename, margins = {}, pageOverrides = {}) {
+  const { top = 40, bottom = 40, left = 48, right = 48 } = margins;
+  const PAGE_W_MM = 210, PAGE_H_MM = 297, PX_PER_MM = 96 / 25.4;
+  const marginTmm = top / PX_PER_MM;
+  const marginBmm = bottom / PX_PER_MM;
+  const marginLmm = left / PX_PER_MM;
+  const marginRmm = right / PX_PER_MM;
+  const contentWmm = PAGE_W_MM - marginLmm - marginRmm;
+  const contentHmm = PAGE_H_MM - marginTmm - marginBmm;
+
+  const [bgR, bgG, bgB] = findEffectiveBackgroundColor(el);
+  const scale = 2;
+  const canvas = await html2canvas(el, { scale, useCORS: true, backgroundColor: `rgb(${bgR}, ${bgG}, ${bgB})` });
+  const pxPerMm = canvas.width / contentWmm;
+  const maxSliceHpx = Math.floor(contentHmm * pxPerMm);
+  const blockSpans = collectBreakSafeBoundaries(el, scale);
+
+  // If a boundary at `y` would land inside some block, move it up to that
+  // block's top. Only pull back within the same page's worth of content, so
+  // one huge block can't collapse the slice to near-zero height.
+  const findSafeBoundary = (y, sliceStartPx) => {
+    const minY = sliceStartPx + maxSliceHpx * 0.5;
+    let safeY = y;
+    for (const span of blockSpans) {
+      if (span.top < y && span.bottom > y && span.top >= minY) {
+        safeY = Math.min(safeY, span.top);
+      }
+    }
+    return safeY;
+  };
+
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  let renderedPx = 0;
+  let pageIndex = 0;
+  while (renderedPx < canvas.height) {
+    const naiveEnd = Math.min(renderedPx + maxSliceHpx, canvas.height);
+    const sliceEnd = naiveEnd >= canvas.height ? naiveEnd : findSafeBoundary(naiveEnd, renderedPx);
+    const sliceHpx = Math.max(1, Math.round(sliceEnd - renderedPx));
+    const sliceCanvas = document.createElement("canvas");
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = sliceHpx;
+    const ctx = sliceCanvas.getContext("2d");
+    ctx.drawImage(canvas, 0, renderedPx, canvas.width, sliceHpx, 0, 0, canvas.width, sliceHpx);
+    const imgData = sliceCanvas.toDataURL("image/png");
+    if (pageIndex > 0) pdf.addPage();
+
+    const o = pageOverrides[pageIndex] || {};
+    const pT = (o.top ?? top) / PX_PER_MM;
+    const pL = (o.left ?? left) / PX_PER_MM;
+    const pR = (o.right ?? right) / PX_PER_MM;
+    const defaultImgHmm = sliceHpx / pxPerMm;
+    const imgWmm = PAGE_W_MM - pL - pR;
+    const imgHmm = defaultImgHmm * (imgWmm / contentWmm); // scale height to match width so aspect ratio is preserved
+
+    pdf.setFillColor(bgR, bgG, bgB);
+    pdf.rect(0, 0, PAGE_W_MM, PAGE_H_MM, "F");
+    pdf.addImage(imgData, "PNG", pL, pT, imgWmm, imgHmm);
+    renderedPx += sliceHpx;
+    pageIndex += 1;
+  }
+  pdf.save(filename);
+}
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 
@@ -485,6 +696,12 @@ const Icon = {
       <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
     </svg>
   ),
+  Link: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 12, height: 12, flexShrink: 0 }}>
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+    </svg>
+  ),
   Settings: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
       <circle cx="12" cy="12" r="3"/>
@@ -886,24 +1103,38 @@ const styles = `
   }
 
   /* Print / PDF export */
+  @page {
+    margin: 40px 48px;
+    size: A4;
+  }
   @media print {
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .no-print { display: none !important; }
     .navbar { display: none !important; }
     .builder-sidebar { display: none !important; }
     .builder-editor { display: none !important; }
+    html, body { height: auto !important; overflow: visible !important; margin: 0 !important; padding: 0 !important; }
+    .builder-layout { display: block !important; height: auto !important; overflow: visible !important; }
     .builder-preview-wrap {
-      position: fixed !important; inset: 0 !important;
-      background: white !important; padding: 0 !important;
-      display: block !important; overflow: visible !important;
+      position: static !important;
+      width: 100% !important;
+      height: auto !important;
+      overflow: visible !important;
+      background: white !important;
+      padding: 0 !important;
+      display: block !important;
       box-shadow: none !important;
     }
-    .builder-preview-wrap > div { box-shadow: none !important; border-radius: 0 !important; }
+    .builder-preview-wrap > div { height: auto !important; overflow: visible !important; box-shadow: none !important; border-radius: 0 !important; }
     .resume-preview {
       transform: none !important;
       width: 100% !important;
-      padding: 40px 48px !important;
+      max-width: 100% !important;
+      height: auto !important;
+      padding: 0 !important;
       font-size: 11pt !important;
+      box-shadow: none !important;
+      margin: 0 !important;
     }
   }
 `;
@@ -2546,6 +2777,27 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const [tab, setTab] = useState("edit"); // edit | preview | ats
   const [newSkill, setNewSkill] = useState("");
   const [importing, setImporting] = useState(false);
+  const [showPrintTip, setShowPrintTip] = useState(false);
+  const [printMarginTop, setPrintMarginTop] = useState(40);
+  const [printMarginBottom, setPrintMarginBottom] = useState(40);
+  const [printMarginLeft, setPrintMarginLeft] = useState(48);
+  const [printMarginRight, setPrintMarginRight] = useState(48);
+  const [linkTB, setLinkTB] = useState(true);
+  const [linkLR, setLinkLR] = useState(true);
+
+  const updateMarginTop = (v) => { setPrintMarginTop(v); if (linkTB) setPrintMarginBottom(v); };
+  const updateMarginBottom = (v) => { setPrintMarginBottom(v); if (linkTB) setPrintMarginTop(v); };
+  const updateMarginLeft = (v) => { setPrintMarginLeft(v); if (linkLR) setPrintMarginRight(v); };
+  const updateMarginRight = (v) => { setPrintMarginRight(v); if (linkLR) setPrintMarginLeft(v); };
+  const [pageCount, setPageCount] = useState(1);
+  // Per-page margin overrides, keyed by 0-based page index: { [pageIndex]: { top, bottom, left, right } }
+  const [pageOverrides, setPageOverrides] = useState({});
+  const setPageOverride = (pageIdx, field, value) => {
+    setPageOverrides(prev => ({ ...prev, [pageIdx]: { ...prev[pageIdx], [field]: value } }));
+  };
+  const clearPageOverride = (pageIdx) => {
+    setPageOverrides(prev => { const next = { ...prev }; delete next[pageIdx]; return next; });
+  };
   const [importError, setImportError] = useState("");
   const importRef = useRef(null);
 
@@ -2675,9 +2927,19 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
   const removeExp = (id) => setResume({ ...resume, experience: resume.experience.filter(e => e.id !== id) });
 
-  const handleExportPDF = () => {
+  const [exportingPDF, setExportingPDF] = useState(false);
+
+  const handleExportPDF = async () => {
     if (!premium && !FREE_TEMPLATES.includes(template)) { onNeedUpgrade?.("pdf_export"); return; }
-    window.print();
+    const el = document.querySelector(".builder-preview-wrap .resume-preview");
+    if (!el) return;
+    setExportingPDF(true);
+    try {
+      const name = (resume?.personal?.name || "resume").trim().replace(/\s+/g, "_");
+      await exportElementToPDF(el, `${name}.pdf`, { top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight }, pageOverrides);
+    } finally {
+      setExportingPDF(false);
+    }
   };
 
   return (
@@ -2853,8 +3115,8 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
           );
         })()}
 
-        <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={handleExportPDF}>
-          <Icon.Download /> Export PDF
+        <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={handleExportPDF} disabled={exportingPDF}>
+          <Icon.Download /> {exportingPDF ? "Generating…" : "Export PDF"}
         </button>
       </div>
 
@@ -3368,12 +3630,174 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               {TEMPLATES.find(t => t.id === template)?.name || "Clarity"}
             </div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF}><Icon.Download /> Export PDF</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowPrintTip(true)}><Icon.Download /> Export PDF</button>
+          {showPrintTip && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ background: "var(--c-surface)", borderRadius: 16, padding: "28px 32px", width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 40px rgba(0,0,0,0.2)", fontFamily: "var(--font-body)" }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--c-text)", marginBottom: 6 }}>PDF margins</div>
+                <div style={{ fontSize: 13, color: "var(--c-text2)", marginBottom: 16, lineHeight: 1.6 }}>
+                  Your PDF is generated directly from your resume — no browser print dialog, no extra URL/title/page numbers. Adjust the page margins if you'd like:
+                </div>
+                <div style={{ padding: "14px 16px", background: "var(--c-surface2)", borderRadius: 10, border: "1px solid var(--c-border)", marginBottom: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text2)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Top &amp; Bottom</span>
+                      <button
+                        type="button"
+                        onClick={() => setLinkTB(v => !v)}
+                        title={linkTB ? "Linked — click to set independently" : "Unlinked — click to link"}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: linkTB ? "var(--c-primary)" : "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
+                      >
+                        <Icon.Link size="12" /> {linkTB ? "Linked" : "Unlinked"}
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", gap: 14 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Top</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginTop}px</span>
+                        </div>
+                        <input
+                          type="range" min={0} max={80} step={4} value={printMarginTop}
+                          onChange={e => updateMarginTop(Number(e.target.value))}
+                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Bottom</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginBottom}px</span>
+                        </div>
+                        <input
+                          type="range" min={0} max={80} step={4} value={printMarginBottom}
+                          onChange={e => updateMarginBottom(Number(e.target.value))}
+                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text2)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Left &amp; Right</span>
+                      <button
+                        type="button"
+                        onClick={() => setLinkLR(v => !v)}
+                        title={linkLR ? "Linked — click to set independently" : "Unlinked — click to link"}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: linkLR ? "var(--c-primary)" : "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
+                      >
+                        <Icon.Link size="12" /> {linkLR ? "Linked" : "Unlinked"}
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", gap: 14 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Left</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginLeft}px</span>
+                        </div>
+                        <input
+                          type="range" min={0} max={80} step={4} value={printMarginLeft}
+                          onChange={e => updateMarginLeft(Number(e.target.value))}
+                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Right</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginRight}px</span>
+                        </div>
+                        <input
+                          type="range" min={0} max={80} step={4} value={printMarginRight}
+                          onChange={e => updateMarginRight(Number(e.target.value))}
+                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {pageCount > 1 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", marginBottom: 4 }}>Per-page overrides</div>
+                    <div style={{ fontSize: 12, color: "var(--c-text3)", marginBottom: 10, lineHeight: 1.5 }}>
+                      Your resume spans {pageCount} pages. By default every page uses the margins above — turn on a page below to set its own.
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {Array.from({ length: pageCount }).map((_, i) => {
+                        const o = pageOverrides[i];
+                        const isCustom = !!o;
+                        const globalDefaults = { top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight };
+                        const val = (field) => o?.[field] ?? globalDefaults[field];
+                        return (
+                          <div key={i} style={{ border: "1px solid var(--c-border)", borderRadius: 10, padding: "10px 12px", background: "var(--c-surface2)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text)" }}>Page {i + 1}</span>
+                              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--c-text2)", cursor: "pointer" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isCustom}
+                                  onChange={e => {
+                                    if (e.target.checked) {
+                                      setPageOverride(i, "top", printMarginTop);
+                                      setPageOverride(i, "bottom", printMarginBottom);
+                                      setPageOverride(i, "left", printMarginLeft);
+                                      setPageOverride(i, "right", printMarginRight);
+                                    } else {
+                                      clearPageOverride(i);
+                                    }
+                                  }}
+                                />
+                                Custom
+                              </label>
+                            </div>
+                            {isCustom && (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px", marginTop: 10 }}>
+                                {[
+                                  ["Top", "top"], ["Bottom", "bottom"], ["Left", "left"], ["Right", "right"],
+                                ].map(([label, field]) => (
+                                  <div key={field}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                                      <span style={{ fontSize: 11, color: "var(--c-text2)" }}>{label}</span>
+                                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--c-primary)" }}>{val(field)}px</span>
+                                    </div>
+                                    <input
+                                      type="range" min={0} max={80} step={4}
+                                      value={val(field)}
+                                      onChange={e => setPageOverride(i, field, Number(e.target.value))}
+                                      style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }} disabled={exportingPDF} onClick={() => { setShowPrintTip(false); handleExportPDF(); }}>
+                    <Icon.Download /> {exportingPDF ? "Generating…" : "Download PDF"}
+                  </button>
+                  <button className="btn btn-ghost" onClick={() => setShowPrintTip(false)} style={{ padding: "0 18px" }}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Resume — fills remaining space */}
         <div style={{ flex: 1, overflow: "auto" }}>
-          <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} />
+          <div style={{ position: "relative" }}>
+            <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} />
+            <PageBreakOverlay
+              targetSelector=".builder-preview-wrap .resume-preview"
+              margins={{ top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight }}
+              deps={JSON.stringify(resume) + template + customAccent + customBg + customText + customHeaderBg + customMuted + customNameColor}
+              onPageCountChange={setPageCount}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -6024,7 +6448,95 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
   const [section, setSection] = useState("recipient");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [hiddenFields, setHiddenFields] = useState(new Set());
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiLoadingField, setAiLoadingField] = useState(null);
+  const [aiError, setAiError] = useState("");
+  const [jd, setJd] = useState("");
+  const [exportingCLPDF, setExportingCLPDF] = useState(false);
   const update = (field, val) => setCoverLetter(prev => ({ ...prev, [field]: val }));
+
+  const handleExportCLPDF = async () => {
+    const el = document.getElementById("cover-letter-preview-root");
+    if (!el) return;
+    setExportingCLPDF(true);
+    try {
+      const name = (coverLetter?.senderName || resume?.personal?.name || "cover_letter").trim().replace(/\s+/g, "_");
+      await exportElementToPDF(el, `${name}_cover_letter.pdf`);
+    } finally {
+      setExportingCLPDF(false);
+    }
+  };
+
+  const aiGenerateCL = async (field = "all") => {
+    const name = coverLetter.senderName || resume?.personal?.name || "the applicant";
+    const title = coverLetter.senderTitle || resume?.personal?.title || "";
+    const company = coverLetter.company || "";
+    const role = coverLetter.role || "";
+    const summary = resume?.summary || "";
+    const experience = (resume?.experience || []).slice(0, 3)
+      .map(e => `${e.role} at ${e.company}${e.bullets?.length ? ": " + e.bullets.slice(0, 2).join("; ") : ""}`)
+      .join("\n");
+    const skills = (resume?.skills || []).slice(0, 12).join(", ");
+    const recipient = coverLetter.recipientName || "Hiring Manager";
+
+    if (!jd.trim() && !company && !role) {
+      setAiError("Paste a job description or fill in Company Name and Position first.");
+      setTimeout(() => setAiError(""), 4000);
+      return;
+    }
+
+    const candidateProfile = `CANDIDATE PROFILE:
+Name: ${name}${title ? ` | Title: ${title}` : ""}
+Target role: ${role || "open position"} at ${company || "the company"}
+Recipient: ${recipient}
+Professional summary: ${summary || "Experienced professional"}
+Experience:\n${experience || "Relevant work experience"}
+Skills: ${skills || "Various professional skills"}`;
+
+    const jdSection = jd.trim()
+      ? `\nJOB DESCRIPTION:\n${jd.trim().slice(0, 3000)}`
+      : "";
+
+    const instruction = jd.trim()
+      ? "Tailor the letter specifically to the job description. Mirror key requirements, use relevant keywords from the JD, and demonstrate how the candidate's background directly addresses what the employer needs."
+      : "Write based on the candidate's profile and target role.";
+
+    const systemPrompt = `You are an expert cover letter writer specializing in ATS optimization. ${instruction} Return plain text only, no labels, no markdown, no greetings or sign-offs — just the paragraph content.`;
+
+    setAiError("");
+    if (field === "all") setAiLoading(true);
+    else setAiLoadingField(field);
+
+    try {
+      if (field === "opening" || field === "all") {
+        const text = await callClaude(
+          `Write a compelling opening paragraph (3-4 sentences) for a cover letter. Hook the reader immediately. Mention the specific role and express genuine enthusiasm. Briefly state the candidate's strongest relevant qualification.\n\n${candidateProfile}${jdSection}`,
+          systemPrompt
+        );
+        update("opening", text.trim());
+      }
+      if (field === "body" || field === "all") {
+        const text = await callClaude(
+          `Write the main body paragraph (4-5 sentences) for a cover letter. Highlight 2-3 concrete achievements or skills that directly match what the employer is looking for. Use numbers/impact where possible. Connect the candidate's experience to the company's needs.${jd.trim() ? " Pull specific requirements from the job description and address them directly." : ""}\n\n${candidateProfile}${jdSection}`,
+          systemPrompt
+        );
+        update("body", text.trim());
+      }
+      if (field === "closing" || field === "all") {
+        const text = await callClaude(
+          `Write a closing paragraph (2-3 sentences) for a cover letter. Express strong enthusiasm for this specific opportunity, request an interview, and thank the reader. End confidently.\n\n${candidateProfile}${jdSection}`,
+          systemPrompt
+        );
+        update("closing", text.trim());
+      }
+    } catch (err) {
+      setAiError(err.message || "AI generation failed. Check your API key.");
+      setTimeout(() => setAiError(""), 6000);
+    } finally {
+      setAiLoading(false);
+      setAiLoadingField(null);
+    }
+  };
   const toggleField = (field) => setHiddenFields(prev => {
     const next = new Set(prev);
     next.has(field) ? next.delete(field) : next.add(field);
@@ -6172,8 +6684,8 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
           );
         })()}
 
-        <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={() => window.print()}>
-          <Icon.Download /> Export PDF
+        <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={handleExportCLPDF} disabled={exportingCLPDF}>
+          <Icon.Download /> {exportingCLPDF ? "Generating…" : "Export PDF"}
         </button>
       </div>
 
@@ -6255,6 +6767,46 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Letter Body</h2>
 
+            {/* JD Input + Generate */}
+            <div style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.07), rgba(139,92,246,0.07))", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 10, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon.Sparkles />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#6366f1" }}>AI Generate from Job Description</span>
+              </div>
+              <textarea
+                rows={5}
+                placeholder="Paste the job description here… AI will tailor your cover letter to match the role's requirements and keywords automatically."
+                value={jd}
+                onChange={e => setJd(e.target.value)}
+                style={{ width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid rgba(99,102,241,0.3)", fontSize: 12, fontFamily: "var(--font-body)", resize: "vertical", background: "var(--c-surface)", color: "var(--c-text)", lineHeight: 1.5, outline: "none", boxSizing: "border-box" }}
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  onClick={() => aiGenerateCL("all")}
+                  disabled={aiLoading}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: aiLoading ? "not-allowed" : "pointer", fontFamily: "var(--font-body)", opacity: aiLoading ? 0.7 : 1 }}>
+                  <Icon.Sparkles /> {aiLoading ? "Writing your letter…" : "Generate Cover Letter"}
+                </button>
+                {jd.trim() && (
+                  <button onClick={() => setJd("")} title="Clear JD"
+                    style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid var(--c-border)", background: "var(--c-surface)", color: "var(--c-text3)", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                    Clear
+                  </button>
+                )}
+              </div>
+              {!jd.trim() && (
+                <div style={{ fontSize: 11, color: "var(--c-text3)", textAlign: "center", marginTop: -4 }}>
+                  No JD? It will generate based on your resume + recipient details.
+                </div>
+              )}
+            </div>
+
+            {aiError && (
+              <div style={{ padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 8, fontSize: 12, color: "#DC2626", fontWeight: 500 }}>
+                {aiError}
+              </div>
+            )}
+
             {/* Reusable field renderer with remove/restore toggle */}
             {[
               { key: "opening", label: "Opening Paragraph", rows: 4, placeholder: "Introduce yourself and express your interest in the role. Mention where you found the job posting." },
@@ -6274,10 +6826,19 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
                     <label className="label" style={{ margin: 0 }}>
                       {label} <span className="app-text3" style={{ fontWeight: 400 }}>({(coverLetter[key] || "").length} chars)</span>
                     </label>
-                    <button onClick={() => toggleField(key)} title={`Remove ${label}`}
-                      style={{ fontSize: 11, fontWeight: 600, color: "var(--c-danger)", background: "none", border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: "2px 8px", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 4, opacity: 0.7 }}>
-                      <Icon.X /> Remove
-                    </button>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <button
+                        onClick={() => aiGenerateCL(key)}
+                        disabled={aiLoading || aiLoadingField === key}
+                        title={`AI generate ${label}`}
+                        style={{ fontSize: 11, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 6, cursor: (aiLoading || aiLoadingField === key) ? "not-allowed" : "pointer", padding: "2px 8px", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 4, opacity: (aiLoading || aiLoadingField === key) ? 0.6 : 1 }}>
+                        <Icon.Sparkles /> {aiLoadingField === key ? "…" : "AI"}
+                      </button>
+                      <button onClick={() => toggleField(key)} title={`Remove ${label}`}
+                        style={{ fontSize: 11, fontWeight: 600, color: "var(--c-danger)", background: "none", border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: "2px 8px", fontFamily: "var(--font-body)", display: "flex", alignItems: "center", gap: 4, opacity: 0.7 }}>
+                        <Icon.X /> Remove
+                      </button>
+                    </div>
                   </div>
                   <textarea className="input" rows={rows} placeholder={placeholder}
                     value={coverLetter[key] || ""} onChange={e => update(key, e.target.value)} />
@@ -6331,13 +6892,24 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
             <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
             <div className="badge badge-gray" style={{ fontSize: 10 }}>{tpl?.name || "Classic"} Cover Letter</div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()}><Icon.Download /> Export PDF</button>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCLPDF} disabled={exportingCLPDF}>
+            <Icon.Download /> {exportingCLPDF ? "Generating…" : "Export PDF"}
+          </button>
         </div>
         <div style={{ flex: 1, overflow: "auto" }}>
-          <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId}
-            customAccent={customAccent} customBg={customBg} customText={customText}
-            customMuted={customMuted} customNameColor={customNameColor}
-            hiddenFields={hiddenFields} />
+          <div style={{ position: "relative" }}>
+            <div id="cover-letter-preview-root">
+              <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId}
+                customAccent={customAccent} customBg={customBg} customText={customText}
+                customMuted={customMuted} customNameColor={customNameColor}
+                hiddenFields={hiddenFields} />
+            </div>
+            <PageBreakOverlay
+              targetSelector="#cover-letter-preview-root"
+              margins={{ top: 40, bottom: 40, left: 48, right: 48 }}
+              deps={JSON.stringify(coverLetter) + templateId + customAccent + customBg + customText + customMuted + customNameColor}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -6756,6 +7328,29 @@ export default function App() {
     if (user?.email && page === PAGES.HOME) setPage(PAGES.DASHBOARD);
   }, [user?.email]);
 
+  // Fix multi-page PDF: remove overflow:auto from preview wrap before printing
+  useEffect(() => {
+    const fixOverflow = () => {
+      document.querySelectorAll(".builder-preview-wrap").forEach(el => {
+        el.dataset.prevOverflow = el.style.overflow;
+        el.style.overflow = "visible";
+        el.style.height = "auto";
+      });
+    };
+    const restoreOverflow = () => {
+      document.querySelectorAll(".builder-preview-wrap").forEach(el => {
+        el.style.overflow = el.dataset.prevOverflow || "auto";
+        el.style.height = "";
+      });
+    };
+    window.addEventListener("beforeprint", fixOverflow);
+    window.addEventListener("afterprint", restoreOverflow);
+    return () => {
+      window.removeEventListener("beforeprint", fixOverflow);
+      window.removeEventListener("afterprint", restoreOverflow);
+    };
+  }, []);
+
   const [resume, setResumeState] = useState(BLANK_RESUME);
   const [selectedTemplate, setTemplateState] = useState("clarity");
   const [coverLetterTemplate, setCoverLetterTemplate] = useState("cl-classic");
@@ -6778,6 +7373,14 @@ export default function App() {
     catch { setTemplateState("clarity"); }
     try { const savedCL = localStorage.getItem(clKey); if (savedCL) setCoverLetterState(JSON.parse(savedCL)); }
     catch {}
+    // Seed premium for whitelisted accounts
+    const PREMIUM_EMAILS = ["ravijuneja1986@gmail.com"];
+    if (PREMIUM_EMAILS.includes(user.email) && localStorage.getItem(pKey) !== "premium") {
+      localStorage.setItem(pKey, "premium");
+      if (!localStorage.getItem(`ats-plan-start-${user.email}`)) {
+        localStorage.setItem(`ats-plan-start-${user.email}`, new Date().toISOString());
+      }
+    }
     // Load plan
     const savedPlan = localStorage.getItem(pKey) || "free";
     const savedPlanStart = localStorage.getItem(`ats-plan-start-${user.email}`) || null;
