@@ -2802,6 +2802,23 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const clearPageOverride = (pageIdx) => {
     setPageOverrides(prev => { const next = { ...prev }; delete next[pageIdx]; return next; });
   };
+  // The page index a page-override lives under is only meaningful for the
+  // current page count — if editing margins/content collapses the resume
+  // from e.g. 3 pages to 2, an override still stored under index 2 would
+  // silently attach to whatever content now falls on a different page
+  // instead of just disappearing cleanly. Drop overrides once their page no
+  // longer exists so a shrink can't leave a stale override misapplied.
+  useEffect(() => {
+    setPageOverrides(prev => {
+      const next = {};
+      let changed = false;
+      for (const key of Object.keys(prev)) {
+        if (Number(key) < pageCount) next[key] = prev[key];
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [pageCount]);
   const [importError, setImportError] = useState("");
   const importRef = useRef(null);
 
