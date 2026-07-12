@@ -12,17 +12,29 @@ import jsPDF from "jspdf";
 // seam at the cut. To avoid that, we collect the top/bottom of every
 // section-level block inside `el` and, whenever a page boundary would fall
 // inside one of them, pull the boundary back to just before that block.
-function collectBreakSafeBoundaries(el, canvasScale) {
+//
+// Leaf nodes (a single bullet line) are always protected. But a leaf-only
+// pass still lets a break land between a job entry's header (role/company)
+// and its bullet list, or land right after the header — orphaning the
+// header alone. Every template renders one job/education/project entry as
+// its own small wrapper div (header + bullets), so we also protect any
+// container whose height is a modest fraction of a page: small enough to be
+// "one entry", too small to be a whole section. `pageContentHpx` (one page's
+// worth of content height, same unit as the returned spans) sets that cutoff.
+function collectBreakSafeBoundaries(el, canvasScale, pageContentHpx) {
   const rootTop = el.getBoundingClientRect().top;
   const blocks = el.querySelectorAll("*");
   const spans = [];
+  const entryCutoffPx = pageContentHpx * 0.4;
   blocks.forEach(node => {
-    // Only leaf-ish blocks: protecting every ancestor container too would let
-    // a whole section's span win over its own bullets and pull the boundary
-    // back further than necessary. We want the smallest enclosing block.
-    if (node.children.length > 0) return;
+    const isLeaf = node.children.length === 0;
     const r = node.getBoundingClientRect();
     if (r.height <= 0) return;
+    const heightPx = r.height * canvasScale;
+    // Protect leaves outright, and also protect small containers (single
+    // entries like one job's header+bullets) without protecting whole
+    // sections, which would pull page breaks back too far.
+    if (!isLeaf && !(pageContentHpx && heightPx <= entryCutoffPx)) return;
     spans.push({
       top: (r.top - rootTop) * canvasScale,
       bottom: (r.bottom - rootTop) * canvasScale,
@@ -56,7 +68,7 @@ function findEffectiveBackgroundColor(el) {
 // match where the PDF will actually split.
 function computePageBreaksPx(el, pageContentHpx) {
   const totalHpx = el.getBoundingClientRect().height;
-  const blockSpans = collectBreakSafeBoundaries(el, 1);
+  const blockSpans = collectBreakSafeBoundaries(el, 1, pageContentHpx);
 
   const findSafeBoundary = (y, sliceStartPx) => {
     const minY = sliceStartPx + pageContentHpx * 0.5;
@@ -86,8 +98,9 @@ function computePageBreaksPx(el, pageContentHpx) {
 // so the live preview shows the same pagination the download will produce.
 // Recomputes on resize and whenever `deps` changes (resume content, margins,
 // template, etc. — anything that can shift the layout).
-function PageBreakOverlay({ targetSelector, margins, deps, onPageCountChange }) {
+function PageBreakOverlay({ targetSelector, margins, deps, onPageCountChange, pageOverrides, highlightPage = -1 }) {
   const [breaks, setBreaks] = useState([]);
+  const [elHeight, setElHeight] = useState(0);
 
   const rafRef = useRef(null);
 
@@ -95,16 +108,19 @@ function PageBreakOverlay({ targetSelector, margins, deps, onPageCountChange }) 
     const recompute = () => {
       const el = document.querySelector(targetSelector);
       if (!el || el.getBoundingClientRect().width === 0) { setBreaks([]); onPageCountChange?.(1); return; }
-      const PAGE_W_MM = 210, PAGE_H_MM = 297;
+      // Must match exportElementToPDF's math exactly (fixed 96 DPI, independent
+      // of the element's on-screen width) or the preview's page height and the
+      // PDF's page height diverge, and the two disagree on where breaks fall.
+      const PAGE_W_MM = 210, PAGE_H_MM = 297, PX_PER_MM = 96 / 25.4;
       const { top = 40, bottom = 40, left = 48, right = 48 } = margins || {};
+      const contentWmm = PAGE_W_MM - (left + right) / PX_PER_MM;
+      const contentHmm = PAGE_H_MM - (top + bottom) / PX_PER_MM;
       const widthPx = el.getBoundingClientRect().width;
-      const marginLRfrac = (left + right) / (widthPx + left + right);
-      const contentWmm = PAGE_W_MM * (1 - marginLRfrac);
       const pxPerMm = widthPx / contentWmm;
-      const contentHmm = PAGE_H_MM - ((top + bottom) / pxPerMm);
       const pageContentHpx = contentHmm * pxPerMm;
       const newBreaks = computePageBreaksPx(el, pageContentHpx);
       setBreaks(newBreaks);
+      setElHeight(el.getBoundingClientRect().height);
       onPageCountChange?.(newBreaks.length + 1);
     };
 
@@ -124,7 +140,16 @@ function PageBreakOverlay({ targetSelector, margins, deps, onPageCountChange }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetSelector, margins?.top, margins?.bottom, margins?.left, margins?.right, deps]);
 
-  if (breaks.length === 0) return null;
+  // Slice boundaries for every page: [{ top, bottom }, ...] in the same
+  // coordinate space as `breaks` (CSS px from the top of the target element).
+  const pageSlices = [0, ...breaks, elHeight].slice(0, -1).map((top, i) => ({
+    top, bottom: [...breaks, elHeight][i],
+  }));
+
+  const highlighted = highlightPage >= 0 ? pageSlices[highlightPage] : null;
+  const highlightMargins = highlightPage >= 0 ? (pageOverrides?.[highlightPage] || margins) : null;
+
+  if (breaks.length === 0 && !highlighted) return null;
 
   return (
     <>
@@ -142,7 +167,154 @@ function PageBreakOverlay({ targetSelector, margins, deps, onPageCountChange }) 
           </div>
         </div>
       ))}
+      {/* Highlighted page band + its own margin guide lines, so picking a
+          page in the toolbar's page selector shows exactly where that
+          page's (possibly overridden) margins fall within its slice. */}
+      {highlighted && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, top: highlighted.top, height: highlighted.bottom - highlighted.top,
+          pointerEvents: "none", zIndex: 4, background: "rgba(59, 130, 246, 0.06)",
+          border: "2px solid #3B82F6", boxSizing: "border-box",
+        }}>
+          <div style={{ position: "absolute", left: 0, right: 0, top: highlightMargins.top, borderTop: "1.5px dashed #3B82F6" }} />
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: highlightMargins.bottom, borderBottom: "1.5px dashed #3B82F6" }} />
+          <div style={{ position: "absolute", top: 0, bottom: 0, left: highlightMargins.left, borderLeft: "1.5px dashed #3B82F6" }} />
+          <div style={{ position: "absolute", top: 0, bottom: 0, right: highlightMargins.right, borderRight: "1.5px dashed #3B82F6" }} />
+          <span style={{
+            position: "absolute", left: 8, top: 8,
+            background: "#3B82F6", color: "#fff", fontSize: 10, fontWeight: 700,
+            padding: "1px 7px", borderRadius: 4, letterSpacing: "0.02em",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+          }}>
+            Page {highlightPage + 1} margins
+          </span>
+        </div>
+      )}
     </>
+  );
+}
+
+// Renders `children` (a resume) as real, separately-padded page boxes
+// stacked with a gap, so per-page margin overrides are actually visible on
+// screen — not just an overlay drawn on top of unchanged content. Mirrors
+// exportElementToPDF's canvas-slicing: break positions come from the same
+// computePageBreaksPx logic (driven by the global default margins, same as
+// the PDF — per-page overrides only resize that page's own padding/window,
+// they don't reflow where breaks fall, matching the export's behavior).
+// Works by rendering one full-height hidden copy to measure/find breaks,
+// then one clipped `overflow: hidden` box per page, each showing a
+// vertically-shifted view of a second full copy so the right slice of
+// content appears in each box, padded with that page's own margins.
+function PaginatedResumePreview({ margins, pageOverrides, onPageCountChange, highlightPage = -1, children }) {
+  const containerRef = useRef(null);
+  const measureRef = useRef(null);
+  const [breaks, setBreaks] = useState([]);
+  const [totalHpx, setTotalHpx] = useState(0);
+  const [pageWidthPx, setPageWidthPx] = useState(0);
+  const rafRef = useRef(null);
+
+  const { top: mTop = 40, bottom: mBottom = 40, left: mLeft = 48, right: mRight = 48 } = margins || {};
+
+  useEffect(() => {
+    const recompute = () => {
+      // The hidden measurer's width must match what the visible page box
+      // will actually render at (container width, capped at the 850px page
+      // max) — .resume-preview is width:100% and has nothing else to
+      // resolve its own width against.
+      const containerWidthPx = Math.min(containerRef.current?.getBoundingClientRect().width || 0, 850);
+      const el = measureRef.current?.querySelector(".resume-preview");
+      if (!el || containerWidthPx === 0) { setBreaks([]); setTotalHpx(0); onPageCountChange?.(1); return; }
+      setPageWidthPx(containerWidthPx);
+      const PAGE_W_MM = 210, PAGE_H_MM = 297, PX_PER_MM = 96 / 25.4;
+      const contentWmm = PAGE_W_MM - (mLeft + mRight) / PX_PER_MM;
+      const contentHmm = PAGE_H_MM - (mTop + mBottom) / PX_PER_MM;
+      const pxPerMm = containerWidthPx / contentWmm;
+      const pageContentHpx = contentHmm * pxPerMm;
+      const newBreaks = computePageBreaksPx(el, pageContentHpx);
+      setBreaks(newBreaks);
+      setTotalHpx(el.getBoundingClientRect().height);
+      onPageCountChange?.(newBreaks.length + 1);
+    };
+    rafRef.current = requestAnimationFrame(recompute);
+    // Web fonts (Poppins) load async; if they swap in after this first
+    // measurement, glyph metrics change and previously-computed break
+    // points no longer match the text that actually renders — recompute
+    // once fonts have settled so live preview and the export capture
+    // (which also waits on document.fonts.ready) agree on the same layout.
+    if (document.fonts && document.fonts.status !== "loaded") {
+      document.fonts.ready.then(() => {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(recompute);
+      });
+    }
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(recompute);
+    });
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mTop, mBottom, mLeft, mRight, children]);
+
+  const slices = [0, ...breaks, totalHpx].slice(0, -1).map((top, i) => ({
+    top, bottom: [...breaks, totalHpx][i],
+  }));
+
+  return (
+    <div ref={containerRef} style={{ position: "relative" }}>
+      {/* Off-screen full-height copy: the source of truth for break
+          measurement AND the only element PDF export can render (html2canvas
+          can't reliably rasterize a visibility:hidden node, so this must
+          stay genuinely visible — just parked off-screen via fixed
+          positioning so it never affects page layout or scroll). Marked
+          data-export-source so exportElementToPDF can find it unambiguously
+          instead of picking whichever .resume-preview happens to be first
+          in the DOM (the visible per-page boxes below are clipped copies,
+          not the full document, and are the wrong export source). */}
+      <div style={{ position: "fixed", top: 0, left: -99999, pointerEvents: "none" }} aria-hidden="true" data-export-source="true">
+        <div ref={measureRef} style={{ width: pageWidthPx || undefined }}>
+          {children}
+        </div>
+      </div>
+      {slices.length === 0 ? (
+        <div style={{ padding: `${mTop}px ${mRight}px ${mBottom}px ${mLeft}px`, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 20px rgba(0,0,0,0.06)", maxWidth: 850, margin: "0 auto" }}>
+          {children}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+          {slices.map((slice, i) => {
+            const o = pageOverrides?.[i];
+            const pT = o?.top ?? mTop, pB = o?.bottom ?? mBottom, pL = o?.left ?? mLeft, pR = o?.right ?? mRight;
+            const sliceH = slice.bottom - slice.top;
+            const isHighlighted = highlightPage === i;
+            return (
+              <div key={i} style={{
+                position: "relative", maxWidth: 850, width: "100%", margin: "0 auto",
+                boxShadow: isHighlighted ? "0 0 0 3px #3B82F6, 0 1px 20px rgba(0,0,0,0.08)" : "0 1px 3px rgba(0,0,0,0.12), 0 1px 20px rgba(0,0,0,0.06)",
+                borderRadius: isHighlighted ? 4 : 0,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "0 2px 4px" }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: isHighlighted ? "#3B82F6" : "var(--c-text3)" }}>Page {i + 1}</span>
+                  {o && <span style={{ fontSize: 10, color: "var(--c-primary)", fontWeight: 600 }}>Custom margins</span>}
+                </div>
+                <div style={{
+                  overflow: "hidden", background: "#fff",
+                  height: sliceH + pT + pB,
+                  padding: `${pT}px ${pR}px ${pB}px ${pL}px`,
+                  boxSizing: "border-box",
+                }}>
+                  <div style={{ position: "relative", height: sliceH, overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: -slice.top, left: 0, right: 0 }}>
+                      {children}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -163,12 +335,22 @@ async function exportElementToPDF(el, filename, margins = {}, pageOverrides = {}
   const contentWmm = PAGE_W_MM - marginLmm - marginRmm;
   const contentHmm = PAGE_H_MM - marginTmm - marginBmm;
 
+  // Wait for web fonts (Poppins) to finish loading before measuring
+  // boundaries or rasterizing. If a font swaps in mid-capture, glyph
+  // metrics shift after the safe-boundary spans were measured, so the
+  // slice cut and the actually-rendered text disagree — producing
+  // shifted/doubled-looking text near whichever page seam falls where
+  // the reflow happened.
+  if (document.fonts && document.fonts.status !== "loaded") {
+    await document.fonts.ready;
+  }
+
   const [bgR, bgG, bgB] = findEffectiveBackgroundColor(el);
   const scale = 2;
   const canvas = await html2canvas(el, { scale, useCORS: true, backgroundColor: `rgb(${bgR}, ${bgG}, ${bgB})` });
   const pxPerMm = canvas.width / contentWmm;
   const maxSliceHpx = Math.floor(contentHmm * pxPerMm);
-  const blockSpans = collectBreakSafeBoundaries(el, scale);
+  const blockSpans = collectBreakSafeBoundaries(el, scale, maxSliceHpx);
 
   // If a boundary at `y` would land inside some block, move it up to that
   // block's top. Only pull back within the same page's worth of content, so
@@ -1146,8 +1328,11 @@ const styles = `
 // ─── RESUME PREVIEW COMPONENT ─────────────────────────────────────────────────
 
 // Shared body sections (summary, experience, skills, education, certs, projects)
-function ResumeSections({ r, accent, text, muted, skillBg }) {
+function ResumeSections({ r, accent, text, muted, skillBg, entrySpacing = null }) {
   const sh = { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: accent, borderBottom: `1.5px solid ${accent}`, paddingBottom: 3, marginBottom: 8 };
+  // Each entry type hardcodes its own default gap; only override when the
+  // user has explicitly moved the spacing slider.
+  const es = (v) => entrySpacing ?? v;
   return (
     <>
       {r.summary && (
@@ -1160,7 +1345,7 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
         <div style={{ marginBottom: 14 }}>
           <div style={sh}>Work Experience</div>
           {r.experience.map(exp => (
-            <div key={exp.id} style={{ marginBottom: 10 }}>
+            <div key={exp.id} style={{ marginBottom: es(10) }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{exp.role}</div>
@@ -1190,7 +1375,7 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
         <div style={{ marginBottom: 14 }}>
           <div style={sh}>Education</div>
           {r.education.map(edu => (
-            <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+            <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: es(6) }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{edu.degree}</div>
                 <span style={{ color: accent, fontSize: 10, fontWeight: 600 }}>{edu.school}</span>
@@ -1216,7 +1401,7 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
         <div style={{ marginBottom: 14 }}>
           <div style={sh}>Projects</div>
           {r.projects.map(p => (
-            <div key={p.id} style={{ marginBottom: 8 }}>
+            <div key={p.id} style={{ marginBottom: es(8) }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{p.name}</div>
                 {(p.start || p.end) && <span style={{ color: muted, fontSize: 10 }}>{p.start}{p.end ? ` – ${p.end}` : ""}</span>}
@@ -1256,8 +1441,11 @@ function ResumeSections({ r, accent, text, muted, skillBg }) {
   );
 }
 
-function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "", customNameColor = "" }) {
+function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent = "", customBg = "", customText = "", customHeaderBg = "", customMuted = "", customNameColor = "", entrySpacing = null }) {
   const r = resume;
+  // Each template hardcodes its own default entry gap (10-14px); only override
+  // it when the user has explicitly moved the spacing slider.
+  const es = (v) => entrySpacing ?? v;
   const tpl = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[1];
   const accent = customAccent || tpl.accent;
   const wrap = { transform: scale !== 1 ? `scale(${scale})` : undefined, transformOrigin: "top left" };
@@ -1319,7 +1507,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             <div>
               <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: sideAccent, marginBottom: 6, letterSpacing: "0.08em" }}>Education</div>
               {r.education.map(e => (
-                <div key={e.id} style={{ marginBottom: 6 }}>
+                <div key={e.id} style={{ marginBottom: es(6) }}>
                   <div style={{ fontWeight: 700, fontSize: 10, color: "#fff" }}>{e.degree}</div>
                   <div style={{ fontSize: 9, color: sideText }}>{e.school}{e.year ? ` · ${e.year}` : ""}</div>
                 </div>
@@ -1329,7 +1517,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
         </div>
         {/* Content */}
         <div style={{ flex: 1, padding: "28px 24px", fontFamily: font, fontSize: 11, lineHeight: 1.5 }}>
-          <ResumeSections r={r} accent={sideAccent} text={contentText} muted={contentMuted} skillBg={sideAccent + "22"} />
+          <ResumeSections r={r} accent={sideAccent} text={contentText} muted={contentMuted} skillBg={sideAccent + "22"} entrySpacing={entrySpacing} />
         </div>
       </div>
     );
@@ -1353,7 +1541,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             : <div style={{ width: 72, height: 72, borderRadius: 10, background: accent + "33", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 700, color: accent, flexShrink: 0 }}>{r.personal.name?.[0] || "?"}</div>
           }
         </div>
-        <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg="#1C1917" />
+        <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg="#1C1917" entrySpacing={entrySpacing} />
       </div>
     );
   }
@@ -1381,7 +1569,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
           </div>
         </div>
         <div style={{ padding: "24px 32px" }}>
-          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={isVista ? "#FCE7F3" : "#E0F2FE"} />
+          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={isVista ? "#FCE7F3" : "#E0F2FE"} entrySpacing={entrySpacing} />
         </div>
       </div>
     );
@@ -1410,7 +1598,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
           </div>
         </div>
         <div style={{ padding: "24px 32px" }}>
-          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} />
+          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} entrySpacing={entrySpacing} />
         </div>
       </div>
     );
@@ -1431,7 +1619,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
               {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
             </div>
           </div>
-          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} />
+          <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} entrySpacing={entrySpacing} />
         </div>
       </div>
     );
@@ -1450,7 +1638,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
           </div>
         </div>
-        <ResumeSections r={r} accent="#1E293B" text={text} muted={muted} skillBg="#F1F5F9" />
+        <ResumeSections r={r} accent="#1E293B" text={text} muted={muted} skillBg="#F1F5F9" entrySpacing={entrySpacing} />
       </div>
     );
   }
@@ -1467,7 +1655,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
           </div>
         </div>
-        <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "18"} />
+        <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "18"} entrySpacing={entrySpacing} />
       </div>
     );
   }
@@ -1551,7 +1739,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             <div style={{ marginBottom: 14 }}>
               <div style={sh}>Work Experience</div>
               {r.experience.map(exp => (
-                <div key={exp.id} style={{ marginBottom: 12 }}>
+                <div key={exp.id} style={{ marginBottom: es(12) }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ fontWeight: 700, fontSize: 12, color: text }}>{exp.role}</div>
                     <span style={{ color: muted, fontSize: 10, whiteSpace: "nowrap" }}>{exp.start}{exp.end ? ` – ${exp.end}` : ""}</span>
@@ -1571,7 +1759,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             <div style={{ marginBottom: 14 }}>
               <div style={sh}>Education</div>
               {r.education.map(edu => (
-                <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <div key={edu.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: es(6) }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{edu.degree}</div>
                     <span style={{ color: accent, fontSize: 10, fontWeight: 600 }}>{edu.school}</span>
@@ -1587,7 +1775,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
             <div style={{ marginBottom: 14 }}>
               <div style={sh}>Projects</div>
               {r.projects.map(p => (
-                <div key={p.id} style={{ marginBottom: 8 }}>
+                <div key={p.id} style={{ marginBottom: es(8) }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <div style={{ fontWeight: 700, fontSize: 11, color: text }}>{p.name}</div>
                     {(p.start || p.end) && <span style={{ color: muted, fontSize: 10 }}>{p.start}{p.end ? ` – ${p.end}` : ""}</span>}
@@ -1626,7 +1814,7 @@ function ResumePreview({ resume, scale = 1, templateId = "clarity", customAccent
           {contacts.map((c, i) => <span key={i} style={{ fontSize: 10, color: muted }}>{c}</span>)}
         </div>
       </div>
-      <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} />
+      <ResumeSections r={r} accent={accent} text={text} muted={muted} skillBg={accent + "22"} entrySpacing={entrySpacing} />
     </div>
   );
 }
@@ -2781,13 +2969,19 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const [tab, setTab] = useState("edit"); // edit | preview | ats
   const [newSkill, setNewSkill] = useState("");
   const [importing, setImporting] = useState(false);
-  const [showPrintTip, setShowPrintTip] = useState(false);
-  const [printMarginTop, setPrintMarginTop] = useState(40);
-  const [printMarginBottom, setPrintMarginBottom] = useState(40);
-  const [printMarginLeft, setPrintMarginLeft] = useState(48);
-  const [printMarginRight, setPrintMarginRight] = useState(48);
-  const [linkTB, setLinkTB] = useState(true);
-  const [linkLR, setLinkLR] = useState(true);
+  // Persisted per-user so leaving the Live Preview tab (or navigating away
+  // and back) doesn't silently reset margins/spacing to defaults.
+  const marginKey = user?.email ? `ats-margins-${user.email}` : "ats-margins-anon";
+  const [printMarginTop, setPrintMarginTop] = useLocalStorage(`${marginKey}-top`, 40);
+  const [printMarginBottom, setPrintMarginBottom] = useLocalStorage(`${marginKey}-bottom`, 40);
+  const [printMarginLeft, setPrintMarginLeft] = useLocalStorage(`${marginKey}-left`, 48);
+  const [printMarginRight, setPrintMarginRight] = useLocalStorage(`${marginKey}-right`, 48);
+  const [linkTB, setLinkTB] = useLocalStorage(`${marginKey}-linkTB`, true);
+  const [linkLR, setLinkLR] = useLocalStorage(`${marginKey}-linkLR`, true);
+  // Vertical gap (px) between experience/education/project entries. `null`
+  // means "use each template's own default spacing" — templates fall back to
+  // their original hardcoded value when this is unset.
+  const [entrySpacing, setEntrySpacing] = useLocalStorage(`${marginKey}-entrySpacing`, null);
 
   const updateMarginTop = (v) => { setPrintMarginTop(v); if (linkTB) setPrintMarginBottom(v); };
   const updateMarginBottom = (v) => { setPrintMarginBottom(v); if (linkTB) setPrintMarginTop(v); };
@@ -2795,7 +2989,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const updateMarginRight = (v) => { setPrintMarginRight(v); if (linkLR) setPrintMarginLeft(v); };
   const [pageCount, setPageCount] = useState(1);
   // Per-page margin overrides, keyed by 0-based page index: { [pageIndex]: { top, bottom, left, right } }
-  const [pageOverrides, setPageOverrides] = useState({});
+  const [pageOverrides, setPageOverrides] = useLocalStorage(`${marginKey}-pageOverrides`, {});
   const setPageOverride = (pageIdx, field, value) => {
     setPageOverrides(prev => ({ ...prev, [pageIdx]: { ...prev[pageIdx], [field]: value } }));
   };
@@ -2819,6 +3013,13 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
       return changed ? next : prev;
     });
   }, [pageCount]);
+  // Which page the toolbar margin sliders are editing. -1 = "All pages"
+  // (the shared default). A specific 0-based index edits/creates that page's
+  // override, falling back to the default whenever no override exists yet.
+  const [marginPageSel, setMarginPageSel] = useState(-1);
+  useEffect(() => {
+    if (marginPageSel >= pageCount) setMarginPageSel(-1);
+  }, [pageCount, marginPageSel]);
   const [importError, setImportError] = useState("");
   const importRef = useRef(null);
 
@@ -2952,7 +3153,10 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
 
   const handleExportPDF = async () => {
     if (!premium && !FREE_TEMPLATES.includes(template)) { onNeedUpgrade?.("pdf_export"); return; }
-    const el = document.querySelector(".builder-preview-wrap .resume-preview");
+    // Must be the full-height off-screen copy (data-export-source), not one
+    // of the visible per-page boxes — those are clipped to a single page's
+    // slice and would export as one incomplete page.
+    const el = document.querySelector(".builder-preview-wrap [data-export-source] .resume-preview");
     if (!el) return;
     setExportingPDF(true);
     try {
@@ -3639,186 +3843,140 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
       {/* Live Preview */}
       <div className="builder-preview-wrap" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
         {/* Toolbar */}
-        <div className="no-print" style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "8px 16px", flexShrink: 0,
-          background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)",
-        }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text2)" }}>Live Preview</span>
-            <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
-            <div className="badge badge-gray" style={{ fontSize: 10, textTransform: "capitalize" }}>
-              {TEMPLATES.find(t => t.id === template)?.name || "Clarity"}
-            </div>
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowPrintTip(true)}><Icon.Download /> Export PDF</button>
-          {showPrintTip && (
-            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ background: "var(--c-surface)", borderRadius: 16, padding: "28px 32px", width: 420, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 40px rgba(0,0,0,0.2)", fontFamily: "var(--font-body)" }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "var(--c-text)", marginBottom: 6 }}>PDF margins</div>
-                <div style={{ fontSize: 13, color: "var(--c-text2)", marginBottom: 16, lineHeight: 1.6 }}>
-                  Your PDF is generated directly from your resume — no browser print dialog, no extra URL/title/page numbers. Adjust the page margins if you'd like:
-                </div>
-                <div style={{ padding: "14px 16px", background: "var(--c-surface2)", borderRadius: 10, border: "1px solid var(--c-border)", marginBottom: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text2)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Top &amp; Bottom</span>
-                      <button
-                        type="button"
-                        onClick={() => setLinkTB(v => !v)}
-                        title={linkTB ? "Linked — click to set independently" : "Unlinked — click to link"}
-                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: linkTB ? "var(--c-primary)" : "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
-                      >
-                        <Icon.Link size="12" /> {linkTB ? "Linked" : "Unlinked"}
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: 14 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Top</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginTop}px</span>
-                        </div>
-                        <input
-                          type="range" min={0} max={80} step={4} value={printMarginTop}
-                          onChange={e => updateMarginTop(Number(e.target.value))}
-                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Bottom</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginBottom}px</span>
-                        </div>
-                        <input
-                          type="range" min={0} max={80} step={4} value={printMarginBottom}
-                          onChange={e => updateMarginBottom(Number(e.target.value))}
-                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text2)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Left &amp; Right</span>
-                      <button
-                        type="button"
-                        onClick={() => setLinkLR(v => !v)}
-                        title={linkLR ? "Linked — click to set independently" : "Unlinked — click to link"}
-                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: linkLR ? "var(--c-primary)" : "var(--c-text3)", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
-                      >
-                        <Icon.Link size="12" /> {linkLR ? "Linked" : "Unlinked"}
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: 14 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Left</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginLeft}px</span>
-                        </div>
-                        <input
-                          type="range" min={0} max={80} step={4} value={printMarginLeft}
-                          onChange={e => updateMarginLeft(Number(e.target.value))}
-                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, color: "var(--c-text2)" }}>Right</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-primary)" }}>{printMarginRight}px</span>
-                        </div>
-                        <input
-                          type="range" min={0} max={80} step={4} value={printMarginRight}
-                          onChange={e => updateMarginRight(Number(e.target.value))}
-                          style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {pageCount > 1 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)", marginBottom: 4 }}>Per-page overrides</div>
-                    <div style={{ fontSize: 12, color: "var(--c-text3)", marginBottom: 10, lineHeight: 1.5 }}>
-                      Your resume spans {pageCount} pages. By default every page uses the margins above — turn on a page below to set its own.
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {Array.from({ length: pageCount }).map((_, i) => {
-                        const o = pageOverrides[i];
-                        const isCustom = !!o;
-                        const globalDefaults = { top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight };
-                        const val = (field) => o?.[field] ?? globalDefaults[field];
-                        return (
-                          <div key={i} style={{ border: "1px solid var(--c-border)", borderRadius: 10, padding: "10px 12px", background: "var(--c-surface2)" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text)" }}>Page {i + 1}</span>
-                              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--c-text2)", cursor: "pointer" }}>
-                                <input
-                                  type="checkbox"
-                                  checked={isCustom}
-                                  onChange={e => {
-                                    if (e.target.checked) {
-                                      setPageOverride(i, "top", printMarginTop);
-                                      setPageOverride(i, "bottom", printMarginBottom);
-                                      setPageOverride(i, "left", printMarginLeft);
-                                      setPageOverride(i, "right", printMarginRight);
-                                    } else {
-                                      clearPageOverride(i);
-                                    }
-                                  }}
-                                />
-                                Custom
-                              </label>
-                            </div>
-                            {isCustom && (
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 14px", marginTop: 10 }}>
-                                {[
-                                  ["Top", "top"], ["Bottom", "bottom"], ["Left", "left"], ["Right", "right"],
-                                ].map(([label, field]) => (
-                                  <div key={field}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                                      <span style={{ fontSize: 11, color: "var(--c-text2)" }}>{label}</span>
-                                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--c-primary)" }}>{val(field)}px</span>
-                                    </div>
-                                    <input
-                                      type="range" min={0} max={80} step={4}
-                                      value={val(field)}
-                                      onChange={e => setPageOverride(i, field, Number(e.target.value))}
-                                      style={{ width: "100%", accentColor: "var(--c-primary)", cursor: "pointer" }}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button className="btn btn-primary" style={{ flex: 1, justifyContent: "center" }} disabled={exportingPDF} onClick={() => { setShowPrintTip(false); handleExportPDF(); }}>
-                    <Icon.Download /> {exportingPDF ? "Generating…" : "Download PDF"}
-                  </button>
-                  <button className="btn btn-ghost" onClick={() => setShowPrintTip(false)} style={{ padding: "0 18px" }}>Cancel</button>
-                </div>
+        <div className="no-print" style={{ flexShrink: 0, background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)" }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "8px 16px",
+          }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text2)" }}>Live Preview</span>
+              <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
+              <div className="badge badge-gray" style={{ fontSize: 10, textTransform: "capitalize" }}>
+                {TEMPLATES.find(t => t.id === template)?.name || "Clarity"}
               </div>
             </div>
-          )}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} disabled={exportingPDF}>
+                <Icon.Download /> {exportingPDF ? "Generating…" : "Export PDF"}
+              </button>
+            </div>
+          </div>
+          {/* Layout controls — always visible; every change here re-renders
+              the preview and its margin frame instantly, no export needed. */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", gap: "10px 20px", alignItems: "center",
+            padding: "8px 16px", borderTop: "1px solid var(--c-border)",
+          }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "var(--c-text3)", whiteSpace: "nowrap" }}>Entry spacing</span>
+              <input
+                type="range" min={0} max={24} step={2}
+                value={entrySpacing ?? 12}
+                onChange={e => setEntrySpacing(Number(e.target.value))}
+                title="Space between experience, education, and project entries"
+                style={{ width: 80 }}
+              />
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--c-primary)", width: 24, textAlign: "right" }}>{entrySpacing ?? 12}px</span>
+            </div>
+            <div style={{ width: 1, height: 16, background: "var(--c-border)" }} />
+            {pageCount > 1 && (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--c-text3)", whiteSpace: "nowrap" }}>Margins for</span>
+                <select
+                  value={marginPageSel}
+                  onChange={e => setMarginPageSel(Number(e.target.value))}
+                  style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text)", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 6, padding: "3px 6px", cursor: "pointer" }}
+                >
+                  <option value={-1}>All pages</option>
+                  {Array.from({ length: pageCount }).map((_, i) => (
+                    <option key={i} value={i}>Page {i + 1}{pageOverrides[i] ? " (custom)" : ""}</option>
+                  ))}
+                </select>
+                {marginPageSel >= 0 && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--c-text3)", cursor: "pointer" }} title="Give this page its own margins instead of using the default">
+                    <input
+                      type="checkbox"
+                      checked={!!pageOverrides[marginPageSel]}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setPageOverride(marginPageSel, "top", printMarginTop);
+                          setPageOverride(marginPageSel, "bottom", printMarginBottom);
+                          setPageOverride(marginPageSel, "left", printMarginLeft);
+                          setPageOverride(marginPageSel, "right", printMarginRight);
+                        } else {
+                          clearPageOverride(marginPageSel);
+                        }
+                      }}
+                      style={{ margin: 0 }}
+                    />
+                    Custom
+                  </label>
+                )}
+              </div>
+            )}
+            <div style={{ width: 1, height: 16, background: "var(--c-border)" }} />
+            {(() => {
+              // A specific page is selected: sliders always target that
+              // page, never the shared default — even before "Custom" is
+              // checked, so a page still showing default values can't be
+              // dragged into silently editing every other page's margin too.
+              const onPage = marginPageSel >= 0;
+              const activeOverride = onPage ? pageOverrides[marginPageSel] : null;
+              const globalDefaults = { top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight };
+              const fields = [
+                ["Top", "top", "bottom", linkTB],
+                ["Bottom", "bottom", "top", linkTB],
+                ["Left", "left", "right", linkLR],
+                ["Right", "right", "left", linkLR],
+              ];
+              return fields.map(([label, field, pairField, linked]) => {
+                const val = onPage ? (activeOverride?.[field] ?? globalDefaults[field]) : globalDefaults[field];
+                const onChange = (v) => {
+                  if (onPage) {
+                    setPageOverride(marginPageSel, field, v);
+                    if (linked) setPageOverride(marginPageSel, pairField, v);
+                  } else if (field === "top") updateMarginTop(v);
+                  else if (field === "bottom") updateMarginBottom(v);
+                  else if (field === "left") updateMarginLeft(v);
+                  else updateMarginRight(v);
+                };
+                return (
+                  <div key={label} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--c-text3)", whiteSpace: "nowrap" }}>{label} margin</span>
+                    <input
+                      type="range" min={0} max={80} step={4} value={val}
+                      onChange={e => onChange(Number(e.target.value))}
+                      title={onPage ? `${label} margin for page ${marginPageSel + 1}` : `${label} page margin (all pages)`}
+                      style={{ width: 70 }}
+                    />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--c-primary)", width: 26, textAlign: "right" }}>{val}px</span>
+                  </div>
+                );
+              });
+            })()}
+            {marginPageSel < 0 && (
+              <>
+                <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--c-text3)", cursor: "pointer" }} title="Keep top/bottom equal">
+                  <input type="checkbox" checked={linkTB} onChange={() => setLinkTB(v => !v)} style={{ margin: 0 }} /> Link T/B
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--c-text3)", cursor: "pointer" }} title="Keep left/right equal">
+                  <input type="checkbox" checked={linkLR} onChange={() => setLinkLR(v => !v)} style={{ margin: 0 }} /> Link L/R
+                </label>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Resume — fills remaining space */}
-        <div style={{ flex: 1, overflow: "auto" }}>
-          <div style={{ position: "relative" }}>
-            <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} />
-            <PageBreakOverlay
-              targetSelector=".builder-preview-wrap .resume-preview"
-              margins={{ top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight }}
-              deps={JSON.stringify(resume) + template + customAccent + customBg + customText + customHeaderBg + customMuted + customNameColor}
-              onPageCountChange={setPageCount}
-            />
-          </div>
+        <div style={{ flex: 1, overflow: "auto", padding: "24px", background: "var(--c-surface2)" }}>
+          <PaginatedResumePreview
+            margins={{ top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight }}
+            pageOverrides={pageOverrides}
+            onPageCountChange={setPageCount}
+            highlightPage={marginPageSel}
+          >
+            <ResumePreview resume={resume} templateId={template} customAccent={customAccent} customBg={customBg} customText={customText} customHeaderBg={customHeaderBg} customMuted={customMuted} customNameColor={customNameColor} entrySpacing={entrySpacing} />
+          </PaginatedResumePreview>
         </div>
       </div>
     </div>
