@@ -1,7 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import mammoth from "mammoth";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { motion, useReducedMotion, useScroll, useSpring, useTransform, useMotionValue, AnimatePresence } from "framer-motion";
+import { auth, db } from "./firebase";
+import {
+  onAuthStateChanged,
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
+  updateProfile,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // ─── PDF EXPORT (client-side render, no browser print dialog) ────────────────
 // Renders `el` to canvas and slices it into A4 pages, so the exported PDF has
@@ -531,7 +544,7 @@ const RAVI_RESUME = {
   ],
 };
 
-const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter" };
+const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter", PRIVACY: "privacy", TERMS: "terms" };
 
 // ─── SKILL SUGGESTIONS DB ────────────────────────────────────────────────────
 
@@ -582,20 +595,10 @@ function useLocalStorage(key, initial) {
 // ─── API HELPER ───────────────────────────────────────────────────────────────
 
 async function callClaude(prompt, systemPrompt = "") {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("Add VITE_ANTHROPIC_API_KEY to your .env file to enable AI features.");
-  }
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/claude", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
       max_tokens: 1000,
       system: systemPrompt || "You are an expert resume writer and career coach specializing in ATS optimization. Be concise, professional, and impactful. Return plain text only, no markdown formatting unless explicitly asked.",
       messages: [{ role: "user", content: prompt }],
@@ -603,7 +606,7 @@ async function callClaude(prompt, systemPrompt = "") {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API error ${res.status}`);
+    throw new Error(err.error || `API error ${res.status}`);
   }
   const data = await res.json();
   return data.content?.[0]?.text || "";
@@ -625,9 +628,6 @@ function repairAndParse(raw) {
 }
 
 async function parseResumeWithClaude(file) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Add VITE_ANTHROPIC_API_KEY to your .env file to enable AI features.");
-
   const ext = file.name.split(".").pop().toLowerCase();
   let messages;
 
@@ -662,20 +662,14 @@ async function parseResumeWithClaude(file) {
     }];
   }
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetch("/api/claude", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "pdfs-2024-09-25",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 2000, system: PARSE_SYSTEM, messages }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ max_tokens: 2000, system: PARSE_SYSTEM, messages, betaHeader: "pdfs-2024-09-25" }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API error ${res.status}`);
+    throw new Error(err.error || `API error ${res.status}`);
   }
   const data = await res.json();
   const raw = data.content?.[0]?.text || "";
@@ -914,7 +908,420 @@ const Icon = {
       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
     </svg>
   ),
+  ChevronDown: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  ),
+  Shield: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  ),
 };
+
+// ─── MOTION PRIMITIVES ──────────────────────────────────────────────────────
+// Shared, reusable animation building blocks so every section uses the same
+// timing/easing instead of one-off values. All translate/opacity based (GPU
+// friendly) and every entrance trigger is `viewport={{ once: true }}` so
+// nothing re-animates on scroll-back. Framer Motion's own `useReducedMotion`
+// already collapses these to instant/no-op under prefers-reduced-motion, and
+// the CSS-driven ambient effects (blobs, floating hero) are separately gated
+// by the `@media (prefers-reduced-motion: reduce)` rule in `styles`.
+
+const EASE_OUT = [0.16, 1, 0.3, 1];
+
+const fadeUpVariants = {
+  hidden: { opacity: 0, y: 40 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT } },
+};
+
+const staggerContainerVariants = (stagger = 0.08, delayChildren = 0) => ({
+  hidden: {},
+  show: { transition: { staggerChildren: stagger, delayChildren } },
+});
+
+// Scroll-triggered fade+slide-up wrapper. Wrap a section (or a grid of
+// cards) in this; pass `stagger` to also stagger direct motion children.
+function Reveal({ children, as: Tag = motion.div, className, style, stagger, delay = 0, once = true, amount = 0.2, ...rest }) {
+  const variants = stagger
+    ? { hidden: {}, show: { transition: { staggerChildren: stagger, delayChildren: delay } } }
+    : { hidden: { opacity: 0, y: 40 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT, delay } } };
+  return (
+    <Tag
+      className={className}
+      style={style}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once, amount }}
+      variants={variants}
+      {...rest}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+// Individual staggered child — use inside a <Reveal stagger> container.
+function RevealItem({ children, className, style, as: Tag = motion.div, ...rest }) {
+  return (
+    <Tag className={className} style={style} variants={fadeUpVariants} {...rest}>
+      {children}
+    </Tag>
+  );
+}
+
+// Counts a number up from 0 once it scrolls into view. `decimals` controls
+// rounding (e.g. 1 for "4.9"). Returns a formatted string via `format`.
+function useCountUp(target, { duration = 1200, decimals = 0, trigger = true } = {}) {
+  const [value, setValue] = useState(0);
+  const reduceMotion = useReducedMotion();
+  useEffect(() => {
+    if (!trigger) return;
+    if (reduceMotion) { setValue(target); return; }
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(target * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trigger, target, duration, reduceMotion]);
+  return decimals > 0 ? value.toFixed(decimals) : Math.round(value);
+}
+
+// Inline stat number that counts up from 0 once it scrolls into view — for
+// dropping into headings like "Trusted by <StatCounter target={50000} />+".
+function StatCounter({ target, decimals = 0, suffix = "", prefix = "", duration = 1400 }) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setInView(true); io.disconnect(); }
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  const value = useCountUp(target, { duration, decimals, trigger: inView });
+  const formatted = decimals > 0 ? value : Number(value).toLocaleString();
+  return (
+    <span ref={ref} className="font-display">
+      {prefix}{formatted}{suffix}
+    </span>
+  );
+}
+
+// Small glassy floating badge for the hero mockup. Enters with a fade+scale
+// (staggered via `delay`), then drifts on its own gentle float loop (offset
+// via `floatDelay`/`floatDuration` so multiple badges never move in sync),
+// with a fixed slight rotation for a hand-placed, non-mechanical feel.
+function HeroFloatBadge({ children, className, style, reduceMotion, delay = 0, floatDelay = 0, floatDuration = 6, rotate = 0 }) {
+  return (
+    <motion.div
+      className={className}
+      style={{
+        position: "absolute", zIndex: 10,
+        display: "inline-flex", alignItems: "center", gap: 7,
+        background: "var(--c-glass)",
+        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+        border: "1px solid var(--c-glass-border)",
+        borderRadius: 999, padding: "8px 14px",
+        boxShadow: "0 8px 24px var(--c-shadow), 0 0 0 1px rgba(0,0,0,0.02)",
+        whiteSpace: "nowrap",
+        ...style,
+      }}
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.8, rotate: 0 }}
+      animate={reduceMotion
+        ? { opacity: 1, rotate }
+        : { opacity: 1, scale: 1, rotate, y: [0, -8, 0] }
+      }
+      transition={reduceMotion
+        ? { duration: 0.4, delay }
+        : {
+            opacity: { duration: 0.5, delay, ease: EASE_OUT },
+            scale: { duration: 0.5, delay, ease: EASE_OUT },
+            rotate: { duration: 0.5, delay, ease: EASE_OUT },
+            y: { duration: floatDuration, delay: delay + floatDelay, repeat: Infinity, ease: "easeInOut" },
+          }
+      }
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// The hero's "browser window" mockup — the resume + AI-assistant preview
+// shown under the ATS Passed banner. Wired up with three "alive" touches so
+// the product reads as active rather than a static screenshot:
+//  - a gentle 3D tilt that tracks the mouse (desktop only, disabled for
+//    reduced motion / touch since there's no persistent pointer)
+//  - the AI suggestion cards revealing one-by-one instead of all at once
+//  - the mini ATS-score ring/number counting up to 94 instead of starting there
+// Runs once on mount (not on a loop) so it reads as "the AI just finished
+// analyzing this resume" rather than a distracting repeating gimmick.
+function HeroBrowserWindow({ reduceMotion }) {
+  const wrapRef = useRef(null);
+  const rotateX = useMotionValue(0);
+  const rotateY = useMotionValue(0);
+  const springRotateX = useSpring(rotateX, { stiffness: 150, damping: 20 });
+  const springRotateY = useSpring(rotateY, { stiffness: 150, damping: 20 });
+
+  const handleMouseMove = (e) => {
+    if (reduceMotion || !wrapRef.current) return;
+    const rect = wrapRef.current.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    rotateY.set(px * 6);
+    rotateX.set(py * -6);
+  };
+  const handleMouseLeave = () => { rotateX.set(0); rotateY.set(0); };
+
+  const suggestions = [
+    { text: "Add metrics to bullet #3", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+    { text: "Include 'TypeScript' in skills", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+    { text: "Summary could be stronger", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+    { text: "Consider adding a project section", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+  ];
+  const scoreValue = useCountUp(94, { duration: 1600, trigger: true });
+  const scoreFrac = scoreValue / 100;
+
+  return (
+    <motion.div
+      ref={wrapRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        position: "relative", zIndex: 1,
+        borderRadius: 16, overflow: "hidden",
+        border: "1px solid var(--c-border)",
+        boxShadow: "0 2px 0 rgba(255,255,255,0.8) inset, 0 32px 80px rgba(15,14,12,0.14), 0 8px 24px rgba(26,86,219,0.08)",
+        background: "var(--c-surface)",
+        rotateX: reduceMotion ? 0 : springRotateX,
+        rotateY: reduceMotion ? 0 : springRotateY,
+        transformPerspective: 1200,
+        willChange: "transform",
+      }}
+    >
+      {/* Browser chrome */}
+      <div style={{
+        background: "var(--c-surface2)",
+        borderBottom: "1px solid var(--c-border)",
+        padding: "10px 16px",
+        display: "flex", alignItems: "center", gap: 8,
+      }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {["#FF5F57","#FEBC2E","#28C840"].map((c, i) => (
+            <div key={i} style={{ width: 11, height: 11, borderRadius: "50%", background: c }} />
+          ))}
+        </div>
+        {/* URL bar */}
+        <div style={{
+          flex: 1, maxWidth: 340, margin: "0 auto",
+          background: "var(--c-surface)", border: "1px solid var(--c-border)",
+          borderRadius: 7, padding: "4px 12px",
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
+            <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+          <span style={{ fontSize: 12, color: "var(--c-text2)", fontWeight: 500 }}>atsresumepilot.com/dashboard</span>
+        </div>
+        {/* Right status pill */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          background: "#ECFDF5", border: "1px solid #A7F3D0",
+          borderRadius: 99, padding: "4px 12px",
+          fontSize: 12, fontWeight: 700, color: "#059669",
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#059669", display: "inline-block", animation: "ats-ring 1.6s ease-out infinite" }} />
+          ATS Score: 94
+        </div>
+      </div>
+
+      {/* Main content grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", maxHeight: 420, overflow: "hidden" }}>
+
+        {/* Resume preview pane */}
+        <div style={{ borderRight: "1px solid var(--c-border)", overflow: "hidden", position: "relative", background: "#F9FAFB" }}>
+          {/* ATS badge overlay on resume */}
+          <div style={{
+            position: "absolute", top: 14, right: 14, zIndex: 10,
+            background: "linear-gradient(135deg,#059669,#047857)",
+            color: "#fff", fontSize: 10, fontWeight: 700,
+            padding: "5px 11px", borderRadius: 99,
+            display: "flex", alignItems: "center", gap: 5,
+            boxShadow: "0 4px 12px rgba(5,150,105,0.35)",
+          }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+            ATS Optimized
+          </div>
+          <div style={{ transform: "scale(0.57)", transformOrigin: "top left", width: "175%", pointerEvents: "none" }}>
+            <ResumePreview resume={SAMPLE_RESUME} />
+          </div>
+          {/* Blinking text cursor at the end of the summary line — suggests the
+              resume is being actively written/edited, not a frozen screenshot. */}
+          <motion.span
+            aria-hidden="true"
+            animate={reduceMotion ? { opacity: 1 } : { opacity: [1, 1, 0, 0] }}
+            transition={reduceMotion ? undefined : { duration: 1, repeat: Infinity, times: [0, 0.5, 0.5, 1] }}
+            style={{
+              position: "absolute", top: 108, left: 168, width: 1.5, height: 12,
+              background: "var(--c-accent)", pointerEvents: "none",
+            }}
+          />
+          {/* Bottom gradient fade */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(transparent, #F9FAFB)", pointerEvents: "none" }} />
+        </div>
+
+        {/* AI Panel */}
+        <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", background: "var(--c-surface)" }}>
+
+          {/* AI Header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 9,
+              background: "linear-gradient(135deg, #1A56DB, #7C3AED)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              <Icon.Sparkles />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)" }}>AI Assistant</div>
+              <div style={{ fontSize: 11, color: "var(--c-accent2)", fontWeight: 500 }}>● Active</div>
+            </div>
+          </div>
+
+          {/* Score ring row — ring fill + number count up together on mount */}
+          <div style={{
+            background: "linear-gradient(135deg,#ECFDF5,#D1FAE5)",
+            border: "1px solid #A7F3D0",
+            borderRadius: 12, padding: "12px 14px",
+            display: "flex", alignItems: "center", gap: 12,
+          }}>
+            <div style={{ position: "relative", width: 46, height: 46, flexShrink: 0 }}>
+              <svg width="46" height="46" style={{ transform: "rotate(-90deg)" }}>
+                <circle cx="23" cy="23" r="18" fill="none" stroke="#A7F3D0" strokeWidth="4"/>
+                <circle cx="23" cy="23" r="18" fill="none" stroke="#059669" strokeWidth="4"
+                  strokeDasharray={`${2*Math.PI*18}`}
+                  strokeDashoffset={`${2*Math.PI*18*(1-scoreFrac)}`}
+                  strokeLinecap="round"/>
+              </svg>
+              <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center", fontWeight:800,fontSize:11,color:"#059669" }}>{scoreValue}</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#065F46" }}>ATS Passed ✓</div>
+              <div style={{ fontSize: 11, color: "#059669" }}>Top 5% of resumes</div>
+            </div>
+          </div>
+
+          {/* Suggestions label */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            Suggestions
+          </div>
+
+          {/* Suggestion cards — reveal one by one instead of all appearing at once */}
+          <motion.div
+            style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            initial="hidden"
+            animate="show"
+            variants={staggerContainerVariants(reduceMotion ? 0 : 0.35, 0.5)}
+          >
+            {suggestions.map((s, i) => (
+              <motion.div key={i}
+                variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: EASE_OUT } } }}
+                style={{
+                  padding: "9px 11px", borderRadius: 10, fontSize: 12, fontWeight: 500,
+                  display: "flex", gap: 9, alignItems: "center",
+                  background: s.bg, border: `1px solid ${s.border}`,
+                }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>⚡</span>
+                <span style={{ color: "#78350F", lineHeight: 1.4 }}>{s.text}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Thin animated bar pinned to the top of the viewport, filling with scroll
+// progress. Purely transform-based (scaleX) so it stays off the main thread
+// cost of layout properties.
+function ScrollProgressBar() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30, restDelta: 0.001 });
+  return (
+    <motion.div
+      aria-hidden="true"
+      style={{
+        position: "fixed", top: 0, left: 0, right: 0, height: 3, zIndex: 1000,
+        background: "linear-gradient(90deg, var(--c-accent), var(--c-accent2))",
+        transformOrigin: "0% 50%", scaleX,
+      }}
+    />
+  );
+}
+
+// Floating circular "back to top" button, shown after 500px of scroll.
+function BackToTop() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 500);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.button
+          key="back-to-top"
+          aria-label="Back to top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.6 }}
+          whileHover={{ scale: 1.08, y: -2 }}
+          whileTap={{ scale: 0.94 }}
+          transition={{ duration: 0.2, ease: EASE_OUT }}
+          style={{
+            position: "fixed", bottom: 24, right: 24, zIndex: 900,
+            width: 44, height: 44, borderRadius: "50%", border: "1px solid var(--c-border)",
+            background: "var(--c-surface)", color: "var(--c-text)", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 8px 24px var(--c-shadow)",
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ width: 18, height: 18 }}>
+            <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+          </svg>
+        </motion.button>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// Fixed, low-opacity floating gradient blobs for ambient depth. Pure CSS
+// animation (not Framer Motion) since it's purely decorative and always
+// running — keeping it off React's render loop. Respects reduced-motion via
+// the `.bg-blob` rule in `styles`.
+function AmbientBackground() {
+  return (
+    <div className="bg-blobs" aria-hidden="true">
+      <div className="bg-blob" style={{ width: 420, height: 420, top: "-8%", left: "-6%", background: "var(--c-accent)" }} />
+      <div className="bg-blob" style={{ width: 380, height: 380, top: "35%", right: "-8%", background: "var(--c-accent2)", animationDelay: "-7s" }} />
+      <div className="bg-blob" style={{ width: 300, height: 300, bottom: "-6%", left: "30%", background: "var(--c-amber)", animationDelay: "-14s" }} />
+    </div>
+  );
+}
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 
@@ -942,6 +1349,8 @@ const styles = `
     --c-danger: #DC2626;
     --c-shadow: rgba(15,14,12,0.06);
     --c-glow: rgba(26,86,219,0.12);
+    --c-glass: rgba(255,255,255,0.72);
+    --c-glass-border: rgba(255,255,255,0.6);
   }
 
   .dark {
@@ -949,6 +1358,8 @@ const styles = `
     --c-surface: #161614;
     --c-surface2: #1F1F1C;
     --c-border: #2A2A27;
+    --c-glass: rgba(22,22,20,0.72);
+    --c-glass-border: rgba(255,255,255,0.1);
     --c-text: #F5F4F1;
     --c-text2: #9C9A94;
     --c-text3: #5C5A55;
@@ -963,6 +1374,67 @@ const styles = `
   }
 
   body { margin: 0; font-family: var(--font-body); background: var(--c-bg); color: var(--c-text); }
+
+  /* ── Motion: focus ring, button press, reduced-motion ── */
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+    transition: outline-offset 0.15s ease;
+  }
+  .btn { will-change: transform; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ── Ambient background blobs ── */
+  .bg-blobs { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .bg-blob {
+    position: absolute; border-radius: 50%;
+    filter: blur(90px); opacity: 0.06;
+    animation: blobFloat 26s ease-in-out infinite;
+    will-change: transform;
+  }
+  .dark .bg-blob { opacity: 0.05; }
+  @keyframes blobFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -24px) scale(1.06); }
+    66% { transform: translate(-24px, 18px) scale(0.96); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bg-blob { animation: none !important; }
+  }
+
+  /* ── Nav link underline ── */
+  .nav-link { position: relative; }
+  .nav-link::after {
+    content: ''; position: absolute; left: 10px; right: 10px; bottom: 2px;
+    height: 2px; border-radius: 2px; background: var(--c-accent);
+    transform: scaleX(0); transform-origin: center;
+    transition: transform 0.25s ease;
+  }
+  .nav-link:hover::after, .nav-link.active::after { transform: scaleX(1); }
+  .nav-link.active { color: var(--c-text) !important; }
+
+  /* ── Footer link underline ── */
+  .footer-anim-link { position: relative; display: inline-block; }
+  .footer-anim-link::after {
+    content: ''; position: absolute; left: 0; bottom: -2px; width: 100%; height: 1px;
+    background: var(--c-accent); transform: scaleX(0); transform-origin: left;
+    transition: transform 0.2s ease;
+  }
+  .footer-anim-link:hover::after { transform: scaleX(1); }
+
+  .social-icon-anim { transition: transform 0.2s ease; }
+  .social-icon-anim:hover { transform: scale(1.15); }
 
   .font-display { font-family: var(--font-display); }
 
@@ -1070,10 +1542,28 @@ const styles = `
 
   /* Hero gradient */
   .hero-grad {
-    background: radial-gradient(ellipse 80% 60% at 50% -20%, rgba(26,86,219,0.12) 0%, transparent 70%),
-                radial-gradient(ellipse 40% 40% at 80% 60%, rgba(5,150,105,0.08) 0%, transparent 60%),
+    position: relative;
+    background: radial-gradient(ellipse 90% 65% at 50% -15%, rgba(26,86,219,0.14) 0%, transparent 68%),
+                radial-gradient(ellipse 45% 45% at 82% 55%, rgba(5,150,105,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 35% 35% at 8% 70%, rgba(139,92,246,0.06) 0%, transparent 60%),
                 var(--c-bg);
+    overflow: hidden;
   }
+  .hero-grad::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--c-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--c-border) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 65% 55% at 50% 0%, #000 0%, transparent 75%);
+    mask-image: radial-gradient(ellipse 65% 55% at 50% 0%, #000 0%, transparent 75%);
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero-grad > * { position: relative; z-index: 1; }
 
   /* Score ring */
   .score-ring {
@@ -1217,6 +1707,10 @@ const styles = `
   }
 
   /* ── Responsive ── */
+  @media (max-width: 1024px) and (min-width: 769px) {
+    /* Features grid: 2 col on tablet */
+    .features-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  }
   @media (max-width: 768px) {
     /* Features grid: 1 col on mobile */
     .features-grid { grid-template-columns: 1fr !important; }
@@ -1277,12 +1771,12 @@ const styles = `
   /* Free badge */
   @keyframes freePop {
     0%   { transform: scale(1) rotate(-2deg); }
-    50%  { transform: scale(1.06) rotate(1deg); }
+    50%  { transform: scale(1.03) rotate(0deg); }
     100% { transform: scale(1) rotate(-2deg); }
   }
   @keyframes freeGlow {
-    0%, 100% { box-shadow: 0 0 24px 4px rgba(16,185,129,0.45), 0 4px 24px rgba(5,150,105,0.3); }
-    50%       { box-shadow: 0 0 40px 10px rgba(16,185,129,0.65), 0 8px 32px rgba(5,150,105,0.45); }
+    0%, 100% { box-shadow: 0 0 14px 2px rgba(16,185,129,0.3), 0 3px 16px rgba(5,150,105,0.2); }
+    50%       { box-shadow: 0 0 22px 5px rgba(16,185,129,0.42), 0 5px 20px rgba(5,150,105,0.28); }
   }
   .free-badge {
     animation: freePop 2.8s ease-in-out infinite, freeGlow 2.8s ease-in-out infinite;
@@ -1992,42 +2486,19 @@ function UserMenu({ user, setUser, setPage }) {
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{user.name}</div>
               <div className="app-text3" style={{ fontSize: 12, marginBottom: 8 }}>{user.email}</div>
               {/* Plan badge */}
-              {isPremium(user) ? (
-                <div style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  background: "linear-gradient(135deg, #F59E0B, #D97706)",
-                  color: "#fff", fontSize: 11, fontWeight: 700,
-                  padding: "3px 10px", borderRadius: 99, letterSpacing: "0.03em",
-                }}>
-                  ⭐ Premium Plan
-                </div>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    background: "var(--c-surface2)", border: "1px solid var(--c-border)",
-                    color: "var(--c-text2)", fontSize: 11, fontWeight: 600,
-                    padding: "3px 10px", borderRadius: 99,
-                  }}>
-                    Free Plan
-                  </div>
-                  <button onClick={() => { setPage(PAGES.PRICING); setOpen(false); }}
-                    style={{
-                      fontSize: 11, fontWeight: 700, color: "var(--c-accent)",
-                      background: "var(--c-accent-light)", border: "none",
-                      padding: "3px 10px", borderRadius: 99, cursor: "pointer",
-                      fontFamily: "var(--font-body)",
-                    }}>
-                    Upgrade ↗
-                  </button>
-                </div>
-              )}
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                background: "linear-gradient(135deg, #F59E0B, #D97706)",
+                color: "#fff", fontSize: 11, fontWeight: 700,
+                padding: "3px 10px", borderRadius: 99, letterSpacing: "0.03em",
+              }}>
+                ⭐ Premium Plan
+              </div>
             </div>
             {[
               { label: "Dashboard", icon: <Icon.LayoutTemplate />, action: () => { setPage(PAGES.DASHBOARD); setOpen(false); } },
               { label: "Open Builder", icon: <Icon.Zap />, action: () => { setPage(PAGES.BUILDER); setOpen(false); } },
               { label: "Templates", icon: <Icon.FileText />, action: () => { setPage(PAGES.TEMPLATES); setOpen(false); } },
-              { label: "Subscription", icon: <Icon.Star />, action: () => { setPage(PAGES.SUBSCRIPTION); setOpen(false); } },
             ].map((item, i) => (
               <button key={i} onClick={item.action} className="sidebar-item" style={{ width: "100%", fontSize: 14 }}>
                 {item.icon} {item.label}
@@ -2048,17 +2519,31 @@ function UserMenu({ user, setUser, setPage }) {
 
 function Navbar({ page, setPage, dark, setDark, user, setUser }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const isBuilder = page === PAGES.BUILDER || page === PAGES.DASHBOARD;
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <nav className="navbar">
-      <div style={{ padding: "0 24px", display: "flex", alignItems: "center", height: 58 }}>
+    <motion.nav
+      className="navbar"
+      initial={reduceMotion ? false : { opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: EASE_OUT }}
+    >
+      <div style={{
+        padding: "0 24px", display: "flex", alignItems: "center",
+        height: scrolled ? 50 : 58, transition: "height 0.25s ease",
+      }}>
         {/* Logo */}
         <button onClick={() => setPage(PAGES.HOME)} className="btn btn-ghost" style={{ padding: "6px 8px", gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Icon.FileText />
-          </div>
-          <span className="font-display" style={{ fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>ResumeAI</span>
+          <img src="/logo.svg" alt="ATS Resume Pilot" style={{ height: 88, width: "auto", display: "block" }} />
         </button>
 
         <div style={{ flex: 1 }} />
@@ -2066,10 +2551,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
         {/* Desktop nav */}
         <div className="desktop-only" style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {!isBuilder && (
-            <>
-              <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.TEMPLATES)}>Templates</button>
-              {(!user || !isPremium(user)) && <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.PRICING)}>Pricing</button>}
-            </>
+            <button className={cn("btn btn-ghost btn-sm nav-link", page === PAGES.TEMPLATES && "active")} onClick={() => setPage(PAGES.TEMPLATES)}>Templates</button>
           )}
           <button className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }} onClick={() => setDark(!dark)}>
             {dark ? <Icon.Sun /> : <Icon.Moon />}
@@ -2099,7 +2581,6 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
       {mobileOpen && (
         <div style={{ borderTop: "1px solid var(--c-border)", padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4 }}>
           <button className="sidebar-item" onClick={() => { setPage(PAGES.TEMPLATES); setMobileOpen(false); }}>Templates</button>
-          {(!user || !isPremium(user)) && <button className="sidebar-item" onClick={() => { setPage(PAGES.PRICING); setMobileOpen(false); }}>Pricing</button>}
           {user ? (
             <>
               <button className="sidebar-item" onClick={() => { setPage(PAGES.DASHBOARD); setMobileOpen(false); }}>Dashboard</button>
@@ -2113,18 +2594,495 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
           )}
         </div>
       )}
-    </nav>
+    </motion.nav>
+  );
+}
+
+// Horizontal connecting line behind the "How It Works" 3-step grid that
+// draws itself left-to-right as the section scrolls into view. Desktop-only
+// (matches the row's 3-column layout; hidden when it collapses to 1 column).
+function HowItWorksConnector() {
+  const ref = useRef(null);
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.8", "start 0.3"] });
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 24 });
+  return (
+    <motion.div
+      ref={ref}
+      className="how-it-works-connector"
+      aria-hidden="true"
+      style={{
+        position: "absolute", top: 28, left: "16.5%", right: "16.5%", height: 2,
+        background: "linear-gradient(90deg, var(--c-accent), var(--c-accent2))",
+        transformOrigin: "0% 50%", scaleX: reduceMotion ? 1 : scaleX, zIndex: 0,
+        display: "none",
+      }}
+    />
+  );
+}
+
+// ─── ATS SCORE DEMO ───────────────────────────────────────────────────────────
+// Before/after resume-score comparison. The score counts up once the section
+// scrolls into view (IntersectionObserver), matching the "animate the score
+// increasing" behavior without re-triggering on every re-render.
+function AtsScoreDemo() {
+  const ref = useRef(null);
+  const reduceMotion = useReducedMotion();
+  const [visible, setVisible] = useState(false);
+  const [beforeScore, setBeforeScore] = useState(0);
+  const [afterScore, setAfterScore] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setVisible(true); io.disconnect(); }
+    }, { threshold: 0.35 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const duration = 1200;
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setBeforeScore(Math.round(58 * ease));
+      setAfterScore(Math.round(92 * ease));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [visible]);
+
+  const ScoreRing = ({ score, color, trackColor }) => (
+    <div style={{ position: "relative", width: 96, height: 96, flexShrink: 0 }}>
+      <svg width="96" height="96" style={{ transform: "rotate(-90deg)" }}>
+        <circle cx="48" cy="48" r="40" fill="none" stroke={trackColor} strokeWidth="8" />
+        <circle cx="48" cy="48" r="40" fill="none" stroke={color} strokeWidth="8"
+          strokeDasharray={`${2 * Math.PI * 40}`}
+          strokeDashoffset={`${2 * Math.PI * 40 * (1 - score / 100)}`}
+          strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.1s linear" }} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 22, color, fontFamily: "var(--font-display)" }}>
+        {score}
+      </div>
+    </div>
+  );
+
+  const weakPoints = ["Missing Important Keywords", "Weak Action Verbs", "Inconsistent Formatting", "Grammar & Spelling Issues", "Low ATS Compatibility"];
+  const improvements = ["Strong ATS Keyword Match", "Powerful Action Verbs", "Professional Formatting", "Grammar & Spelling Fixed", "High ATS Compatibility"];
+  const processSteps = [
+    { icon: <Icon.Target />, title: "ATS Analysis", desc: "Scanning content and structure" },
+    { icon: <Icon.Sparkles />, title: "Keyword Optimization", desc: "Adding relevant industry keywords" },
+    { icon: <Icon.FileText />, title: "Grammar & Spelling Check", desc: "Fixing errors and improving clarity" },
+    { icon: <Icon.LayoutTemplate />, title: "Formatting Enhancement", desc: "Improving structure and readability" },
+  ];
+
+  const ConnectorDot = ({ delay, rotate }) => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.6 }}
+      animate={visible ? { opacity: 1, scale: 1 } : {}}
+      transition={{ duration: 0.4, delay, ease: EASE_OUT }}
+      style={{
+        width: 32, height: 32, borderRadius: "50%",
+        background: "linear-gradient(135deg, var(--c-accent) 0%, #8B5CF6 100%)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 6px 16px var(--c-shadow)", flexShrink: 0,
+        color: "#fff",
+      }}
+    >
+      <span style={{ display: "flex", transform: rotate ? `rotate(${rotate}deg)` : "none" }}><Icon.ArrowRight /></span>
+    </motion.div>
+  );
+
+  const ConnectorArrow = ({ delay }) => (
+    <>
+      <div className="ats-connector-h" style={{ display: "flex", justifyContent: "center" }}>
+        <ConnectorDot delay={delay} />
+      </div>
+      <div className="ats-connector-v" style={{ display: "none", justifyContent: "center" }}>
+        <ConnectorDot delay={delay} rotate={90} />
+      </div>
+    </>
+  );
+
+  const ResumeSnippet = ({ tone }) => (
+    <div style={{
+      background: "var(--c-bg)", border: "1px solid var(--c-border)", borderRadius: 10,
+      padding: "14px 16px", marginTop: 20, textAlign: "left",
+    }}>
+      <div className="font-display" style={{ fontSize: 13, fontWeight: 800, color: "var(--c-text)" }}>JOHN DOE</div>
+      <div style={{ fontSize: 11, color: "var(--c-text3)", marginBottom: 8 }}>Web Developer</div>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: tone === "after" ? "var(--c-accent2)" : "var(--c-text3)", marginBottom: 4 }}>
+        Professional Summary
+      </div>
+      <div style={{ fontSize: 11, lineHeight: 1.5, color: "var(--c-text3)" }}>
+        {tone === "after"
+          ? "Results-driven Web Developer with 4+ years of experience building scalable web applications using JavaScript, React, and Node.js."
+          : "Experienced developer with a passion for building web applications. Worked on various projects using different technologies."}
+      </div>
+    </div>
+  );
+
+  return (
+    <section ref={ref} style={{ padding: "80px 24px" }}>
+      <Reveal style={{ textAlign: "center", marginBottom: 48 }}>
+        <div className="badge badge-blue" style={{ marginBottom: 16, fontSize: 12, display: "inline-flex" }}>
+          <Icon.Sparkles /> AI-Powered Resume Optimization
+        </div>
+        <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, margin: "0 0 12px" }}>
+          See How <span className="grad-text">AI Improves</span> Your Resume
+        </h2>
+        <p className="app-text2" style={{ fontSize: 17, maxWidth: 560, margin: "0 auto 8px" }}>
+          Our AI analyzes your resume against real ATS rules and optimizes it to help you pass screening and get more interview calls.
+        </p>
+        <p className="app-text3" style={{ fontSize: 13, margin: 0 }}>
+          Based on analysis of <StatCounter target={50000} suffix="+" /> real resumes
+        </p>
+      </Reveal>
+
+      <Reveal stagger={0.12} className="ats-demo-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 16, maxWidth: 1200, margin: "0 auto" }}>
+        {/* Before */}
+        <RevealItem className="card ats-before-card" style={{ padding: 24, position: "relative" }}>
+          <div className="badge" style={{ marginBottom: 16, fontSize: 12, background: "#FEE2E2", color: "#B91C1C" }}>Before Optimization</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <ScoreRing score={beforeScore} color="#DC2626" trackColor="#FEE2E2" />
+            <div>
+              <div style={{ fontSize: 12, color: "var(--c-text3)" }}>ATS Score</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#DC2626" }}>Needs Work</div>
+              <div style={{ fontSize: 11, color: "var(--c-text3)" }}>Low match rate</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18, textAlign: "left" }}>
+            {weakPoints.map(item => (
+              <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--c-text3)" }}>
+                <span style={{ color: "#DC2626", flexShrink: 0 }}><Icon.X /></span>
+                {item}
+              </div>
+            ))}
+          </div>
+          <ResumeSnippet tone="before" />
+        </RevealItem>
+
+        <ConnectorArrow delay={0.5} />
+
+        {/* AI Process */}
+        <RevealItem className="card ats-process-card" style={{ padding: 24, textAlign: "center" }}>
+          <div className="font-display" style={{ fontSize: 15, fontWeight: 800, marginBottom: 18, color: "var(--c-text)" }}>
+            AI Optimization Process
+          </div>
+          <motion.div
+            style={{
+              width: 68, height: 68, borderRadius: "50%", margin: "0 auto 18px",
+              background: "linear-gradient(135deg, var(--c-accent) 0%, #8B5CF6 100%)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 10px 28px var(--c-shadow)",
+            }}
+            animate={visible && !reduceMotion ? { scale: [1, 1.06, 1] } : {}}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <span style={{ color: "#fff", transform: "scale(1.6)" }}><Icon.Sparkles /></span>
+          </motion.div>
+          <motion.div
+            style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "left" }}
+            initial="hidden"
+            animate={visible ? "show" : "hidden"}
+            variants={staggerContainerVariants(0.12, 0.3)}
+          >
+            {processSteps.map((step, i) => (
+              <motion.div key={step.title} variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0, transition: { duration: 0.35, ease: EASE_OUT } } }}
+                style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                  background: "var(--c-accent-light)", color: "var(--c-accent)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {step.icon}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)" }}>{step.title}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--c-text3)" }}>{step.desc}</div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+          <div className="badge badge-blue" style={{ marginTop: 18, fontSize: 12, width: "100%", justifyContent: "center" }}>
+            <Icon.Sparkles /> Optimization Complete
+          </div>
+        </RevealItem>
+
+        <ConnectorArrow delay={0.9} />
+
+        {/* After */}
+        <RevealItem className="card ats-after-card" style={{ padding: 24, border: "1.5px solid var(--c-accent2)", position: "relative" }}>
+          <div className="badge badge-green" style={{ marginBottom: 16, fontSize: 12 }}>After AI Optimization</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <ScoreRing score={afterScore} color="#059669" trackColor="#D1FAE5" />
+            <div>
+              <div style={{ fontSize: 12, color: "var(--c-text3)" }}>ATS Score</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "var(--c-accent2)" }}>Excellent</div>
+              <div style={{ fontSize: 11, color: "var(--c-text3)" }}>Top 5% Resume</div>
+            </div>
+            <span style={{ marginLeft: "auto", color: "var(--c-amber, #D97706)" }}><Icon.Award /></span>
+          </div>
+          <motion.div
+            style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 18, textAlign: "left" }}
+            initial="hidden"
+            animate={visible ? "show" : "hidden"}
+            variants={staggerContainerVariants(0.1, 0.7)}
+          >
+            {improvements.map(item => (
+              <motion.div key={item} variants={{ hidden: { opacity: 0, x: -8 }, show: { opacity: 1, x: 0, transition: { duration: 0.35, ease: EASE_OUT } } }}
+                style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--c-text2)" }}>
+                <span style={{ color: "var(--c-accent2)", flexShrink: 0 }}><Icon.Check size="3.5" /></span>
+                {item}
+              </motion.div>
+            ))}
+          </motion.div>
+          <ResumeSnippet tone="after" />
+        </RevealItem>
+      </Reveal>
+
+      <style>{`
+        .ats-before-card { background: linear-gradient(180deg, rgba(220,38,38,0.04) 0%, transparent 40%); }
+        .ats-process-card { background: linear-gradient(180deg, rgba(26,86,219,0.05) 0%, transparent 40%); }
+        .ats-after-card { background: linear-gradient(180deg, rgba(5,150,105,0.05) 0%, transparent 40%); }
+        .ats-connector-v { display: none; }
+        @media (max-width: 1024px) {
+          .ats-demo-grid { grid-template-columns: 1fr !important; }
+          .ats-connector-h { display: none !important; }
+          .ats-connector-v { display: flex !important; margin: 0 auto; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+// ─── FAQ SECTION ──────────────────────────────────────────────────────────────
+const FAQ_ITEMS = [
+  { q: "Is it free?", a: "Yes. Every feature — unlimited resumes, all templates, AI suggestions, and PDF export — is completely free, no credit card required." },
+  { q: "Are the templates ATS-friendly?", a: "Every template is built on a single-column, parser-safe layout so applicant tracking systems can read your name, dates, and bullets correctly." },
+  { q: "Can AI write my resume for me?", a: "AI can generate a professional summary, rewrite weak bullet points into strong action-verb statements, and suggest keywords from a job description — you stay in control of every word." },
+  { q: "Can I download my resume as a PDF?", a: "Yes. One click exports a pixel-perfect, print-ready PDF that matches exactly what you see in the live preview." },
+  { q: "Can I create multiple resumes?", a: "Yes. You can create and save as many resumes and cover letters as you like, so you can tailor a version for every application." },
+];
+
+function FaqSection() {
+  const [openIndex, setOpenIndex] = useState(0);
+
+  return (
+    <section style={{ padding: "80px 24px" }} aria-labelledby="faq-heading">
+      <Reveal style={{ textAlign: "center", marginBottom: 40 }}>
+        <h2 id="faq-heading" className="font-display" style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, margin: "0 0 12px" }}>
+          Frequently asked questions
+        </h2>
+        <p className="app-text2" style={{ fontSize: 17, maxWidth: 480, margin: "0 auto" }}>
+          Everything you need to know before you get started.
+        </p>
+      </Reveal>
+      <Reveal stagger={0.06} style={{ maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}>
+        {FAQ_ITEMS.map((item, i) => {
+          const isOpen = openIndex === i;
+          const panelId = `faq-panel-${i}`;
+          const buttonId = `faq-button-${i}`;
+          return (
+            <RevealItem key={item.q} className="card" style={{ padding: 0, overflow: "hidden" }}>
+              <button
+                id={buttonId}
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={() => setOpenIndex(isOpen ? -1 : i)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                  gap: 16, padding: "18px 22px", background: "transparent", border: "none", cursor: "pointer",
+                  textAlign: "left", fontFamily: "var(--font-body)",
+                }}
+              >
+                <span className="font-display" style={{ fontSize: 15, fontWeight: 700, color: "var(--c-text)" }}>{item.q}</span>
+                <motion.span
+                  style={{ color: "var(--c-text3)", flexShrink: 0 }}
+                  animate={{ rotate: isOpen ? 180 : 0 }}
+                  transition={{ duration: 0.25, ease: EASE_OUT }}
+                >
+                  <Icon.ChevronDown />
+                </motion.span>
+              </button>
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    id={panelId}
+                    role="region"
+                    aria-labelledby={buttonId}
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25, ease: EASE_OUT }}
+                    style={{ overflow: "hidden" }}
+                  >
+                    <p className="app-text2" style={{ margin: 0, padding: "0 22px 20px", fontSize: 14, lineHeight: 1.65 }}>
+                      {item.a}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </RevealItem>
+          );
+        })}
+      </Reveal>
+    </section>
+  );
+}
+
+// ─── LAUNCH OFFER MODAL ─────────────────────────────────────────────────────────
+
+const LAUNCH_OFFER_SEEN_KEY = "launchOfferSeen";
+
+const LAUNCH_OFFER_BENEFITS = [
+  "Premium ATS Resume Templates",
+  "AI Resume Optimization",
+  "ATS Score Checker",
+  "Unlimited Resume Downloads",
+  "Premium Features Included",
+];
+
+function LaunchOfferModal({ setPage }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    let seen = true;
+    try { seen = localStorage.getItem(LAUNCH_OFFER_SEEN_KEY) === "1"; } catch { seen = false; }
+    if (!seen) {
+      const t = setTimeout(() => setOpen(true), 400);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    try { localStorage.setItem(LAUNCH_OFFER_SEEN_KEY, "1"); } catch {}
+  };
+
+  const claim = () => {
+    dismiss();
+    setPage(PAGES.REGISTER);
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="launch-offer-title"
+          onClick={dismiss}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 2000,
+            background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+          }}
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.9, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 10 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            style={{
+              position: "relative", width: "100%", maxWidth: 440,
+              background: "#fff", borderRadius: 20, boxShadow: "0 24px 64px rgba(15, 23, 42, 0.35)",
+              padding: "32px 28px 28px", maxHeight: "92vh", overflowY: "auto",
+            }}
+          >
+            {/* Limited offer badge */}
+            <div style={{
+              position: "absolute", top: 16, right: 16,
+              background: "#FEF3C7", color: "#B45309", fontSize: 11, fontWeight: 700,
+              padding: "5px 10px", borderRadius: 999, whiteSpace: "nowrap",
+            }}>
+              🔥 Limited Launch Offer
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={dismiss}
+              aria-label="Close"
+              style={{
+                position: "absolute", top: 16, left: 16, width: 28, height: 28, borderRadius: "50%",
+                border: "none", background: "#F1F5F9", color: "#334155", fontSize: 16, lineHeight: 1,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              ×
+            </button>
+
+            <div style={{ textAlign: "center", marginTop: 20 }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+              <h2 id="launch-offer-title" className="font-display" style={{ fontSize: 22, fontWeight: 800, color: "#0F172A", margin: "0 0 12px" }}>
+                Welcome to ATS Resume Pilot!
+              </h2>
+              <p style={{ fontSize: 14.5, lineHeight: 1.6, color: "#475569", margin: "0 0 20px" }}>
+                As part of our launch celebration, Premium is automatically activated <strong>FREE</strong> for our first 1,000 users.
+                Join now and enjoy every premium feature at no cost.
+              </p>
+            </div>
+
+            <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 18px", marginBottom: 22 }}>
+              {LAUNCH_OFFER_BENEFITS.map((b) => (
+                <div key={b} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", fontSize: 14, color: "#1E293B" }}>
+                  <span style={{ color: "#16A34A", flexShrink: 0, display: "flex" }}><Icon.Check size="3.5" /></span>
+                  {b}
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={claim}
+              className="launch-offer-cta"
+              style={{
+                width: "100%", border: "none", borderRadius: 12, padding: "13px 20px",
+                fontSize: 15, fontWeight: 700, color: "#fff", cursor: "pointer",
+                background: "linear-gradient(135deg, #2563EB, #1E40AF)",
+                boxShadow: "0 8px 20px rgba(37, 99, 235, 0.35)",
+                transition: "transform 0.15s ease, box-shadow 0.15s ease",
+              }}
+            >
+              Claim Free Premium
+            </button>
+
+            <p style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", margin: "14px 0 0" }}>
+              Offer valid for the first 1,000 registered users only.
+            </p>
+
+            <style>{`
+              .launch-offer-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(37, 99, 235, 0.45); }
+              .launch-offer-cta:active { transform: translateY(0); }
+            `}</style>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 
+const HOME_TEMPLATE_CAP = 12;
+
 function HomePage({ setPage, user }) {
   const [homeFilter, setHomeFilter] = useState("all");
   const [homeDocType, setHomeDocType] = useState("resume");
+  const [homeTemplatesExpanded, setHomeTemplatesExpanded] = useState(false);
   const features = [
-    { icon: <Icon.Target />, title: "ATS Optimization", desc: "Real-time scoring against 98% of ATS systems used by Fortune 500 companies" },
-    { icon: <Icon.Sparkles />, title: "AI-Powered Writing", desc: "Generate professional summaries, rewrite bullets, and get keyword suggestions instantly" },
+    { icon: <Icon.Target />, title: "ATS Optimization", desc: "Real-time scoring against 98% of ATS systems used by Fortune 500 companies", featured: true },
+    { icon: <Icon.Sparkles />, title: "AI-Powered Writing", desc: "Generate professional summaries, rewrite bullets, and get keyword suggestions instantly", featured: true },
     { icon: <Icon.Eye />, title: "Live Preview", desc: "See exactly how your resume looks as you type — no refresh, no surprises" },
     { icon: <Icon.Download />, title: "One-Click Export", desc: "Download ATS-safe PDF or DOCX in seconds, print-ready and perfectly formatted" },
     { icon: <Icon.LayoutTemplate />, title: "Pro Templates", desc: "Dozens of recruiter-approved templates designed by HR professionals" },
@@ -2132,73 +3090,102 @@ function HomePage({ setPage, user }) {
   ];
 
   const testimonials = [
-    { name: "Priya S.", role: "Product Manager @ Google", text: "Got 3x more callbacks after optimizing with ResumeAI. The ATS score feature is a game-changer.", rating: 5 },
+    { name: "Priya S.", role: "Product Manager @ Google", text: "Got 3x more callbacks after optimizing with ATS Resume Pilot. The ATS score feature is a game-changer.", rating: 5 },
     { name: "Marcus T.", role: "SWE @ Stripe", text: "The AI bullet rewriter saved me hours. My resume went from generic to outstanding in 20 minutes.", rating: 5 },
     { name: "Ana L.", role: "Data Scientist @ Meta", text: "Finally a resume builder that actually explains what ATS looks for. Landed my dream job!", rating: 5 },
     { name: "James K.", role: "Frontend Engineer @ Netflix", text: "Switched from another builder and immediately noticed the difference. Got an interview at my dream company within two weeks.", rating: 5 },
     { name: "Sofia R.", role: "UX Designer @ Airbnb", text: "The templates are stunning and the ATS tips are genuinely useful. I felt so much more confident applying.", rating: 5 },
     { name: "David W.", role: "Backend Engineer @ Shopify", text: "The job description matcher is brilliant. It told me exactly which keywords I was missing and my callback rate jumped.", rating: 5 },
-    { name: "Meera P.", role: "ML Engineer @ OpenAI", text: "I used to spend hours tweaking my resume. ResumeAI cut that down to 20 minutes and the result was way better.", rating: 5 },
+    { name: "Meera P.", role: "ML Engineer @ OpenAI", text: "I used to spend hours tweaking my resume. ATS Resume Pilot cut that down to 20 minutes and the result was way better.", rating: 5 },
     { name: "Tyler N.", role: "DevOps Engineer @ AWS", text: "Clean UI, smart AI suggestions, and the ATS score gives real peace of mind before hitting submit.", rating: 5 },
     { name: "Isabelle F.", role: "Product Designer @ Figma", text: "Love that it tells you WHY your score is low, not just that it is. Actionable feedback every step of the way.", rating: 5 },
     { name: "Kevin O.", role: "Full-Stack Dev @ Coinbase", text: "Three offers in a month after rebuilding my resume here. The AI summary generator alone is worth it.", rating: 5 },
   ];
 
+  const reduceMotion = useReducedMotion();
+  const heroRef = useRef(null);
+  const { scrollYProgress: heroScrollProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
+  const heroParallaxY = useTransform(heroScrollProgress, [0, 1], [0, reduceMotion ? 0 : 60]);
+
   return (
     <div className="app-bg">
+      <LaunchOfferModal setPage={setPage} />
       {/* Hero */}
-      <section className="hero-grad" style={{ padding: "80px 20px 100px", textAlign: "center" }}>
-        <div style={{ maxWidth: 760, margin: "0 auto" }}>
-          <div className="badge badge-blue fade-in" style={{ marginBottom: 20, fontSize: 13 }}>
+      <section ref={heroRef} className="hero-grad" style={{ padding: "72px 20px 40px", textAlign: "center" }}>
+        <motion.div
+          style={{ maxWidth: 760, margin: "0 auto" }}
+          initial="hidden"
+          animate="show"
+          variants={staggerContainerVariants(0.12)}
+        >
+          <RevealItem className="badge badge-blue" style={{ marginBottom: 20, fontSize: 13, display: "inline-flex" }}>
             <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--c-accent)", display: "inline-block" }}></span>
             AI-powered · ATS-optimized · Free to start
-          </div>
+          </RevealItem>
 
-          <h1 className="font-display fade-in-delay-1" style={{ fontSize: "clamp(40px, 6vw, 72px)", fontWeight: 800, lineHeight: 1.1, margin: "0 0 20px" }}>
+          <motion.h1
+            className="font-display" style={{ fontSize: "clamp(40px, 6vw, 72px)", fontWeight: 800, lineHeight: 1.1, margin: "0 0 20px" }}
+            variants={{ hidden: { opacity: 0, y: 28 }, show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE_OUT } } }}
+          >
             <span style={{ whiteSpace: "normal" }}>
-              Build a{" "}
+              Create an{" "}
               <span className="free-badge" style={{
                 display: "inline-block",
                 background: "linear-gradient(135deg, #34D399 0%, #059669 50%, #047857 100%)",
                 color: "#fff",
-                fontSize: "clamp(32px, 5vw, 68px)",
+                fontSize: "clamp(22px, 3.4vw, 46px)",
                 fontWeight: 400,
-                padding: "2px 22px 6px",
-                borderRadius: 16,
-                lineHeight: 1.25,
+                padding: "1px 16px 4px",
+                borderRadius: 12,
+                lineHeight: 1.2,
                 letterSpacing: "-0.03em",
                 verticalAlign: "middle",
                 transform: "rotate(-2deg)",
                 position: "relative",
                 border: "3px solid rgba(255,255,255,0.25)",
-              }}>✦ Free</span>
+              }}>✦ ATS-Friendly</span>
               {" "}Resume
             </span><br />
-            that actually gets<br />
-            <span className="grad-text">noticed</span>
-          </h1>
+            That Gets <span className="grad-text">Noticed</span>
+          </motion.h1>
 
-          <p className="app-text2 fade-in-delay-2" style={{ fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.6, margin: "0 0 36px" }}>
-            ResumeAI helps you create ATS-optimized resumes in minutes using AI. Beat applicant tracking systems, impress recruiters, and land more interviews.
-          </p>
+          <RevealItem as={motion.p} className="app-text2" style={{ fontSize: "clamp(16px, 2vw, 20px)", lineHeight: 1.6, margin: "0 0 36px" }}>
+            Create a professional, ATS-friendly resume in under 5 minutes. Our AI helps you beat applicant tracking systems, impress recruiters, and land more interviews.
+          </RevealItem>
 
-          <div className="fade-in-delay-3" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button className="btn btn-primary btn-xl" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)}>
+          <RevealItem
+            style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}
+            variants={{ hidden: { opacity: 0, scale: 0.94 }, show: { opacity: 1, scale: 1, transition: { duration: 0.45, ease: EASE_OUT } } }}
+          >
+            <motion.button className="btn btn-primary btn-xl" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)}
+              whileHover={reduceMotion ? undefined : { scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }}>
               Build Your Resume — It's Free <Icon.ArrowRight />
-            </button>
-            <button className="btn btn-secondary btn-xl" onClick={() => setPage(PAGES.TEMPLATES)}>
+            </motion.button>
+            <motion.button className="btn btn-secondary btn-xl" onClick={() => setPage(PAGES.TEMPLATES)}
+              whileHover={reduceMotion ? undefined : { scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }}>
               View Templates <Icon.Eye />
-            </button>
-          </div>
+            </motion.button>
+          </RevealItem>
 
-          <div className="app-text3 fade-in-delay-3" style={{ marginTop: 20, fontSize: 13 }}>
-            ✓ No credit card required &nbsp;·&nbsp; ✓ 50,000+ resumes created &nbsp;·&nbsp; ✓ 4.9★ rating
-          </div>
-        </div>
+          <RevealItem as={motion.div} className="app-text2" style={{ marginTop: 20, fontSize: 13, fontWeight: 500 }}>
+            ✓ No credit card required &nbsp;·&nbsp; ✓ <StatCounter target={50000} suffix="+" /> resumes created &nbsp;·&nbsp; ✓ <StatCounter target={4.9} decimals={1} />★ rating
+          </RevealItem>
+        </motion.div>
 
         {/* Hero Resume Card */}
         {/* ── Hero Mockup ── */}
-        <div className="hero-mockup" style={{ margin: "64px 24px 0", position: "relative" }}>
+        <motion.div
+          className="hero-mockup"
+          style={{ margin: "36px 24px 0", position: "relative", y: heroParallaxY }}
+          initial={reduceMotion ? false : { opacity: 0, y: 32, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.7, delay: 0.35, ease: EASE_OUT }}
+        >
+          <motion.div
+            animate={reduceMotion ? undefined : { y: [0, -10, 0] }}
+            transition={reduceMotion ? undefined : { duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            style={{ willChange: "transform" }}
+          >
 
           {/* Glow backdrop */}
           <div style={{
@@ -2246,142 +3233,7 @@ function HomePage({ setPage, user }) {
           </div>
 
           {/* ── Browser window ── */}
-          <div style={{
-            position: "relative", zIndex: 1,
-            borderRadius: 16, overflow: "hidden",
-            border: "1px solid var(--c-border)",
-            boxShadow: "0 2px 0 rgba(255,255,255,0.8) inset, 0 32px 80px rgba(15,14,12,0.14), 0 8px 24px rgba(26,86,219,0.08)",
-            background: "var(--c-surface)",
-          }}>
-            {/* Browser chrome */}
-            <div style={{
-              background: "var(--c-surface2)",
-              borderBottom: "1px solid var(--c-border)",
-              padding: "10px 16px",
-              display: "flex", alignItems: "center", gap: 8,
-            }}>
-              <div style={{ display: "flex", gap: 6 }}>
-                {["#FF5F57","#FEBC2E","#28C840"].map((c, i) => (
-                  <div key={i} style={{ width: 11, height: 11, borderRadius: "50%", background: c }} />
-                ))}
-              </div>
-              {/* URL bar */}
-              <div style={{
-                flex: 1, maxWidth: 340, margin: "0 auto",
-                background: "var(--c-surface)", border: "1px solid var(--c-border)",
-                borderRadius: 7, padding: "4px 12px",
-                display: "flex", alignItems: "center", gap: 6,
-              }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
-                  <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                </svg>
-                <span style={{ fontSize: 12, color: "var(--c-text2)", fontWeight: 500 }}>resumeai.app/builder</span>
-              </div>
-              {/* Right status pill */}
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6,
-                background: "#ECFDF5", border: "1px solid #A7F3D0",
-                borderRadius: 99, padding: "4px 12px",
-                fontSize: 12, fontWeight: 700, color: "#059669",
-              }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#059669", display: "inline-block", animation: "ats-ring 1.6s ease-out infinite" }} />
-                ATS Score: 94
-              </div>
-            </div>
-
-            {/* Main content grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", maxHeight: 420, overflow: "hidden" }}>
-
-              {/* Resume preview pane */}
-              <div style={{ borderRight: "1px solid var(--c-border)", overflow: "hidden", position: "relative", background: "#F9FAFB" }}>
-                {/* ATS badge overlay on resume */}
-                <div style={{
-                  position: "absolute", top: 14, right: 14, zIndex: 10,
-                  background: "linear-gradient(135deg,#059669,#047857)",
-                  color: "#fff", fontSize: 10, fontWeight: 700,
-                  padding: "5px 11px", borderRadius: 99,
-                  display: "flex", alignItems: "center", gap: 5,
-                  boxShadow: "0 4px 12px rgba(5,150,105,0.35)",
-                }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
-                  ATS Optimized
-                </div>
-                <div style={{ transform: "scale(0.57)", transformOrigin: "top left", width: "175%", pointerEvents: "none" }}>
-                  <ResumePreview resume={SAMPLE_RESUME} />
-                </div>
-                {/* Bottom gradient fade */}
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 80, background: "linear-gradient(transparent, #F9FAFB)", pointerEvents: "none" }} />
-              </div>
-
-              {/* AI Panel */}
-              <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", background: "var(--c-surface)" }}>
-
-                {/* AI Header */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{
-                    width: 30, height: 30, borderRadius: 9,
-                    background: "linear-gradient(135deg, #1A56DB, #7C3AED)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    flexShrink: 0,
-                  }}>
-                    <Icon.Sparkles />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--c-text)" }}>AI Assistant</div>
-                    <div style={{ fontSize: 11, color: "var(--c-accent2)", fontWeight: 500 }}>● Active</div>
-                  </div>
-                </div>
-
-                {/* Score ring row */}
-                <div style={{
-                  background: "linear-gradient(135deg,#ECFDF5,#D1FAE5)",
-                  border: "1px solid #A7F3D0",
-                  borderRadius: 12, padding: "12px 14px",
-                  display: "flex", alignItems: "center", gap: 12,
-                }}>
-                  {/* Mini ring */}
-                  <div style={{ position: "relative", width: 46, height: 46, flexShrink: 0 }}>
-                    <svg width="46" height="46" style={{ transform: "rotate(-90deg)" }}>
-                      <circle cx="23" cy="23" r="18" fill="none" stroke="#A7F3D0" strokeWidth="4"/>
-                      <circle cx="23" cy="23" r="18" fill="none" stroke="#059669" strokeWidth="4"
-                        strokeDasharray={`${2*Math.PI*18}`}
-                        strokeDashoffset={`${2*Math.PI*18*(1-0.94)}`}
-                        strokeLinecap="round"/>
-                    </svg>
-                    <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center", fontWeight:800,fontSize:11,color:"#059669" }}>94</div>
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: 13, color: "#065F46" }}>ATS Passed ✓</div>
-                    <div style={{ fontSize: 11, color: "#059669" }}>Top 5% of resumes</div>
-                  </div>
-                </div>
-
-                {/* Suggestions label */}
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                  Suggestions
-                </div>
-
-                {/* Suggestion cards */}
-                {[
-                  { text: "Add metrics to bullet #3", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
-                  { text: "Include 'TypeScript' in skills", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
-                  { text: "Summary could be stronger", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
-                  { text: "Consider adding a project section", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
-                ].map((s, i) => (
-                  <div key={i} style={{
-                    padding: "9px 11px", borderRadius: 10, fontSize: 12, fontWeight: 500,
-                    display: "flex", gap: 9, alignItems: "center",
-                    background: s.bg, border: `1px solid ${s.border}`,
-                    transition: "transform 0.15s",
-                    animationDelay: `${i * 0.08}s`,
-                  }}>
-                    <span style={{ fontSize: 14, flexShrink: 0 }}>⚡</span>
-                    <span style={{ color: "#78350F", lineHeight: 1.4 }}>{s.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <HeroBrowserWindow reduceMotion={reduceMotion} />
 
           {/* ── Floating accent chips ── */}
           {/* Match score — bottom left */}
@@ -2423,7 +3275,41 @@ function HomePage({ setPage, user }) {
               <div style={{ fontSize: 10, color: "var(--c-text3)" }}>in the last 24h</div>
             </div>
           </div>
-        </div>
+
+          {/* Extra ambient floating badges — small, glassy, subtle shadows, gentle
+              floating loops. Each has its own float cycle (delay + duration) and a
+              slight fixed rotation so they don't feel machine-made. */}
+          <HeroFloatBadge className="hero-chip" reduceMotion={reduceMotion} delay={0.6} floatDelay={0.4} floatDuration={5.5} rotate={-4}
+            style={{ top: "36%", left: -34 }}>
+            <span style={{ fontSize: 14 }}>🤖</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>AI Writing</span>
+          </HeroFloatBadge>
+
+          <HeroFloatBadge className="hero-chip" reduceMotion={reduceMotion} delay={0.75} floatDelay={1.1} floatDuration={6.5} rotate={3}
+            style={{ top: 110, right: -44 }}>
+            <span style={{ fontSize: 14 }}>📈</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>Resume Score: 95/100</span>
+          </HeroFloatBadge>
+
+          <HeroFloatBadge className="hero-chip" reduceMotion={reduceMotion} delay={0.9} floatDelay={0.2} floatDuration={5.8} rotate={-2}
+            style={{ top: -18, left: "58%" }}>
+            <span style={{ fontSize: 14 }}>✅</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>Recruiter Approved</span>
+          </HeroFloatBadge>
+
+          <HeroFloatBadge className="hero-chip" reduceMotion={reduceMotion} delay={1.05} floatDelay={0.7} floatDuration={6.2} rotate={-3}
+            style={{ top: "62%", left: -46 }}>
+            <span style={{ fontSize: 14 }}>✨</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>AI Suggestions Applied</span>
+          </HeroFloatBadge>
+
+          <HeroFloatBadge className="hero-chip" reduceMotion={reduceMotion} delay={1.2} floatDelay={1.4} floatDuration={5.9} rotate={2}
+            style={{ bottom: -16, right: "12%" }}>
+            <span style={{ fontSize: 14 }}>👥</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>50K+ Resumes Created</span>
+          </HeroFloatBadge>
+          </motion.div>
+        </motion.div>
 
         <style>{`
           @keyframes ats-ring {
@@ -2434,28 +3320,125 @@ function HomePage({ setPage, user }) {
         `}</style>
       </section>
 
+      {/* Trust logo strip */}
+      <section aria-label="Trusted by professionals worldwide" style={{ padding: "40px 24px", borderTop: "1px solid var(--c-border)", borderBottom: "1px solid var(--c-border)" }}>
+        <p className="app-text3" style={{ textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 28px" }}>
+          Trusted by professionals worldwide
+        </p>
+        <Reveal as={motion.div} stagger={0.05} className="trust-logo-row" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 48, flexWrap: "wrap", maxWidth: 960, margin: "0 auto" }}>
+          {["Google", "Microsoft", "Amazon", "Adobe", "Meta", "IBM", "Oracle", "Spotify"].map(name => (
+            <RevealItem as={motion.span} key={name} className="trust-logo" style={{
+              fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 18,
+              color: "var(--c-text3)", opacity: 0.7, filter: "grayscale(1)",
+              transition: "opacity 0.2s, filter 0.2s", cursor: "default", userSelect: "none",
+            }}>
+              {name}
+            </RevealItem>
+          ))}
+        </Reveal>
+        <style>{`
+          .trust-logo:hover { opacity: 1 !important; filter: grayscale(0) !important; }
+          @media (max-width: 768px) { .trust-logo-row { gap: 28px !important; } .trust-logo { font-size: 15px !important; } }
+        `}</style>
+      </section>
+
       {/* Features */}
       <section style={{ padding: "80px 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
+        <Reveal style={{ textAlign: "center", marginBottom: 48 }}>
           <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, margin: "0 0 12px" }}>
             Everything you need to land the job
           </h2>
           <p className="app-text2" style={{ fontSize: 17, maxWidth: 500, margin: "0 auto" }}>
             Built for modern job seekers who want an unfair advantage.
           </p>
-        </div>
-        <div className="features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+        </Reveal>
+        <Reveal stagger={0.08} className="features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {features.map((f, i) => (
-            <div key={i} className="card card-hover shine" style={{ padding: 24 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--c-accent-light)", color: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+            <RevealItem key={i} className={`card card-hover shine feature-card${f.featured ? " feature-card-featured" : ""}`} style={{ padding: 24, position: "relative", transition: "transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease" }}
+              whileHover={{ y: -8 }}>
+              {f.featured && (
+                <span className="feature-badge">Most Loved</span>
+              )}
+              <motion.div className="feature-icon" style={{
+                width: 48, height: 48, borderRadius: 12,
+                background: "linear-gradient(135deg, var(--c-accent-light) 0%, var(--c-accent-light) 100%)",
+                color: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center",
+                marginBottom: 16, fontSize: 20,
+              }}>
                 {f.icon}
-              </div>
+              </motion.div>
               <h3 className="font-display" style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px" }}>{f.title}</h3>
               <p className="app-text2" style={{ fontSize: 14, margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
-            </div>
+            </RevealItem>
           ))}
-        </div>
+        </Reveal>
+        <style>{`
+          .feature-card { overflow: hidden; }
+          .feature-card:hover { border-color: var(--c-accent) !important; box-shadow: 0 12px 32px var(--c-shadow); }
+          .feature-card:hover .feature-icon {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent2) 100%) !important;
+            color: #fff !important;
+            transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+          }
+          .feature-icon { transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease; }
+          .feature-card-featured { border-color: var(--c-accent) !important; box-shadow: 0 0 0 1px var(--c-accent-light); }
+          .feature-badge {
+            position: absolute; top: 0; right: 0;
+            background: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent2) 100%);
+            color: #fff; font-size: 10.5px; font-weight: 700;
+            letter-spacing: 0.03em; text-transform: uppercase;
+            padding: 5px 12px;
+            border-bottom-left-radius: 10px;
+          }
+        `}</style>
       </section>
+
+      {/* How It Works */}
+      <section style={{ padding: "80px 24px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", borderBottom: "1px solid var(--c-border)", position: "relative" }}>
+        <Reveal style={{ textAlign: "center", marginBottom: 48 }}>
+          <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 800, margin: "0 0 12px" }}>
+            Create your resume in 3 simple steps
+          </h2>
+          <p className="app-text2" style={{ fontSize: 17, maxWidth: 500, margin: "0 auto" }}>
+            From blank page to interview-ready in minutes.
+          </p>
+        </Reveal>
+        <Reveal stagger={0.15} className="how-it-works-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, maxWidth: 1000, margin: "0 auto", position: "relative" }}>
+          <HowItWorksConnector />
+          {[
+            { n: "1", icon: <Icon.LayoutTemplate />, title: "Choose a template", desc: "Pick from dozens of recruiter-approved, ATS-safe designs built for every industry." },
+            { n: "2", icon: <Icon.Sparkles />, title: "Let AI improve it", desc: "Generate summaries, rewrite bullets, and get keyword suggestions tailored to the job." },
+            { n: "3", icon: <Icon.Download />, title: "Download & apply", desc: "Export a pixel-perfect, ATS-safe PDF and start sending applications immediately." },
+          ].map((s, i) => (
+            <RevealItem key={i} className="card card-hover" style={{ padding: 28, textAlign: "center", transition: "transform 0.2s ease, box-shadow 0.2s ease", position: "relative", zIndex: 1 }}
+              whileHover={{ y: -8 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 14, margin: "0 auto 18px",
+                background: "linear-gradient(135deg, var(--c-accent), var(--c-accent2))",
+                color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 22, position: "relative",
+              }}>
+                {s.icon}
+                <span style={{
+                  position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: "50%",
+                  background: "var(--c-surface)", border: "2px solid var(--c-accent)", color: "var(--c-accent)",
+                  fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center",
+                }}>{s.n}</span>
+              </div>
+              <h3 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px" }}>{s.title}</h3>
+              <p className="app-text2" style={{ fontSize: 14, margin: 0, lineHeight: 1.6 }}>{s.desc}</p>
+            </RevealItem>
+          ))}
+        </Reveal>
+        <style>{`
+          @media (min-width: 769px) { .how-it-works-connector { display: block !important; } }
+          @media (max-width: 768px) { .how-it-works-grid { grid-template-columns: 1fr !important; } }
+        `}</style>
+      </section>
+
+      {/* ATS Score Demo */}
+      <AtsScoreDemo />
 
       {/* Templates showcase */}
       {(() => {
@@ -2469,6 +3452,8 @@ function HomePage({ setPage, user }) {
           if (homeFilter === "with photo") return t.photo === true;
           return true;
         });
+        const isCapped = homeFilter === "all" && !homeTemplatesExpanded && filtered.length > HOME_TEMPLATE_CAP;
+        const visibleTemplates = isCapped ? filtered.slice(0, HOME_TEMPLATE_CAP) : filtered;
         return (
       <section style={{ padding: "90px 24px", borderTop: "1px solid var(--c-border)", borderBottom: "1px solid var(--c-border)", background: "var(--c-bg)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -2488,7 +3473,7 @@ function HomePage({ setPage, user }) {
                 { id: "resume", label: "Resume", icon: <Icon.FileText size="16" /> },
                 { id: "coverletter", label: "Cover Letter", icon: <Icon.FileText size="16" /> },
               ].map(({ id, label, icon }) => (
-                <button key={id} onClick={() => { setHomeDocType(id); setHomeFilter("all"); }}
+                <button key={id} onClick={() => { setHomeDocType(id); setHomeFilter("all"); setHomeTemplatesExpanded(false); }}
                   style={{
                     display: "flex", alignItems: "center", gap: 7, padding: "8px 20px",
                     borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "var(--font-body)",
@@ -2506,7 +3491,7 @@ function HomePage({ setPage, user }) {
             {homeDocType === "resume" && (
               <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
                 {filters.map(f => (
-                  <button key={f} onClick={() => setHomeFilter(f)}
+                  <button key={f} onClick={() => { setHomeFilter(f); setHomeTemplatesExpanded(false); }}
                     style={{ padding: "8px 20px", borderRadius: 99, border: homeFilter === f ? "none" : "1.5px solid var(--c-border)", background: homeFilter === f ? "var(--c-accent)" : "var(--c-surface)", color: homeFilter === f ? "#fff" : "var(--c-text2)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "all 0.15s", textTransform: "capitalize" }}>
                     {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
                   </button>
@@ -2524,14 +3509,20 @@ function HomePage({ setPage, user }) {
 
           {/* Cover letter template grid */}
           {homeDocType === "coverletter" && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20, marginBottom: 48 }}>
+            <Reveal stagger={0.05} amount={0.05} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20, marginBottom: 48 }}>
               {COVER_LETTER_TEMPLATES.map(t => {
                 const Preview = t.preview;
                 return (
-                  <div key={t.id} className="card-hover" onClick={() => setPage(user ? PAGES.COVER_LETTER : PAGES.REGISTER)}
-                    style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease" }}>
-                    <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
-                      <Preview />
+                  <RevealItem key={t.id} className="landing-template-card" onClick={() => setPage(user ? PAGES.COVER_LETTER : PAGES.REGISTER)}
+                    whileHover={{ scale: 1.02 }} transition={{ duration: 0.25, ease: EASE_OUT }}
+                    style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)" }}>
+                    <div className="landing-template-card-media" style={{ height: 300, overflow: "hidden", position: "relative" }}>
+                      <div className="landing-template-card-preview" style={{ height: "100%", transition: "transform 0.3s ease" }}>
+                        <Preview />
+                      </div>
+                      <div className="landing-template-card-overlay" style={{ position: "absolute", inset: 0, background: "rgba(15,14,12,0.28)", opacity: 0, transition: "opacity 0.25s ease", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ background: "#fff", color: "var(--c-text)", fontSize: 12, fontWeight: 700, padding: "8px 16px", borderRadius: 99, boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>Preview</span>
+                      </div>
                       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(transparent, #ffffff)", pointerEvents: "none" }} />
                     </div>
                     <div style={{ padding: "12px 14px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -2544,31 +3535,29 @@ function HomePage({ setPage, user }) {
                       </div>
                       <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
                     </div>
-                  </div>
+                  </RevealItem>
                 );
               })}
-            </div>
+            </Reveal>
           )}
 
           {/* Resume template grid */}
           {homeDocType === "resume" && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
-              {filtered.map(t => {
+            <Reveal key={`${homeDocType}-${homeFilter}-${homeTemplatesExpanded}`} stagger={0.05} amount={0.05} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
+              {visibleTemplates.map((t) => {
                 const MiniPreview = MINI_PREVIEWS[t.id];
-                const isPremiumTemplate = !FREE_TEMPLATES.includes(t.id);
                 return (
-                  <div key={t.id} className="card-hover" onClick={() => { setPage(user ? PAGES.BUILDER : PAGES.REGISTER); }}
-                    style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", transition: "all 0.2s ease", position: "relative" }}>
-                    <div style={{ height: 300, overflow: "hidden", position: "relative" }}>
-                      <div style={{ height: "100%" }}>
+                  <RevealItem key={t.id} className="landing-template-card" onClick={() => { setPage(user ? PAGES.BUILDER : PAGES.REGISTER); }}
+                    whileHover={{ scale: 1.02 }} transition={{ duration: 0.25, ease: EASE_OUT }}
+                    style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer", border: "2px solid var(--c-border)", boxShadow: "0 2px 8px var(--c-shadow)", position: "relative" }}>
+                    <div className="landing-template-card-media" style={{ height: 300, overflow: "hidden", position: "relative" }}>
+                      <div className="landing-template-card-preview" style={{ height: "100%", transition: "transform 0.3s ease" }}>
                         {MiniPreview && (t.photo ? <MiniPreview photo={DUMMY_AVATAR} /> : <MiniPreview />)}
                       </div>
+                      <div className="landing-template-card-overlay" style={{ position: "absolute", inset: 0, background: "rgba(15,14,12,0.28)", opacity: 0, transition: "opacity 0.25s ease", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ background: "#fff", color: "var(--c-text)", fontSize: 12, fontWeight: 700, padding: "8px 16px", borderRadius: 99, boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>Preview</span>
+                      </div>
                       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" || t.bg === "#0C0C0C" || t.bg === "#0F0F23" || t.bg === "#0C0A09" ? "#0F172A" : "#ffffff"})`, pointerEvents: "none" }} />
-                      {isPremiumTemplate && (
-                        <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
-                        </div>
-                      )}
                     </div>
                     <div style={{ padding: "12px 14px", background: "var(--c-surface)", borderTop: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <div>
@@ -2582,18 +3571,37 @@ function HomePage({ setPage, user }) {
                       </div>
                       <div style={{ width: 10, height: 10, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
                     </div>
-                  </div>
+                  </RevealItem>
                 );
               })}
+            </Reveal>
+          )}
+          <style>{`
+            .landing-template-card:hover { box-shadow: 0 12px 32px var(--c-shadow), 0 0 0 1px rgba(26,86,219,0.12) !important; }
+            .landing-template-card:hover .landing-template-card-preview { transform: translateY(-6px); }
+            .landing-template-card:hover .landing-template-card-overlay { opacity: 1 !important; }
+          `}</style>
+
+          {homeDocType === "resume" && homeFilter === "all" && filtered.length > HOME_TEMPLATE_CAP && (
+            <div style={{ textAlign: "center", marginTop: 32 }}>
+              <motion.button
+                className="btn btn-secondary"
+                onClick={() => setHomeTemplatesExpanded(v => !v)}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.15 }}
+              >
+                {homeTemplatesExpanded
+                  ? <>Show Less <motion.span animate={{ rotate: 180 }} style={{ display: "inline-flex" }}><Icon.ChevronDown /></motion.span></>
+                  : <>View All {filtered.length} Templates <Icon.ChevronDown /></>}
+              </motion.button>
             </div>
           )}
 
-          <div style={{ textAlign: "center", marginTop: 48 }}>
+          <div style={{ textAlign: "center", marginTop: 32 }}>
             <button className="btn btn-primary btn-lg" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)} style={{ marginRight: 12 }}>
               <Icon.Sparkles /> Start Building Free
             </button>
             <button className="btn btn-secondary btn-lg" onClick={() => setPage(PAGES.TEMPLATES)}>
-              View All Templates <Icon.ArrowRight />
+              Browse Full Template Library <Icon.ArrowRight />
             </button>
           </div>
         </div>
@@ -2603,19 +3611,19 @@ function HomePage({ setPage, user }) {
 
       {/* Testimonials */}
       <section style={{ padding: "80px 0" }}>
-        <div style={{ textAlign: "center", marginBottom: 48, padding: "0 24px" }}>
+        <Reveal style={{ textAlign: "center", marginBottom: 48, padding: "0 24px" }}>
           <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, margin: "0 0 12px" }}>
-            Trusted by 50,000+ job seekers
+            Trusted by <StatCounter target={50000} suffix="+" /> job seekers
           </h2>
-        </div>
-        <div className="testimonials-row" style={{
+        </Reveal>
+        <Reveal stagger={0.06} amount={0.1} className="testimonials-row" style={{
           display: "flex", gap: 16, overflowX: "auto", scrollbarWidth: "none",
           paddingLeft: 24, paddingRight: 24, paddingBottom: 8,
           WebkitOverflowScrolling: "touch",
           scrollSnapType: "x mandatory",
         }}>
           {testimonials.map((t, i) => (
-            <div key={i} className="card" style={{
+            <RevealItem key={i} className="card testimonial-card" whileHover={{ y: -6 }} transition={{ duration: 0.25, ease: EASE_OUT }} style={{
               padding: 24, flexShrink: 0,
               width: "calc(20% - 13px)",
               minWidth: 240,
@@ -2629,170 +3637,664 @@ function HomePage({ setPage, user }) {
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
                 <div className="app-text3" style={{ fontSize: 12 }}>{t.role}</div>
               </div>
-            </div>
+            </RevealItem>
           ))}
-        </div>
+        </Reveal>
+        <style>{`
+          .testimonial-card:hover { box-shadow: 0 12px 32px var(--c-shadow), 0 0 0 1px rgba(26,86,219,0.1) !important; }
+        `}</style>
       </section>
+
+      {/* FAQ */}
+      <FaqSection />
 
       {/* CTA */}
-      <section style={{ padding: "60px 20px", textAlign: "center", background: "var(--c-accent)", color: "#fff" }}>
-        <h2 className="font-display" style={{ fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, margin: "0 0 12px" }}>
-          Your next interview is one resume away.
+      <Reveal as={motion.section} className="cta-gradient-bg" style={{
+        padding: "72px 20px", textAlign: "center", color: "#fff",
+        backgroundSize: "200% 200%",
+      }}>
+        <h2 className="font-display" style={{ fontSize: "clamp(26px, 4vw, 44px)", fontWeight: 800, margin: "0 0 12px" }}>
+          Your next interview starts here
         </h2>
-        <p style={{ fontSize: 17, opacity: 0.85, margin: "0 0 28px" }}>Start free. No credit card. Build in minutes.</p>
-        <button className="btn btn-xl" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)}
-          style={{ background: "#fff", color: "var(--c-accent)", fontWeight: 700 }}>
-          Create My Resume Now <Icon.ArrowRight />
-        </button>
-      </section>
+        <p style={{ fontSize: 17, opacity: 0.85, margin: "0 0 28px", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+          Create a recruiter-approved resume in minutes using AI.
+        </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <motion.button className="btn btn-xl cta-glow-btn" onClick={() => setPage(user ? PAGES.BUILDER : PAGES.REGISTER)}
+            whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }}
+            style={{ background: "#fff", color: "var(--c-accent)", fontWeight: 700 }}>
+            Create My Resume Free <Icon.ArrowRight />
+          </motion.button>
+          <motion.button className="btn btn-xl btn-secondary cta-glow-btn" onClick={() => setPage(PAGES.TEMPLATES)}
+            whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.15 }}
+            style={{ background: "rgba(255,255,255,0.1)", color: "#fff", borderColor: "rgba(255,255,255,0.35)" }}>
+            Browse Templates
+          </motion.button>
+        </div>
+        <style>{`
+          .cta-gradient-bg {
+            background: linear-gradient(135deg, var(--c-accent) 0%, #1E3A8A 50%, #312E81 100%, var(--c-accent) 100%);
+            animation: ctaGradientShift 10s ease infinite;
+          }
+          @media (prefers-reduced-motion: reduce) { .cta-gradient-bg { animation: none; } }
+          @keyframes ctaGradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+          .cta-glow-btn:hover { box-shadow: 0 0 24px rgba(255,255,255,0.35); }
+        `}</style>
+      </Reveal>
 
       {/* Footer */}
-      <footer className="app-surface" style={{ borderTop: "1px solid var(--c-border)", padding: "32px 20px" }}>
-        <div style={{ padding: "0 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon.FileText />
+      <footer className="app-surface" style={{ borderTop: "1px solid var(--c-border)", padding: "56px 24px 28px" }}>
+        <Reveal stagger={0.08} className="footer-grid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32, maxWidth: 1100, margin: "0 auto 40px" }}>
+          {/* Brand column */}
+          <RevealItem>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <img src="/logo.svg" alt="ATS Resume Pilot" style={{ height: 24, width: "auto", display: "block" }} />
             </div>
-            <span className="font-display" style={{ fontWeight: 700 }}>ResumeAI</span>
-          </div>
-          <div className="app-text3" style={{ fontSize: 13 }}>© 2025 ResumeAI. Made with ♥ for job seekers everywhere.</div>
-          <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
-            {["Privacy", "Terms", "Contact"].map(l => <a key={l} href="#" className="app-text3" style={{ textDecoration: "none" }}>{l}</a>)}
-          </div>
+            <p className="app-text3" style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 220, margin: "0 0 16px" }}>
+              AI-powered, ATS-optimized resumes that help you land more interviews.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              {[
+                { label: "Twitter", d: "M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" },
+                { label: "LinkedIn", d: "M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z M2 9h4v12H2z M4 2a2 2 0 110 4 2 2 0 010-4z" },
+                { label: "Instagram", d: "M17.5 6.5h.01" },
+              ].map(s => (
+                <a key={s.label} href="#" aria-label={s.label} className="footer-social social-icon-anim" style={{
+                  width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--c-surface2)", color: "var(--c-text2)", transition: "background 0.15s, color 0.15s, transform 0.2s ease",
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 15, height: 15 }}>
+                    {s.label === "Instagram"
+                      ? <><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></>
+                      : <path d={s.d} />}
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </RevealItem>
+
+          {/* Product */}
+          <RevealItem as={motion.nav} aria-label="Product">
+            <div className="app-text3" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Product</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.TEMPLATES); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Templates</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setPage(user ? PAGES.COVER_LETTER : PAGES.REGISTER); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Cover Letters</a>
+            </div>
+          </RevealItem>
+
+          {/* Resources */}
+          <RevealItem as={motion.nav} aria-label="Resources">
+            <div className="app-text3" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Resources</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Blog</a>
+              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Career Tips</a>
+              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>ATS Guide</a>
+            </div>
+          </RevealItem>
+
+          {/* Company */}
+          <RevealItem as={motion.nav} aria-label="Company">
+            <div className="app-text3" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Company</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>About</a>
+              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Contact</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.PRIVACY); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Privacy Policy</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.TERMS); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Terms</a>
+            </div>
+          </RevealItem>
+        </Reveal>
+
+        <div style={{ borderTop: "1px solid var(--c-border)", paddingTop: 20, maxWidth: 1100, margin: "0 auto" }}>
+          <div className="app-text3" style={{ fontSize: 13, textAlign: "center" }}>© 2025 ATS Resume Pilot. Made with ♥ for job seekers everywhere.</div>
         </div>
+        <style>{`
+          .footer-link:hover { color: var(--c-accent) !important; }
+          .footer-social:hover { background: var(--c-accent) !important; color: #fff !important; }
+          @media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr 1fr !important; } }
+          @media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr !important; } }
+        `}</style>
       </footer>
     </div>
   );
 }
 
+// ─── LEGAL PAGES ────────────────────────────────────────────────────────────────
+
+function LegalPageShell({ title, updated, setPage, children }) {
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px 24px 80px" }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.HOME)} style={{ marginBottom: 24 }}>
+          ← Back to home
+        </button>
+        <h1 className="font-display" style={{ fontSize: 32, fontWeight: 800, margin: "0 0 8px" }}>{title}</h1>
+        <p className="app-text3" style={{ fontSize: 13, margin: "0 0 32px" }}>Last updated: {updated}</p>
+        <div className="app-text2" style={{ fontSize: 15, lineHeight: 1.75 }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LegalH2({ children }) {
+  return <h2 className="font-display" style={{ fontSize: 19, fontWeight: 700, margin: "28px 0 10px" }}>{children}</h2>;
+}
+function LegalP({ children }) {
+  return <p style={{ margin: "0 0 14px" }}>{children}</p>;
+}
+function LegalUl({ items }) {
+  return (
+    <ul style={{ margin: "0 0 14px", paddingLeft: 22 }}>
+      {items.map((it, i) => <li key={i} style={{ marginBottom: 6 }}>{it}</li>)}
+    </ul>
+  );
+}
+
+function PrivacyPage({ setPage }) {
+  return (
+    <LegalPageShell title="Privacy Policy" updated="July 15, 2026" setPage={setPage}>
+      <LegalP>
+        ATS Resume Pilot ("we", "our") builds the resumes and cover letters you create using this app. This
+        page explains what data we collect, why, and how it's protected.
+      </LegalP>
+
+      <LegalH2>What we collect</LegalH2>
+      <LegalUl items={[
+        "Account info: your name, email address, and (if you sign in with Google) your profile photo — handled by Firebase Authentication.",
+        "Resume & cover letter content: whatever you enter into the builder — work history, education, skills, contact details, and any text you generate with the AI tools.",
+        "Uploaded files: if you use \"Import from existing CV,\" the file you upload is sent to our AI provider to extract text and is not stored by us afterward.",
+      ]} />
+
+      <LegalH2>How we use it</LegalH2>
+      <LegalP>
+        Your resume and cover letter data is stored so you can come back and keep editing it — that's
+        the entire purpose of collecting it. We don't sell your data, and we don't use your resume
+        content to train AI models.
+      </LegalP>
+      <LegalP>
+        When you use an AI feature (generating a summary, rewriting a bullet, importing a CV, matching
+        against a job description), the relevant text is sent to Anthropic's Claude API to produce the
+        result. That request happens through our own server, not directly from your browser.
+      </LegalP>
+
+      <LegalH2>Where it's stored</LegalH2>
+      <LegalP>
+        Account data and resume/cover letter content are stored in Google Firebase (Authentication and
+        Firestore). Access is restricted by security rules so that only you — authenticated as your
+        account — can read or write your own data. No one else, including other signed-in users, can
+        access it.
+      </LegalP>
+
+      <LegalH2>Third parties</LegalH2>
+      <LegalUl items={[
+        "Firebase (Google) — authentication and data storage.",
+        "Anthropic — processes text you submit to AI-powered features.",
+        "Vercel — hosts the application.",
+      ]} />
+
+      <LegalH2>Your choices</LegalH2>
+      <LegalP>
+        You can edit or delete your resume and cover letter content at any time from within the app.
+        To delete your account entirely, contact us using the details below and we'll remove your
+        account and associated data.
+      </LegalP>
+
+      <LegalH2>Contact</LegalH2>
+      <LegalP>
+        Questions about this policy or your data? Reach out at{" "}
+        <a href="mailto:privacy@resumeai.app" style={{ color: "var(--c-accent)" }}>privacy@resumeai.app</a>.
+      </LegalP>
+    </LegalPageShell>
+  );
+}
+
+function TermsPage({ setPage }) {
+  return (
+    <LegalPageShell title="Terms of Service" updated="July 15, 2026" setPage={setPage}>
+      <LegalP>
+        These terms govern your use of ATS Resume Pilot. By creating an account, you agree to them.
+      </LegalP>
+
+      <LegalH2>The service</LegalH2>
+      <LegalP>
+        ATS Resume Pilot lets you build, edit, and export resumes and cover letters, with optional AI-assisted
+        writing tools. All features are currently free to use.
+      </LegalP>
+
+      <LegalH2>Your account</LegalH2>
+      <LegalP>
+        You're responsible for the accuracy of the information you enter and for keeping your account
+        credentials secure. You must be old enough to legally enter into these terms in your
+        jurisdiction to create an account.
+      </LegalP>
+
+      <LegalH2>Your content</LegalH2>
+      <LegalP>
+        You own the resumes, cover letters, and other content you create. We don't claim any
+        ownership over it, and we don't use it for anything other than providing the service back to
+        you — including AI features, which process your content only to generate the output you
+        requested.
+      </LegalP>
+
+      <LegalH2>AI-generated content</LegalH2>
+      <LegalP>
+        Text generated by the AI writing tools is a starting point, not a guarantee. You're
+        responsible for reviewing and verifying anything you include in a resume, cover letter, or
+        application before sending it to an employer.
+      </LegalP>
+
+      <LegalH2>Acceptable use</LegalH2>
+      <LegalP>
+        Don't use the service to create fraudulent documents (e.g. fake credentials or employment
+        history intended to deceive an employer), to abuse the AI features (e.g. attempting to extract
+        or misuse the underlying system), or to interfere with the service's normal operation.
+      </LegalP>
+
+      <LegalH2>Availability</LegalH2>
+      <LegalP>
+        We aim to keep the service available and your data intact, but we don't guarantee
+        uninterrupted access. Back up anything critical by exporting it (PDF/DOCX) outside the app.
+      </LegalP>
+
+      <LegalH2>Changes</LegalH2>
+      <LegalP>
+        We may update these terms as the product evolves. Continued use of the service after a change
+        means you accept the update.
+      </LegalP>
+
+      <LegalH2>Contact</LegalH2>
+      <LegalP>
+        Questions about these terms? Reach out at{" "}
+        <a href="mailto:support@resumeai.app" style={{ color: "var(--c-accent)" }}>support@resumeai.app</a>.
+      </LegalP>
+    </LegalPageShell>
+  );
+}
+
 // ─── AUTH PAGES ───────────────────────────────────────────────────────────────
 
-function AuthPage({ mode, setPage, setUser }) {
+function AuthPage({ mode, setPage, setUser, dark, setDark }) {
   const [form, setForm] = useState({ email: "", password: "", name: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [view, setView] = useState("form"); // "form" | "forgot" | "sent"
+  const [resetEmail, setResetEmail] = useState("");
   const isLogin = mode === "login";
 
-  // Load Google GSI script once
-  useEffect(() => {
-    if (document.getElementById("gsi-script")) return;
-    const s = document.createElement("script");
-    s.id = "gsi-script";
-    s.src = "https://accounts.google.com/gsi/client";
-    s.async = true;
-    s.defer = true;
-    document.head.appendChild(s);
-  }, []);
+  const friendlyAuthError = (err) => {
+    switch (err?.code) {
+      case "auth/invalid-email": return "Enter a valid email address";
+      case "auth/user-not-found":
+      case "auth/wrong-password":
+      case "auth/invalid-credential": return "Incorrect email or password";
+      case "auth/email-already-in-use": return "An account with this email already exists";
+      case "auth/weak-password": return "Password must be at least 6 characters";
+      case "auth/too-many-requests": return "Too many attempts. Please try again later";
+      case "auth/popup-closed-by-user": return "Sign-in was cancelled";
+      default: return "Something went wrong. Please try again.";
+    }
+  };
 
   const handle = async () => {
     if (!form.email || !form.password || (!isLogin && !form.name)) {
       setError("Please fill in all fields"); return;
     }
     setLoading(true); setError("");
-    await new Promise(r => setTimeout(r, 800));
-    setUser({ name: form.name || form.email.split("@")[0], email: form.email });
-    setPage(PAGES.DASHBOARD);
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, form.email, form.password);
+      } else {
+        const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
+        await updateProfile(cred.user, { displayName: form.name });
+        // updateProfile doesn't re-fire onAuthStateChanged, so push the name
+        // into app state directly rather than waiting on a listener that
+        // already ran (with a null displayName) right after account creation.
+        setUser(prev => ({ ...prev, name: form.name }));
+      }
+      setPage(PAGES.DASHBOARD);
+    } catch (err) {
+      setError(friendlyAuthError(err));
+    }
     setLoading(false);
   };
 
-  const googleAuth = () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setError("Google Sign-In is not configured. Please contact support.");
-      return;
+  const handleResetRequest = async () => {
+    if (!resetEmail || !resetEmail.includes("@")) {
+      setError("Enter a valid email address"); return;
     }
-    if (!window.google?.accounts?.oauth2) {
-      setError("Google Sign-In is still loading — please try again in a moment.");
-      return;
+    setLoading(true); setError("");
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      setView("sent");
+    } catch (err) {
+      setError(friendlyAuthError(err));
     }
-    setLoading(true);
-    setError("");
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: "openid email profile",
-      callback: async (tokenResponse) => {
-        if (tokenResponse.error) {
-          setError("Google Sign-In was cancelled.");
-          setLoading(false);
-          return;
-        }
-        try {
-          const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-            headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-          });
-          const info = await res.json();
-          setUser({ name: info.name, email: info.email, picture: info.picture });
-          setPage(PAGES.DASHBOARD);
-        } catch {
-          setError("Failed to fetch Google profile. Please try again.");
-        }
-        setLoading(false);
-      },
-    });
-    tokenClient.requestAccessToken({ prompt: "select_account" });
+    setLoading(false);
   };
 
+  const googleAuth = async () => {
+    setLoading(true); setError("");
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      setPage(PAGES.DASHBOARD);
+    } catch (err) {
+      setError(friendlyAuthError(err));
+    }
+    setLoading(false);
+  };
+
+  const reduceMotion = useReducedMotion();
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} className="hero-grad">
-      <div className="card fade-in" style={{ width: "100%", maxWidth: 420, padding: 36 }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#fff" }}>
-            <Icon.FileText />
-          </div>
-          <h1 className="font-display" style={{ fontSize: 24, fontWeight: 800, margin: "0 0 6px" }}>
-            {isLogin ? "Welcome back" : "Create account"}
-          </h1>
-          <p className="app-text2" style={{ fontSize: 14, margin: 0 }}>
-            {isLogin ? "Sign in to your ResumeAI account" : "Start building ATS-optimized resumes"}
-          </p>
+    <div className="auth-split" style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+      {/* Left — form */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, position: "relative" }}>
+        <div style={{ position: "absolute", top: 20, left: 20, right: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <motion.button
+            className="btn btn-ghost btn-sm auth-home-link"
+            onClick={() => setPage(PAGES.HOME)}
+            whileHover={{ x: -2 }}
+          >
+            ← Back to home
+          </motion.button>
+          {setDark && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setDark(!dark)} aria-label="Toggle theme">
+              {dark ? <Icon.Sun /> : <Icon.Moon />}
+            </button>
+          )}
         </div>
 
-        {/* Google */}
-        <button onClick={googleAuth} disabled={loading} className="btn btn-secondary" style={{ width: "100%", justifyContent: "center", marginBottom: 16, padding: "11px", fontSize: 14 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          {loading ? "Signing in…" : "Continue with Google"}
-        </button>
+        <div className="card fade-in" style={{ width: "100%", maxWidth: 420, padding: 36, boxShadow: "none", border: "none", overflow: "hidden" }}>
+          <AnimatePresence mode="wait">
+            {view === "form" && (
+              <motion.div
+                key="form"
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: EASE_OUT }}
+              >
+                <div style={{ textAlign: "center", marginBottom: 28 }}>
+                  <motion.div
+                    style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg, var(--c-accent) 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#fff" }}
+                    initial={reduceMotion ? false : { scale: 0.7, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.4, delay: 0.1, ease: EASE_OUT }}
+                  >
+                    <Icon.FileText />
+                  </motion.div>
+                  <h1 className="font-display" style={{ fontSize: 26, fontWeight: 800, margin: "0 0 6px" }}>
+                    {isLogin ? "Welcome back" : "Create account"}
+                  </h1>
+                  <p className="app-text2" style={{ fontSize: 14, margin: 0 }}>
+                    {isLogin ? "Sign in to your ATS Resume Pilot account" : "Start building ATS-optimized resumes"}
+                  </p>
+                </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <div className="divider" style={{ flex: 1 }} />
-          <span className="app-text3" style={{ fontSize: 12 }}>or</span>
-          <div className="divider" style={{ flex: 1 }} />
-        </div>
+                {/* Google */}
+                <button onClick={googleAuth} disabled={loading} className="btn btn-secondary auth-google-btn" style={{ width: "100%", justifyContent: "center", marginBottom: 16, padding: "11px", fontSize: 14 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  {loading ? "Signing in…" : "Continue with Google"}
+                </button>
 
-        {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#DC2626", marginBottom: 12 }}>{error}</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                  <div className="divider" style={{ flex: 1 }} />
+                  <span className="app-text3" style={{ fontSize: 12 }}>or</span>
+                  <div className="divider" style={{ flex: 1 }} />
+                </div>
 
-        {!isLogin && (
-          <div style={{ marginBottom: 12 }}>
-            <label className="label">Full name</label>
-            <input className="input" placeholder="Alex Morgan" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-          </div>
-        )}
-        <div style={{ marginBottom: 12 }}>
-          <label className="label">Email</label>
-          <input className="input" type="email" placeholder="you@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-        </div>
-        <div style={{ marginBottom: 20 }}>
-          <label className="label">Password</label>
-          <input className="input" type="password" placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} onKeyDown={e => e.key === "Enter" && handle()} />
-        </div>
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      animate={{ opacity: 1, height: "auto", marginBottom: 12 }}
+                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#DC2626" }}>{error}</div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-        <button onClick={handle} disabled={loading} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "11px", fontSize: 15, fontWeight: 600 }}>
-          {loading ? "Please wait…" : isLogin ? "Sign in" : "Create account"}
-        </button>
+                {!isLogin && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label className="label">Full name</label>
+                    <input className="input" placeholder="Alex Morgan" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                  </div>
+                )}
+                <div style={{ marginBottom: 12 }}>
+                  <label className="label">Email</label>
+                  <input className="input" type="email" placeholder="you@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <label className="label">Password</label>
+                  <input className="input" type="password" placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} onKeyDown={e => e.key === "Enter" && handle()} />
+                  {isLogin && (
+                    <div style={{ textAlign: "right", marginTop: 6 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: "2px 4px", fontSize: 13, fontWeight: 600, color: "var(--c-accent)" }}
+                        onClick={() => { setResetEmail(form.email); setError(""); setView("forgot"); }}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-        <div style={{ textAlign: "center", marginTop: 20, fontSize: 14 }} className="app-text2">
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button className="btn btn-ghost btn-sm" style={{ padding: "2px 4px", color: "var(--c-accent)", fontWeight: 600 }}
-            onClick={() => setPage(isLogin ? PAGES.REGISTER : PAGES.LOGIN)}>
-            {isLogin ? "Sign up free" : "Sign in"}
-          </button>
+                <motion.button onClick={handle} disabled={loading} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "11px", fontSize: 15, fontWeight: 600 }}
+                  whileHover={reduceMotion ? undefined : { scale: 1.01 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.15 }}>
+                  {loading ? "Please wait…" : isLogin ? "Sign in" : "Create account"}
+                </motion.button>
+
+                <div style={{ textAlign: "center", marginTop: 20, fontSize: 14 }} className="app-text2">
+                  {isLogin ? "Don't have an account? " : "Already have an account? "}
+                  <button className="btn btn-ghost btn-sm" style={{ padding: "2px 4px", color: "var(--c-accent)", fontWeight: 600 }}
+                    onClick={() => setPage(isLogin ? PAGES.REGISTER : PAGES.LOGIN)}>
+                    {isLogin ? "Sign up free" : "Sign in"}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {view === "forgot" && (
+              <motion.div
+                key="forgot"
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: EASE_OUT }}
+              >
+                <div style={{ textAlign: "center", marginBottom: 28 }}>
+                  <motion.div
+                    style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg, var(--c-accent) 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#fff" }}
+                    initial={reduceMotion ? false : { scale: 0.7, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.4, delay: 0.1, ease: EASE_OUT }}
+                  >
+                    <Icon.Shield />
+                  </motion.div>
+                  <h1 className="font-display" style={{ fontSize: 26, fontWeight: 800, margin: "0 0 6px" }}>
+                    Reset your password
+                  </h1>
+                  <p className="app-text2" style={{ fontSize: 14, margin: 0 }}>
+                    Enter your email and we'll send you a reset link
+                  </p>
+                </div>
+
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      animate={{ opacity: 1, height: "auto", marginBottom: 12 }}
+                      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#DC2626" }}>{error}</div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div style={{ marginBottom: 20 }}>
+                  <label className="label">Email</label>
+                  <input className="input" type="email" placeholder="you@example.com" value={resetEmail}
+                    onChange={e => setResetEmail(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleResetRequest()} />
+                </div>
+
+                <motion.button onClick={handleResetRequest} disabled={loading} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "11px", fontSize: 15, fontWeight: 600 }}
+                  whileHover={reduceMotion ? undefined : { scale: 1.01 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.15 }}>
+                  {loading ? "Sending…" : "Send reset link"}
+                </motion.button>
+
+                <div style={{ textAlign: "center", marginTop: 20, fontSize: 14 }} className="app-text2">
+                  <button className="btn btn-ghost btn-sm" style={{ padding: "2px 4px", color: "var(--c-accent)", fontWeight: 600 }}
+                    onClick={() => { setError(""); setView("form"); }}>
+                    ← Back to sign in
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {view === "sent" && (
+              <motion.div
+                key="sent"
+                initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: EASE_OUT }}
+                style={{ textAlign: "center" }}
+              >
+                <motion.div
+                  style={{ width: 56, height: 56, borderRadius: "50%", background: "var(--c-accent2-light)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", color: "var(--c-accent2)" }}
+                  initial={reduceMotion ? false : { scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.1, ease: EASE_OUT }}
+                >
+                  <Icon.Check size="6" />
+                </motion.div>
+                <h1 className="font-display" style={{ fontSize: 24, fontWeight: 800, margin: "0 0 8px" }}>
+                  Check your email
+                </h1>
+                <p className="app-text2" style={{ fontSize: 14, margin: "0 0 28px", lineHeight: 1.6 }}>
+                  We've sent a password reset link to <strong style={{ color: "var(--c-text)" }}>{resetEmail}</strong>. It may take a minute to arrive.
+                </p>
+                <button className="btn btn-secondary" style={{ width: "100%", justifyContent: "center", padding: "11px", fontSize: 14 }}
+                  onClick={() => { setError(""); setView("form"); }}>
+                  ← Back to sign in
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
+
+      {/* Right — product showcase */}
+      <div className="auth-showcase hero-grad" style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 40 }}>
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 380, textAlign: "center" }}>
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.2, ease: EASE_OUT }}
+            style={{ position: "relative" }}
+          >
+            {/* Mini resume card */}
+            <div style={{
+              background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 16,
+              padding: 22, textAlign: "left", boxShadow: "0 24px 60px var(--c-shadow)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: "#EF4444" }} />
+                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: "#F59E0B" }} />
+                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: "#10B981" }} />
+                </div>
+                <span className="badge badge-green" style={{ fontSize: 10 }}>ATS Optimized</span>
+              </div>
+              <div className="font-display" style={{ fontWeight: 800, fontSize: 16, marginBottom: 2 }}>Alex Morgan</div>
+              <div className="app-text3" style={{ fontSize: 12, marginBottom: 14 }}>Senior Software Engineer</div>
+              {[92, 78, 88].map((w, i) => (
+                <div key={i} style={{ height: 7, borderRadius: 4, background: "var(--c-border)", marginBottom: 8, overflow: "hidden" }}>
+                  <motion.div
+                    style={{ height: "100%", borderRadius: 4, background: "linear-gradient(90deg, var(--c-accent), #8B5CF6)" }}
+                    initial={reduceMotion ? false : { width: 0 }}
+                    animate={{ width: `${w}%` }}
+                    transition={{ duration: 0.8, delay: 0.5 + i * 0.15, ease: EASE_OUT }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Floating ATS score badge */}
+            <HeroFloatBadge reduceMotion={reduceMotion} delay={0.7} floatDelay={0.2} floatDuration={5.5} rotate={-3}
+              style={{ top: -22, right: -18 }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: "50%", position: "relative",
+                background: `conic-gradient(var(--c-accent2) 0% 94%, var(--c-border) 94% 100%)`,
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--c-surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "var(--c-accent2)" }}>94</div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>ATS Score</span>
+            </HeroFloatBadge>
+
+            {/* Floating AI badge */}
+            <HeroFloatBadge reduceMotion={reduceMotion} delay={0.85} floatDelay={0.9} floatDuration={6} rotate={3}
+              style={{ bottom: -16, left: -24 }}>
+              <span style={{ fontSize: 14 }}>✨</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>AI Optimized</span>
+            </HeroFloatBadge>
+          </motion.div>
+
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5, ease: EASE_OUT }}
+            style={{ marginTop: 56 }}
+          >
+            <h2 className="font-display" style={{ fontSize: "clamp(22px, 2.4vw, 28px)", fontWeight: 800, margin: "0 0 10px", color: "var(--c-text)" }}>
+              Land more interviews with an <span className="grad-text">AI-optimized</span> resume
+            </h2>
+            <p className="app-text2" style={{ fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>
+              Every resume is scored against real ATS rules, then rewritten to pass — free, no credit card required.
+            </p>
+            <div style={{ display: "flex", justifyContent: "center", gap: 24 }}>
+              <div>
+                <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)" }}><StatCounter target={50000} suffix="+" /></div>
+                <div className="app-text3" style={{ fontSize: 11 }}>Resumes created</div>
+              </div>
+              <div>
+                <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)" }}>95%</div>
+                <div className="app-text3" style={{ fontSize: 11 }}>ATS pass rate</div>
+              </div>
+              <div>
+                <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)" }}><StatCounter target={4.9} decimals={1} />★</div>
+                <div className="app-text3" style={{ fontSize: 11 }}>Average rating</div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .auth-split { grid-template-columns: 1fr !important; }
+          .auth-showcase { display: none !important; }
+        }
+        .auth-home-link:hover { color: var(--c-accent) !important; }
+      `}</style>
     </div>
   );
 }
@@ -6028,7 +7530,6 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
             const MiniPreview = MINI_PREVIEWS[t.id];
             const isSelected = selected === t.id;
             const isHovered = hovered === t.id;
-            const isPremiumTemplate = !FREE_TEMPLATES.includes(t.id);
             return (
               <div key={t.id}
                 onMouseEnter={() => setHovered(t.id)}
@@ -6057,17 +7558,6 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                     background: `linear-gradient(transparent, ${t.bg === "#0F172A" || t.bg === "#0F0F0F" || t.bg === "#0A0A0A" ? "#0F172A" : t.bg === "#F0F9FF" ? "#F0F9FF" : t.bg === "#FAFAF9" ? "#FAFAF9" : "#ffffff"})`,
                     pointerEvents: "none",
                   }} />
-                  {isPremiumTemplate && (
-                    <div style={{
-                      position: "absolute", top: 10, right: 10,
-                      background: "linear-gradient(135deg,#F59E0B,#D97706)",
-                      borderRadius: 99, padding: "3px 9px",
-                      display: "flex", alignItems: "center", gap: 4,
-                      boxShadow: "0 2px 8px rgba(217,119,6,0.35)",
-                    }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
-                    </div>
-                  )}
                   {isSelected && (
                     <div style={{
                       position: "absolute", top: 12, left: 12,
@@ -6140,9 +7630,6 @@ function TemplatesPage({ setPage, onSelectTemplate, currentTemplate = "clarity",
                 <MiniRaviAxiom />
               </div>
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 60%, #ffffff)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", top: 10, right: 10, background: "linear-gradient(135deg,#F59E0B,#D97706)", borderRadius: 99, padding: "3px 9px", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 2px 8px rgba(217,119,6,0.35)" }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>⭐ Premium</span>
-              </div>
               {selected === "ravi" && (
                 <div style={{ position: "absolute", top: 10, left: 10, width: 26, height: 26, borderRadius: "50%", background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", boxShadow: "0 2px 8px rgba(26,86,219,0.4)" }}>
                   <Icon.Check size="3" />
@@ -7095,244 +8582,6 @@ Skills: ${skills || "Various professional skills"}`;
   );
 }
 
-// ─── PRICING PAGE ─────────────────────────────────────────────────────────────
-
-function PricingPage({ setPage, user, onUpgrade, onDowngrade, onStripeCheckout }) {
-  const [annual, setAnnual] = useState(true);
-  const premiumPrice = annual ? 9 : 12;
-  const currentPlan = user?.plan || "free";
-  const isCurrentPremium = isPremium(user);
-
-  const features = [
-    { label: "Resumes",                  free: "1 resume",          premium: "Unlimited resumes" },
-    { label: "Templates",                free: "3 basic templates",  premium: "All 19 premium templates" },
-    { label: "ATS Score",                free: "Basic check",        premium: "Full ATS analysis" },
-    { label: "Export",                   free: "PDF only",           premium: "PDF & DOCX" },
-    { label: "AI Summary Generator",     free: false,                premium: true },
-    { label: "AI Bullet Rewriter",       free: false,                premium: true },
-    { label: "CV Import (AI parsing)",   free: false,                premium: true },
-    { label: "Job Description Matcher",  free: false,                premium: true },
-    { label: "Keyword Optimizer",        free: false,                premium: true },
-    { label: "Photo Templates",          free: false,                premium: true },
-    { label: "Priority Support",         free: false,                premium: true },
-    { label: "Early Access to Features", free: false,                premium: true },
-  ];
-
-  const Tick = ({ ok, text }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid var(--c-border)" }}>
-      {ok === true ? (
-        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#ECFDF5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" style={{ width: 12, height: 12 }}><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-      ) : ok === false ? (
-        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--c-surface2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-text3)" strokeWidth="2" style={{ width: 10, height: 10 }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </div>
-      ) : (
-        <div style={{ width: 22, flexShrink: 0 }} />
-      )}
-      <span style={{ fontSize: 14, color: ok === false ? "var(--c-text3)" : "var(--c-text)" }}>{text}</span>
-    </div>
-  );
-
-  return (
-    <div className="app-bg" style={{ minHeight: "100vh" }}>
-
-      {/* Hero */}
-      <div className="hero-grad" style={{ padding: "64px 24px 48px", textAlign: "center" }}>
-        <div className="badge badge-blue" style={{ marginBottom: 16, fontSize: 13 }}>Simple, transparent pricing</div>
-        <h1 className="font-display" style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, margin: "0 0 14px", lineHeight: 1.1 }}>
-          Start free.<br />
-          <span className="grad-text">Upgrade when you're ready.</span>
-        </h1>
-        <p className="app-text2" style={{ fontSize: 18, maxWidth: 480, margin: "0 auto 28px" }}>
-          No credit card required. Cancel anytime. Every plan includes ATS scoring and live preview.
-        </p>
-
-        {/* Billing toggle */}
-        <div style={{ display: "inline-flex", background: "var(--c-surface2)", borderRadius: 12, padding: 4, gap: 4 }}>
-          {[true, false].map(a => (
-            <button key={String(a)} onClick={() => setAnnual(a)} style={{
-              padding: "9px 22px", borderRadius: 9, border: "none", cursor: "pointer",
-              fontSize: 14, fontWeight: 600, fontFamily: "var(--font-body)",
-              background: annual === a ? "var(--c-surface)" : "transparent",
-              color: annual === a ? "var(--c-text)" : "var(--c-text2)",
-              boxShadow: annual === a ? "0 2px 8px var(--c-shadow)" : "none",
-              transition: "all 0.15s",
-            }}>
-              {a ? "Annual billing" : "Monthly billing"}
-              {a && <span className="badge badge-green" style={{ fontSize: 11, marginLeft: 8 }}>Save 25%</span>}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ padding: "0 24px 80px" }}>
-
-        {/* Plan cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 24, maxWidth: 860, margin: "-32px auto 48px", position: "relative", zIndex: 2, paddingTop: 20 }}>
-
-          {/* Free */}
-          <div className="card" style={{ padding: 32 }}>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--c-surface2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Icon.FileText />
-                </div>
-                <h2 className="font-display" style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Free</h2>
-              </div>
-              <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px" }}>Everything you need to get started building your first resume.</p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                <span className="font-display" style={{ fontSize: 48, fontWeight: 800, lineHeight: 1 }}>$0</span>
-                <span className="app-text2" style={{ fontSize: 15 }}>/month</span>
-              </div>
-              <div className="app-text3" style={{ fontSize: 13, marginTop: 6 }}>Free forever · No card needed</div>
-            </div>
-            {isCurrentPremium ? (
-              <button className="btn btn-secondary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15 }}
-                onClick={onDowngrade}>
-                Downgrade to Free
-              </button>
-            ) : user ? (
-              <button className="btn btn-secondary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15, border: "2px solid var(--c-accent2)", color: "var(--c-accent2)" }}
-                disabled>
-                ✓ Your current plan
-              </button>
-            ) : (
-              <button className="btn btn-secondary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15 }}
-                onClick={() => setPage(PAGES.REGISTER)}>
-                Get Started Free
-              </button>
-            )}
-            <div>
-              {["1 resume", "3 basic templates", "PDF export", "Basic ATS score check", "Live resume preview", "Google Sign-In"].map((f, i) => (
-                <Tick key={i} ok={true} text={f} />
-              ))}
-              {["AI writing features", "CV import", "All templates", "Job match scoring"].map((f, i) => (
-                <Tick key={i} ok={false} text={f} />
-              ))}
-            </div>
-          </div>
-
-          {/* Premium */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            {/* Badge sits ABOVE the card, overlaps top border via negative margin */}
-            <div style={{
-              background: "linear-gradient(135deg, var(--c-accent), #7C3AED)",
-              color: "#fff", fontSize: 12, fontWeight: 700,
-              padding: "6px 22px", borderRadius: 99,
-              whiteSpace: "nowrap", letterSpacing: "0.04em",
-              boxShadow: "0 4px 16px rgba(26,86,219,0.35)",
-              marginBottom: -14, zIndex: 1, position: "relative",
-            }}>⭐ Most Popular</div>
-
-          <div className="card shine" style={{
-            width: "100%", padding: 32,
-            border: "2px solid var(--c-accent)",
-            boxShadow: "0 24px 64px var(--c-glow)",
-          }}>
-            <div style={{ marginBottom: 24, marginTop: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--c-accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                  <Icon.Sparkles />
-                </div>
-                <h2 className="font-display" style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Premium</h2>
-              </div>
-              <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px" }}>Full AI power, unlimited resumes and every template — land the job faster.</p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                <span className="font-display" style={{ fontSize: 48, fontWeight: 800, lineHeight: 1, color: "var(--c-accent)" }}>${premiumPrice}</span>
-                <span className="app-text2" style={{ fontSize: 15 }}>/month</span>
-              </div>
-              <div className="app-text3" style={{ fontSize: 13, marginTop: 6 }}>
-                {annual ? `Billed $${premiumPrice * 12}/year · Save $36` : "Billed monthly · Switch to annual to save 25%"}
-              </div>
-            </div>
-
-            {isCurrentPremium ? (
-              <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15, background: "var(--c-accent2)" }}
-                disabled>
-                ✓ You're on Premium
-              </button>
-            ) : (
-              <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 28, fontSize: 15 }}
-                onClick={() => user ? onStripeCheckout() : setPage(PAGES.REGISTER)}>
-                <Icon.Sparkles /> {user ? "Upgrade to Premium" : "Get Started — Sign Up Free"}
-              </button>
-            )}
-
-            <div>
-              {[
-                "Unlimited resumes",
-                "All 19 premium templates",
-                "PDF & DOCX export",
-                "Full ATS analysis & scoring",
-                "Live resume preview",
-                "AI summary generator",
-                "AI bullet rewriter",
-                "CV import (AI parsing)",
-                "Job description matcher",
-                "Keyword optimizer",
-                "Photo templates",
-                "Priority support",
-              ].map((f, i) => <Tick key={i} ok={true} text={f} />)}
-            </div>
-          </div>
-          </div>{/* end Premium wrapper */}
-        </div>
-
-        {/* Feature comparison table */}
-        <div style={{ maxWidth: 860, margin: "0 auto" }}>
-          <h2 className="font-display" style={{ fontSize: 24, fontWeight: 800, textAlign: "center", margin: "0 0 32px" }}>Full feature comparison</h2>
-
-          <div className="card" style={{ overflow: "hidden" }}>
-            {/* Table header */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)" }}>
-              <div style={{ padding: "14px 20px", fontWeight: 700, fontSize: 14 }}>Feature</div>
-              <div style={{ padding: "14px 20px", fontWeight: 700, fontSize: 14, textAlign: "center", borderLeft: "1px solid var(--c-border)" }}>Free</div>
-              <div style={{ padding: "14px 20px", fontWeight: 700, fontSize: 14, textAlign: "center", borderLeft: "1px solid var(--c-border)", color: "var(--c-accent)" }}>Premium</div>
-            </div>
-
-            {features.map((f, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid var(--c-border)", background: i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)" }}>
-                <div style={{ padding: "13px 20px", fontSize: 14, fontWeight: 500 }}>{f.label}</div>
-                <div style={{ padding: "13px 20px", textAlign: "center", borderLeft: "1px solid var(--c-border)", fontSize: 13 }}>
-                  {f.free === false
-                    ? <svg viewBox="0 0 24 24" fill="none" stroke="var(--c-text3)" strokeWidth="2" style={{ width: 16, height: 16, margin: "0 auto", display: "block" }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    : f.free === true
-                      ? <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" style={{ width: 16, height: 16, margin: "0 auto", display: "block" }}><polyline points="20 6 9 17 4 12"/></svg>
-                      : <span className="app-text2">{f.free}</span>
-                  }
-                </div>
-                <div style={{ padding: "13px 20px", textAlign: "center", borderLeft: "1px solid var(--c-border)", fontSize: 13 }}>
-                  {f.premium === true
-                    ? <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" style={{ width: 16, height: 16, margin: "0 auto", display: "block" }}><polyline points="20 6 9 17 4 12"/></svg>
-                    : <span style={{ color: "var(--c-accent)", fontWeight: 600 }}>{f.premium}</span>
-                  }
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* FAQ / trust strip */}
-        <div style={{ maxWidth: 860, margin: "40px auto 0", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-          {[
-            { icon: "🔒", title: "No card required", desc: "Start free with zero payment info. Upgrade anytime from your dashboard." },
-            { icon: "↩️", title: "Cancel anytime", desc: "No lock-in. Cancel your subscription in one click, no questions asked." },
-            { icon: "⚡", title: "Instant access", desc: "Premium activates the moment you pay. All features available immediately." },
-          ].map((item, i) => (
-            <div key={i} className="card" style={{ padding: 20, textAlign: "center" }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{item.icon}</div>
-              <div className="font-display" style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{item.title}</div>
-              <div className="app-text2" style={{ fontSize: 13, lineHeight: 1.6 }}>{item.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 const BLANK_RESUME = {
@@ -7369,128 +8618,8 @@ const BLANK_COVER_LETTER = {
 
 const FREE_TEMPLATES = ["clarity", "form", "slate"];
 
-const PLAN_FEATURES = {
-  ai_writing:      { label: "AI Writing Tools",      desc: "Generate summaries, rewrite bullets, optimize for job descriptions" },
-  cv_import:       { label: "CV Import (AI)",         desc: "Upload a PDF or DOCX and let AI fill in all your resume fields" },
-  all_templates:   { label: "All 19 Templates",       desc: "Access every template including photo, creative and corporate styles" },
-  photo_templates: { label: "Photo Templates",        desc: "Portrait, Vista, Pulse, Prism and Lens templates with photo support" },
-  pdf_export:      { label: "PDF Export",             desc: "Download your resume as a print-ready PDF file" },
-};
-
-function isPremium(user) { return user?.plan === "premium"; }
-
-function SubscriptionPage({ user, setPage }) {
-  const premium = isPremium(user);
-
-  // If premium but no planStart saved, use today and persist it
-  const resolvedStart = (() => {
-    if (!premium) return null;
-    if (user?.planStart) return user.planStart;
-    const today = new Date().toISOString();
-    if (user?.email) localStorage.setItem(`ats-plan-start-${user.email}`, today);
-    return today;
-  })();
-
-  const planStart = resolvedStart ? new Date(resolvedStart) : null;
-  const nextBilling = planStart ? new Date(new Date(planStart).setMonth(planStart.getMonth() + 1)) : null;
-  const validTill = planStart ? new Date(new Date(planStart).setFullYear(planStart.getFullYear() + 1)) : null;
-
-  const fmt = (d) => d ? d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—";
-
-  return (
-    <div className="app-bg" style={{ minHeight: "100vh", padding: "40px 24px" }}>
-      <div style={{ maxWidth: 560, margin: "0 auto" }}>
-        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 24 }} onClick={() => setPage(PAGES.DASHBOARD)}>
-          ← Back to Dashboard
-        </button>
-        <h1 className="font-display" style={{ fontSize: 26, fontWeight: 800, margin: "0 0 24px" }}>Subscription</h1>
-
-        <div className="card" style={{ padding: 28, marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <div>
-              <div style={{ fontSize: 13, color: "var(--c-text3)", marginBottom: 4 }}>Current Plan</div>
-              <div className="font-display" style={{ fontSize: 22, fontWeight: 800 }}>
-                {premium ? "Premium" : "Free"}
-              </div>
-            </div>
-            <div style={{
-              background: premium ? "linear-gradient(135deg, #F59E0B, #D97706)" : "var(--c-surface2)",
-              color: premium ? "#fff" : "var(--c-text2)",
-              padding: "6px 16px", borderRadius: 99, fontSize: 13, fontWeight: 700,
-            }}>
-              {premium ? "⭐ Active" : "Free Tier"}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {[
-              { label: "Account", value: user?.email },
-              { label: "Plan started", value: planStart ? fmt(planStart) : "—" },
-              { label: "Next billing", value: nextBilling ? fmt(nextBilling) : "—" },
-              { label: "Valid till", value: validTill ? fmt(validTill) : "—" },
-              { label: "Price", value: premium ? "$9 / month" : "Free forever" },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--c-border)" }}>
-                <span style={{ fontSize: 14, color: "var(--c-text3)" }}>{label}</span>
-                <span style={{ fontSize: 14, fontWeight: 600 }}>{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {premium ? (
-          <div className="card" style={{ padding: 20, background: "var(--c-accent-light)", border: "1px solid var(--c-accent)22" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>✓ You have full Premium access</div>
-            <div style={{ fontSize: 13, color: "var(--c-text2)" }}>All templates, AI features, unlimited resumes and CV import are unlocked.</div>
-          </div>
-        ) : (
-          <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center" }} onClick={() => setPage(PAGES.PRICING)}>
-            <Icon.Sparkles /> Upgrade to Premium — $9/mo
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function UpgradeModal({ feature, onClose, onUpgrade }) {
-  const info = PLAN_FEATURES[feature] || { label: "Premium Feature", desc: "This feature is available on the Premium plan." };
-  return (
-    <div onClick={onClose} style={{
-      position: "fixed", inset: 0, zIndex: 1000,
-      background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}>
-      <div className="card fade-in" onClick={e => e.stopPropagation()}
-        style={{ maxWidth: 420, width: "100%", padding: 32, textAlign: "center" }}>
-        <div style={{ fontSize: 44, marginBottom: 12 }}>⭐</div>
-        <h2 className="font-display" style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>Premium Feature</h2>
-        <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px", lineHeight: 1.6 }}>
-          <strong>{info.label}</strong> — {info.desc}
-        </p>
-        <div style={{ background: "var(--c-accent-light)", border: "1px solid var(--c-accent)22", borderRadius: 12, padding: 16, marginBottom: 24, textAlign: "left" }}>
-          {["All 19 premium templates", "AI summary & bullet writer", "CV import with AI parsing", "Job description matcher", "Unlimited resumes"].map((f, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, fontSize: 14 }}>
-              <span style={{ color: "var(--c-accent)", fontWeight: 700 }}>✓</span>
-              <span>{f}</span>
-            </div>
-          ))}
-        </div>
-        <button className="btn btn-primary btn-lg" style={{ width: "100%", justifyContent: "center", marginBottom: 10 }} onClick={onUpgrade}>
-          <Icon.Sparkles /> Upgrade to Premium — $9/mo
-          <span style={{ fontSize: 11, opacity: 0.8, marginLeft: 4 }}>via Stripe</span>
-        </button>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10, fontSize: 12, color: "var(--c-text3)" }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 12, height: 12 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-          Secured by Stripe · Cancel anytime
-        </div>
-        <button className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center", color: "var(--c-text2)" }} onClick={onClose}>
-          Maybe later
-        </button>
-      </div>
-    </div>
-  );
-}
+// Pricing is temporarily disabled — every account gets full premium access for free.
+function isPremium(user) { return !!user; }
 
 export default function App() {
   const [dark, setDark] = useLocalStorage("ats-dark", false);
@@ -7498,9 +8627,30 @@ export default function App() {
   const [page, setPage] = useState(user ? PAGES.DASHBOARD : PAGES.HOME);
 
   const setUser = (u) => {
+    if (typeof u === "function") { setUserState(u); return; }
+    if (!u) { signOut(auth).catch(() => {}); return; }
     setUserState(u);
-    if (!u) setPage(PAGES.HOME);
   };
+
+  // Firebase is the source of truth for the session — this keeps `user` in sync
+  // with the real auth state (handles sign-out, token expiry, refresh, etc.)
+  // rather than trusting whatever was last cached in localStorage.
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        setUserState(prev => ({
+          uid: fbUser.uid,
+          name: fbUser.displayName || prev?.name || fbUser.email.split("@")[0],
+          email: fbUser.email,
+          picture: fbUser.photoURL || undefined,
+        }));
+      } else {
+        setUserState(null);
+        setPage(PAGES.HOME);
+      }
+    });
+    return unsub;
+  }, []);
 
   // Restore page on refresh — if user is logged in, go to dashboard
   useEffect(() => {
@@ -7534,176 +8684,125 @@ export default function App() {
   const [selectedTemplate, setTemplateState] = useState("clarity");
   const [coverLetterTemplate, setCoverLetterTemplate] = useState("cl-classic");
   const [coverLetter, setCoverLetterState] = useState(BLANK_COVER_LETTER);
-  const [upgradeModal, setUpgradeModal] = useState(null); // feature key or null
+  const dataLoadedRef = useRef(false); // guards against saving blank state before Firestore load completes
+  const saveTimerRef = useRef(null);
+  const pendingSaveRef = useRef(null); // edits made before load completes are queued here, not dropped
 
-  // Load the correct user's data from localStorage whenever the account changes
+  // Load the correct user's data from Firestore whenever the account changes
   useEffect(() => {
-    if (!user?.email) return;
-    const rKey = `ats-resume-${user.email}`;
-    const tKey = `ats-template-${user.email}`;
-    const pKey = `ats-plan-${user.email}`;
-    const clKey = `ats-coverletter-${user.email}`;
-    try {
-      const saved = localStorage.getItem(rKey);
-      if (saved) setResumeState(JSON.parse(saved));
-      else setResumeState({ ...BLANK_RESUME, personal: { ...BLANK_RESUME.personal, name: user.name || "", email: user.email || "" } });
-    } catch { setResumeState(BLANK_RESUME); }
-    try { const savedT = localStorage.getItem(tKey); setTemplateState(savedT ? JSON.parse(savedT) : "clarity"); }
-    catch { setTemplateState("clarity"); }
-    try { const savedCL = localStorage.getItem(clKey); if (savedCL) setCoverLetterState(JSON.parse(savedCL)); }
-    catch {}
-    // Seed premium for whitelisted accounts
-    const PREMIUM_EMAILS = ["ravijuneja1986@gmail.com"];
-    if (PREMIUM_EMAILS.includes(user.email) && localStorage.getItem(pKey) !== "premium") {
-      localStorage.setItem(pKey, "premium");
-      if (!localStorage.getItem(`ats-plan-start-${user.email}`)) {
-        localStorage.setItem(`ats-plan-start-${user.email}`, new Date().toISOString());
+    dataLoadedRef.current = false;
+    pendingSaveRef.current = null;
+    if (!user?.uid) return;
+    (async () => {
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref).catch(() => null);
+      const data = snap?.exists() ? snap.data() : null;
+
+      setResumeState(data?.resume || { ...BLANK_RESUME, personal: { ...BLANK_RESUME.personal, name: user.name || "", email: user.email || "" } });
+      setTemplateState(data?.template || "clarity");
+      setCoverLetterState(data?.coverLetter || BLANK_COVER_LETTER);
+
+      // Seed premium for whitelisted accounts
+      const PREMIUM_EMAILS = ["ravijuneja1986@gmail.com"];
+      let plan = data?.plan || "free";
+      let planStart = data?.planStart || null;
+      if (PREMIUM_EMAILS.includes(user.email) && plan !== "premium") {
+        plan = "premium";
+        planStart = planStart || new Date().toISOString();
+        await setDoc(ref, { plan, planStart }, { merge: true }).catch(() => {});
       }
+      setUser(prev => prev ? { ...prev, plan, planStart } : prev);
+      dataLoadedRef.current = true;
+      // Flush any edit the user made while the load was still in flight —
+      // it reflects the latest state, so it should win over what we just loaded.
+      if (pendingSaveRef.current) {
+        setDoc(ref, pendingSaveRef.current, { merge: true }).catch(() => {});
+        pendingSaveRef.current = null;
+      }
+    })();
+  }, [user?.uid]);
+
+  // Debounced save of resume/template/coverLetter to Firestore so rapid edits
+  // (typing) don't fire a write per keystroke. Edits that arrive before the
+  // initial load finishes are queued rather than dropped (see flush above).
+  const scheduleSave = (patch) => {
+    if (!user?.uid) return;
+    if (!dataLoadedRef.current) {
+      pendingSaveRef.current = { ...pendingSaveRef.current, ...patch };
+      return;
     }
-    // Load plan
-    const savedPlan = localStorage.getItem(pKey) || "free";
-    const savedPlanStart = localStorage.getItem(`ats-plan-start-${user.email}`) || null;
-    setUser(prev => prev ? { ...prev, plan: savedPlan, planStart: savedPlanStart } : prev);
-  }, [user?.email]);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      setDoc(doc(db, "users", user.uid), patch, { merge: true }).catch(() => {});
+    }, 600);
+  };
 
   const setResume = (val) => {
     setResumeState(prev => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user?.email) { try { localStorage.setItem(`ats-resume-${user.email}`, JSON.stringify(next)); } catch {} }
+      scheduleSave({ resume: next });
       return next;
     });
   };
 
   const setSelectedTemplate = (val) => {
     setTemplateState(val);
-    if (user?.email) { try { localStorage.setItem(`ats-template-${user.email}`, JSON.stringify(val)); } catch {} }
+    scheduleSave({ template: val });
   };
 
   const setCoverLetter = (val) => {
     setCoverLetterState(prev => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user?.email) { try { localStorage.setItem(`ats-coverletter-${user.email}`, JSON.stringify(next)); } catch {} }
+      scheduleSave({ coverLetter: next });
       return next;
     });
   };
-
-  const [paymentToast, setPaymentToast] = useState(""); // success / cancelled
-
-  const upgradePlan = (plan = "premium") => {
-    if (!user?.email) return;
-    localStorage.setItem(`ats-plan-${user.email}`, plan);
-    if (plan === "premium") {
-      const start = user.planStart || new Date().toISOString();
-      localStorage.setItem(`ats-plan-start-${user.email}`, start);
-      setUser(prev => ({ ...prev, plan, planStart: start }));
-    } else {
-      setUser(prev => ({ ...prev, plan, planStart: null }));
-    }
-    setUpgradeModal(null);
-    if (plan === "premium") setPage(PAGES.DASHBOARD);
-  };
-
-  // Open Stripe Payment Link, appending user email for pre-fill + success redirect
-  const openStripeCheckout = () => {
-    const stripeLink = import.meta.env.VITE_STRIPE_PAYMENT_LINK;
-    if (!stripeLink) {
-      alert("Add VITE_STRIPE_PAYMENT_LINK to your .env file to enable payments.");
-      return;
-    }
-    const successUrl = `${window.location.origin}?payment=success`;
-    const cancelUrl  = `${window.location.origin}?payment=cancelled`;
-    const params = new URLSearchParams({
-      prefilled_email: user?.email || "",
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-    });
-    window.open(`${stripeLink}?${params}`, "_blank");
-  };
-
-  // Detect return from Stripe payment
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const payment = params.get("payment");
-    if (payment === "success") {
-      upgradePlan("premium");
-      setPaymentToast("success");
-      window.history.replaceState({}, "", window.location.pathname);
-    } else if (payment === "cancelled") {
-      setPaymentToast("cancelled");
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
-
-  // Auto-dismiss toast
-  useEffect(() => {
-    if (!paymentToast) return;
-    const t = setTimeout(() => setPaymentToast(""), 5000);
-    return () => clearTimeout(t);
-  }, [paymentToast]);
-
-  const needUpgrade = (feature) => setUpgradeModal(feature);
 
   useEffect(() => { document.documentElement.className = dark ? "dark" : ""; }, [dark]);
 
   const renderPage = () => {
     switch (page) {
       case PAGES.HOME: return <HomePage setPage={setPage} user={user} />;
-      case PAGES.LOGIN: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
-      case PAGES.REGISTER: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="register" setPage={setPage} setUser={setUser} />;
+      case PAGES.LOGIN: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="login" setPage={setPage} setUser={setUser} dark={dark} setDark={setDark} />;
+      case PAGES.REGISTER: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="register" setPage={setPage} setUser={setUser} dark={dark} setDark={setDark} />;
       case PAGES.DASHBOARD: return user
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.BUILDER: return user
         ? <BuilderPage key={user.email} resume={resume} setResume={setResume} template={selectedTemplate}
-            onTemplateChange={setSelectedTemplate} user={user} onNeedUpgrade={needUpgrade} />
+            onTemplateChange={setSelectedTemplate} user={user} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.TEMPLATES: return <TemplatesPage setPage={setPage} onSelectTemplate={setSelectedTemplate}
-          currentTemplate={selectedTemplate} user={user} onNeedUpgrade={needUpgrade}
+          currentTemplate={selectedTemplate} user={user}
           onSelectCoverLetterTemplate={setCoverLetterTemplate} />;
       case PAGES.COVER_LETTER: return user
         ? <CoverLetterBuilderPage coverLetter={coverLetter} setCoverLetter={setCoverLetter} resume={resume} templateId={coverLetterTemplate} onTemplateChange={setCoverLetterTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
-      case PAGES.PRICING: return (user && isPremium(user))
-        ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} />
-        : <PricingPage setPage={setPage} user={user} onUpgrade={upgradePlan} onDowngrade={() => upgradePlan("free")} onStripeCheckout={openStripeCheckout} />;
+      case PAGES.PRICING:
       case PAGES.SUBSCRIPTION: return user
-        ? <SubscriptionPage user={user} setPage={setPage} />
+        ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
+      case PAGES.PRIVACY: return <PrivacyPage setPage={setPage} />;
+      case PAGES.TERMS: return <TermsPage setPage={setPage} />;
       default: return <HomePage setPage={setPage} user={user} />;
     }
   };
+
+  // Ambient motion chrome (progress bar, back-to-top, floating background
+  // blobs) is scoped to the marketing surfaces — the builder/dashboard are
+  // dense working UIs where they'd be noise rather than polish.
+  const isMarketingPage = [PAGES.HOME, PAGES.TEMPLATES].includes(page);
+  const isAuthPage = (page === PAGES.LOGIN || page === PAGES.REGISTER) && !user;
 
   return (
     <>
       <style>{styles}</style>
       <div className="app-bg app-text" style={{ minHeight: "100vh", fontFamily: "var(--font-body)" }}>
-        <Navbar page={page} setPage={setPage} dark={dark} setDark={setDark} user={user} setUser={setUser} />
+        {isMarketingPage && <AmbientBackground />}
+        {isMarketingPage && <ScrollProgressBar />}
+        {!isAuthPage && <Navbar page={page} setPage={setPage} dark={dark} setDark={setDark} user={user} setUser={setUser} />}
         {renderPage()}
-        {upgradeModal && (
-          <UpgradeModal feature={upgradeModal} onClose={() => setUpgradeModal(null)}
-            onUpgrade={() => { setUpgradeModal(null); openStripeCheckout(); }} />
-        )}
-
-        {/* Payment result toast */}
-        {paymentToast && (
-          <div style={{
-            position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
-            zIndex: 2000, display: "flex", alignItems: "center", gap: 12,
-            padding: "14px 24px", borderRadius: 14,
-            background: paymentToast === "success" ? "#059669" : "#DC2626",
-            color: "#fff", fontWeight: 600, fontSize: 15,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
-            animation: "fadeInUp 0.3s ease",
-            whiteSpace: "nowrap",
-          }}>
-            {paymentToast === "success" ? (
-              <><span style={{ fontSize: 20 }}>🎉</span> Payment successful! You're now on Premium.</>
-            ) : (
-              <><span style={{ fontSize: 20 }}>↩</span> Payment cancelled — you're still on Free.</>
-            )}
-            <button onClick={() => setPaymentToast("")} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 18, marginLeft: 8, lineHeight: 1 }}>×</button>
-          </div>
-        )}
+        {isMarketingPage && <BackToTop />}
       </div>
     </>
   );
