@@ -544,7 +544,7 @@ const RAVI_RESUME = {
   ],
 };
 
-const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter", PRIVACY: "privacy", TERMS: "terms" };
+const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter", PRIVACY: "privacy", TERMS: "terms", CONTACT: "contact" };
 
 // ─── SKILL SUGGESTIONS DB ────────────────────────────────────────────────────
 
@@ -1433,9 +1433,6 @@ const styles = `
   }
   .footer-anim-link:hover::after { transform: scaleX(1); }
 
-  .social-icon-anim { transition: transform 0.2s ease; }
-  .social-icon-anim:hover { transform: scale(1.15); }
-
   .font-display { font-family: var(--font-display); }
 
   .app-bg { background: var(--c-bg); }
@@ -1492,6 +1489,7 @@ const styles = `
     border: 1px solid transparent;
   }
   .btn-ghost:hover { background: var(--c-surface2); color: var(--c-text); }
+  .logo-btn:hover { background: transparent; }
   .btn-danger { background: #FEF2F2; color: var(--c-danger); border: 1px solid #FECACA; }
   .btn-danger:hover { background: #FEE2E2; }
   .btn-sm { padding: 6px 12px; font-size: 13px; }
@@ -1532,7 +1530,7 @@ const styles = `
 
   /* Navbar */
   .navbar {
-    position: sticky; top: 0; z-index: 50;
+    position: sticky; top: var(--banner-h, 0px); z-index: 50;
     background: rgba(248,247,244,0.92);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--c-border);
@@ -2517,6 +2515,43 @@ function UserMenu({ user, setUser, setPage }) {
   );
 }
 
+function BetaBanner({ setPage }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const setHeight = () => {
+      const h = ref.current?.getBoundingClientRect().height || 0;
+      document.documentElement.style.setProperty("--banner-h", `${h}px`);
+    };
+    setHeight();
+    window.addEventListener("resize", setHeight);
+    return () => {
+      window.removeEventListener("resize", setHeight);
+      document.documentElement.style.setProperty("--banner-h", "0px");
+    };
+  }, []);
+
+  return (
+    <div ref={ref} style={{
+      position: "sticky", top: 0, zIndex: 60,
+      background: "linear-gradient(90deg, #2563EB, #1E40AF)", color: "#fff",
+      padding: "9px 16px", textAlign: "center", fontSize: 13.5, fontWeight: 500,
+      lineHeight: 1.5,
+    }}>
+      🚀 We're in Beta! ATS Resume Pilot is currently under testing. If you experience any issues or have
+      suggestions, please{" "}
+      <a
+        href="#"
+        onClick={(e) => { e.preventDefault(); setPage(PAGES.CONTACT); }}
+        style={{ color: "#fff", fontWeight: 700, textDecoration: "underline" }}
+      >
+        Contact Us
+      </a>
+      . Thank you for helping us improve.
+    </div>
+  );
+}
+
 function Navbar({ page, setPage, dark, setDark, user, setUser }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -2542,7 +2577,7 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
         height: scrolled ? 50 : 58, transition: "height 0.25s ease",
       }}>
         {/* Logo */}
-        <button onClick={() => setPage(PAGES.HOME)} className="btn btn-ghost" style={{ padding: "6px 8px", gap: 8 }}>
+        <button onClick={() => setPage(PAGES.HOME)} className="btn btn-ghost logo-btn" style={{ padding: "6px 8px", gap: 8 }}>
           <img src="/logo.svg" alt="ATS Resume Pilot" style={{ height: 88, width: "auto", display: "block" }} />
         </button>
 
@@ -3691,29 +3726,11 @@ function HomePage({ setPage, user }) {
           {/* Brand column */}
           <RevealItem>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <img src="/logo.svg" alt="ATS Resume Pilot" style={{ height: 24, width: "auto", display: "block" }} />
+              <img src="/logo.svg" alt="ATS Resume Pilot" style={{ height: 50, width: "auto", display: "block" }} />
             </div>
             <p className="app-text3" style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 220, margin: "0 0 16px" }}>
               AI-powered, ATS-optimized resumes that help you land more interviews.
             </p>
-            <div style={{ display: "flex", gap: 10 }}>
-              {[
-                { label: "Twitter", d: "M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" },
-                { label: "LinkedIn", d: "M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z M2 9h4v12H2z M4 2a2 2 0 110 4 2 2 0 010-4z" },
-                { label: "Instagram", d: "M17.5 6.5h.01" },
-              ].map(s => (
-                <a key={s.label} href="#" aria-label={s.label} className="footer-social social-icon-anim" style={{
-                  width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "var(--c-surface2)", color: "var(--c-text2)", transition: "background 0.15s, color 0.15s, transform 0.2s ease",
-                }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 15, height: 15 }}>
-                    {s.label === "Instagram"
-                      ? <><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></>
-                      : <path d={s.d} />}
-                  </svg>
-                </a>
-              ))}
-            </div>
           </RevealItem>
 
           {/* Product */}
@@ -3740,7 +3757,7 @@ function HomePage({ setPage, user }) {
             <div className="app-text3" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Company</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>About</a>
-              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Contact</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.CONTACT); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Contact</a>
               <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.PRIVACY); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Privacy Policy</a>
               <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.TERMS); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Terms</a>
             </div>
@@ -3752,7 +3769,6 @@ function HomePage({ setPage, user }) {
         </div>
         <style>{`
           .footer-link:hover { color: var(--c-accent) !important; }
-          .footer-social:hover { background: var(--c-accent) !important; color: #fff !important; }
           @media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr 1fr !important; } }
           @media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr !important; } }
         `}</style>
@@ -3846,7 +3862,7 @@ function PrivacyPage({ setPage }) {
       <LegalH2>Contact</LegalH2>
       <LegalP>
         Questions about this policy or your data? Reach out at{" "}
-        <a href="mailto:privacy@resumeai.app" style={{ color: "var(--c-accent)" }}>privacy@resumeai.app</a>.
+        <a href="mailto:privacy@atsresumepilot.com" style={{ color: "var(--c-accent)" }}>privacy@atsresumepilot.com</a>.
       </LegalP>
     </LegalPageShell>
   );
@@ -3909,9 +3925,122 @@ function TermsPage({ setPage }) {
       <LegalH2>Contact</LegalH2>
       <LegalP>
         Questions about these terms? Reach out at{" "}
-        <a href="mailto:support@resumeai.app" style={{ color: "var(--c-accent)" }}>support@resumeai.app</a>.
+        <a href="mailto:support@atsresumepilot.com" style={{ color: "var(--c-accent)" }}>support@atsresumepilot.com</a>.
       </LegalP>
     </LegalPageShell>
+  );
+}
+
+// ─── CONTACT PAGE ───────────────────────────────────────────────────────────────
+
+function ContactPage({ setPage, user }) {
+  const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", subject: "", message: "" });
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
+      setError("Please fill in your name, email, and message.");
+      return;
+    }
+    setError("");
+    const subject = encodeURIComponent(form.subject.trim() || "Message from ATS Resume Pilot contact form");
+    const body = encodeURIComponent(
+      `${form.message}\n\n—\n${form.name}\n${form.email}`
+    );
+    window.location.href = `mailto:support@atsresumepilot.com?subject=${subject}&body=${body}`;
+    setSent(true);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "48px 24px 80px" }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.HOME)} style={{ marginBottom: 24 }}>
+          ← Back to home
+        </button>
+
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <motion.div
+            style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg, var(--c-accent) 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#fff", fontSize: 22 }}
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.1, ease: EASE_OUT }}
+          >
+            ✉️
+          </motion.div>
+          <h1 className="font-display" style={{ fontSize: 30, fontWeight: 800, margin: "0 0 8px" }}>
+            Contact us
+          </h1>
+          <p className="app-text2" style={{ fontSize: 15, margin: 0 }}>
+            Questions, feedback, or need a hand? We'd love to hear from you.
+          </p>
+        </div>
+
+        {sent ? (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{ textAlign: "center", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 14, padding: "36px 24px" }}
+          >
+            <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+            <h2 className="font-display" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Thanks — your message is ready to send!</h2>
+            <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px" }}>
+              We opened your email app with everything filled in. Just hit send and we'll get back to you soon.
+            </p>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSent(false)}>Send another message</button>
+          </motion.div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 14, padding: 28 }}>
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: 12 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#DC2626" }}>{error}</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <div>
+                <label className="label">Name</label>
+                <input className="input" placeholder="Alex Morgan" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Email</label>
+                <input className="input" type="email" placeholder="you@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label className="label">Subject</label>
+              <input className="input" placeholder="How can we help?" value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label className="label">Message</label>
+              <textarea className="input" placeholder="Tell us what's on your mind…" rows={6} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} />
+            </div>
+
+            <motion.button type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "11px", fontSize: 15, fontWeight: 600 }}
+              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.15 }}>
+              Send message
+            </motion.button>
+
+            <p className="app-text3" style={{ fontSize: 12.5, textAlign: "center", margin: "16px 0 0" }}>
+              Or email us directly at{" "}
+              <a href="mailto:support@atsresumepilot.com" style={{ color: "var(--c-accent)" }}>support@atsresumepilot.com</a>
+            </p>
+          </form>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -8784,6 +8913,7 @@ export default function App() {
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.PRIVACY: return <PrivacyPage setPage={setPage} />;
       case PAGES.TERMS: return <TermsPage setPage={setPage} />;
+      case PAGES.CONTACT: return <ContactPage setPage={setPage} user={user} />;
       default: return <HomePage setPage={setPage} user={user} />;
     }
   };
@@ -8800,6 +8930,7 @@ export default function App() {
       <div className="app-bg app-text" style={{ minHeight: "100vh", fontFamily: "var(--font-body)" }}>
         {isMarketingPage && <AmbientBackground />}
         {isMarketingPage && <ScrollProgressBar />}
+        <BetaBanner setPage={setPage} />
         {!isAuthPage && <Navbar page={page} setPage={setPage} dark={dark} setDark={setDark} user={user} setUser={setUser} />}
         {renderPage()}
         {isMarketingPage && <BackToTop />}
