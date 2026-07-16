@@ -224,6 +224,12 @@ function PaginatedResumePreview({ margins, pageOverrides, onPageCountChange, hig
   const [breaks, setBreaks] = useState([]);
   const [totalHpx, setTotalHpx] = useState(0);
   const [pageWidthPx, setPageWidthPx] = useState(0);
+  // The page box's own background, matched to the content's effective
+  // background (same helper the PDF export uses) so a short colored-template
+  // page doesn't expose a hardcoded white/grey box beneath its content —
+  // e.g. a template with minHeight:700 that renders shorter than a full A4
+  // page's worth of pixels at the current margins.
+  const [pageBg, setPageBg] = useState("#fff");
   const rafRef = useRef(null);
 
   const { top: mTop = 40, bottom: mBottom = 40, left: mLeft = 48, right: mRight = 48 } = margins || {};
@@ -235,9 +241,14 @@ function PaginatedResumePreview({ margins, pageOverrides, onPageCountChange, hig
       // max) — .resume-preview is width:100% and has nothing else to
       // resolve its own width against.
       const containerWidthPx = Math.min(containerRef.current?.getBoundingClientRect().width || 0, 850);
-      const el = measureRef.current?.querySelector(".resume-preview");
+      // Resume previews carry a .resume-preview class; cover letter preview
+      // templates don't share a common class, so fall back to the measurer's
+      // first rendered element (each template's own single root div).
+      const el = measureRef.current?.querySelector(".resume-preview") || measureRef.current?.firstElementChild;
       if (!el || containerWidthPx === 0) { setBreaks([]); setTotalHpx(0); onPageCountChange?.(1); return; }
       setPageWidthPx(containerWidthPx);
+      const [bgR, bgG, bgB] = findEffectiveBackgroundColor(el);
+      setPageBg(`rgb(${bgR}, ${bgG}, ${bgB})`);
       const PAGE_W_MM = 210, PAGE_H_MM = 297, PX_PER_MM = 96 / 25.4;
       const contentWmm = PAGE_W_MM - (mLeft + mRight) / PX_PER_MM;
       const contentHmm = PAGE_H_MM - (mTop + mBottom) / PX_PER_MM;
@@ -290,7 +301,7 @@ function PaginatedResumePreview({ margins, pageOverrides, onPageCountChange, hig
         </div>
       </div>
       {slices.length === 0 ? (
-        <div style={{ padding: `${mTop}px ${mRight}px ${mBottom}px ${mLeft}px`, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 20px rgba(0,0,0,0.06)", maxWidth: 850, margin: "0 auto" }}>
+        <div style={{ padding: `${mTop}px ${mRight}px ${mBottom}px ${mLeft}px`, background: pageBg, boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 20px rgba(0,0,0,0.06)", maxWidth: 850, margin: "0 auto" }}>
           {children}
         </div>
       ) : (
@@ -311,7 +322,7 @@ function PaginatedResumePreview({ margins, pageOverrides, onPageCountChange, hig
                   {o && <span style={{ fontSize: 10, color: "var(--c-primary)", fontWeight: 600 }}>Custom margins</span>}
                 </div>
                 <div style={{
-                  overflow: "hidden", background: "#fff",
+                  overflow: "hidden", background: pageBg,
                   height: sliceH + pT + pB,
                   padding: `${pT}px ${pR}px ${pB}px ${pL}px`,
                   boxSizing: "border-box",
@@ -7838,17 +7849,22 @@ function MiniCLAcademic() {
   );
 }
 
+// nameDefault mirrors each template's own hardcoded `nameC` fallback in
+// CoverLetterPreview — used so the color customizer's "Template default"
+// swatch shows (and, when picked, actually means) that template's real
+// name color instead of a one-size-fits-all white that doesn't match most
+// templates and made the default swatch lie about what it would apply.
 const COVER_LETTER_TEMPLATES = [
-  { id: "cl-classic",   name: "Classic",   tag: "Professional", accent: "#1A56DB", preview: MiniCLClassic   },
-  { id: "cl-modern",    name: "Modern",    tag: "Contemporary", accent: "#0EA5E9", preview: MiniCLModern    },
-  { id: "cl-minimal",   name: "Minimal",   tag: "Clean",        accent: "#6B7280", preview: MiniCLMinimal   },
-  { id: "cl-creative",  name: "Creative",  tag: "Bold",         accent: "#7C3AED", preview: MiniCLCreative  },
-  { id: "cl-executive", name: "Executive", tag: "Corporate",    accent: "#F59E0B", preview: MiniCLExecutive },
-  { id: "cl-elegant",   name: "Elegant",   tag: "Sophisticated", accent: "#EC4899", preview: MiniCLElegant  },
-  { id: "cl-tech",      name: "Tech",      tag: "Developer",    accent: "#0EA5E9", preview: MiniCLTech      },
-  { id: "cl-nature",    name: "Nature",    tag: "Fresh",        accent: "#16A34A", preview: MiniCLNature    },
-  { id: "cl-bold",      name: "Bold",      tag: "Impact",       accent: "#DC2626", preview: MiniCLBold      },
-  { id: "cl-academic",  name: "Academic",  tag: "Formal",       accent: "#B45309", preview: MiniCLAcademic  },
+  { id: "cl-classic",   name: "Classic",   tag: "Professional", accent: "#1A56DB", preview: MiniCLClassic,   nameDefault: "#0F0F0F" },
+  { id: "cl-modern",    name: "Modern",    tag: "Contemporary", accent: "#0EA5E9", preview: MiniCLModern,    nameDefault: "#FFFFFF" },
+  { id: "cl-minimal",   name: "Minimal",   tag: "Clean",        accent: "#6B7280", preview: MiniCLMinimal,   nameDefault: "#111111" },
+  { id: "cl-creative",  name: "Creative",  tag: "Bold",         accent: "#7C3AED", preview: MiniCLCreative,  nameDefault: "#3B0764" },
+  { id: "cl-executive", name: "Executive", tag: "Corporate",    accent: "#F59E0B", preview: MiniCLExecutive, nameDefault: "#FFFFFF" },
+  { id: "cl-elegant",   name: "Elegant",   tag: "Sophisticated", accent: "#EC4899", preview: MiniCLElegant,  nameDefault: "#831843" },
+  { id: "cl-tech",      name: "Tech",      tag: "Developer",    accent: "#0EA5E9", preview: MiniCLTech,      nameDefault: "#E6EDF3" },
+  { id: "cl-nature",    name: "Nature",    tag: "Fresh",        accent: "#16A34A", preview: MiniCLNature,    nameDefault: "#14532D" },
+  { id: "cl-bold",      name: "Bold",      tag: "Impact",       accent: "#DC2626", preview: MiniCLBold,      nameDefault: "#FFFFFF" },
+  { id: "cl-academic",  name: "Academic",  tag: "Formal",       accent: "#B45309", preview: MiniCLAcademic,  nameDefault: "#78350F" },
 ];
 
 // ─── TEMPLATES PAGE ───────────────────────────────────────────────────────────
@@ -8522,13 +8538,30 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
   const [showFeedback, setShowFeedback] = useState(false);
   const update = (field, val) => setCoverLetter(prev => ({ ...prev, [field]: val }));
 
+  // Persisted per-user, same pattern as the resume builder's margin controls.
+  const clMarginKey = user?.email ? `ats-cl-margins-${user.email}` : "ats-cl-margins-anon";
+  const [clMarginTop, setClMarginTop] = useLocalStorage(`${clMarginKey}-top`, 40);
+  const [clMarginBottom, setClMarginBottom] = useLocalStorage(`${clMarginKey}-bottom`, 40);
+  const [clMarginLeft, setClMarginLeft] = useLocalStorage(`${clMarginKey}-left`, 48);
+  const [clMarginRight, setClMarginRight] = useLocalStorage(`${clMarginKey}-right`, 48);
+  const [clLinkTB, setClLinkTB] = useLocalStorage(`${clMarginKey}-linkTB`, true);
+  const [clLinkLR, setClLinkLR] = useLocalStorage(`${clMarginKey}-linkLR`, true);
+  const updateClMarginTop = (v) => { setClMarginTop(v); if (clLinkTB) setClMarginBottom(v); };
+  const updateClMarginBottom = (v) => { setClMarginBottom(v); if (clLinkTB) setClMarginTop(v); };
+  const updateClMarginLeft = (v) => { setClMarginLeft(v); if (clLinkLR) setClMarginRight(v); };
+  const updateClMarginRight = (v) => { setClMarginRight(v); if (clLinkLR) setClMarginLeft(v); };
+  const [clPageCount, setClPageCount] = useState(1);
+
   const handleExportCLPDF = async () => {
-    const el = document.getElementById("cover-letter-preview-root");
+    // Must be the full-height off-screen copy (data-export-source), not one
+    // of the visible per-page boxes — those are clipped to a single page's
+    // slice and would export as one incomplete page.
+    const el = document.querySelector(".cl-preview-wrap [data-export-source] > div");
     if (!el) return;
     setExportingCLPDF(true);
     try {
       const name = (coverLetter?.senderName || resume?.personal?.name || "cover_letter").trim().replace(/\s+/g, "_");
-      await exportElementToPDF(el, `${name}_cover_letter.pdf`);
+      await exportElementToPDF(el, `${name}_cover_letter.pdf`, { top: clMarginTop, bottom: clMarginBottom, left: clMarginLeft, right: clMarginRight });
       setShowFeedback(true);
     } finally {
       setExportingCLPDF(false);
@@ -8682,12 +8715,14 @@ Skills: ${skills || "Various professional skills"}`;
 
         {/* ── Color Customizer ── */}
         {(() => {
-          const tplAccent = COVER_LETTER_TEMPLATES.find(t => t.id === templateId)?.accent || "#1A56DB";
+          const tpl = COVER_LETTER_TEMPLATES.find(t => t.id === templateId);
+          const tplAccent = tpl?.accent || "#1A56DB";
+          const tplNameDefault = tpl?.nameDefault || "#FFFFFF";
           const anyCustom = customAccent || customBg || customText || customMuted || customNameColor;
           const colorRows = [
             { label: "Accent",     value: customAccent,    set: setCustomAccent,    def: tplAccent,
               presets: ["#1D4ED8","#0D9488","#7C3AED","#059669","#DC2626","#EA580C","#EC4899","#0EA5E9","#111827","#B45309","#0891B2","#9333EA"] },
-            { label: "Name Color", value: customNameColor, set: setCustomNameColor, def: "#FFFFFF",
+            { label: "Name Color", value: customNameColor, set: setCustomNameColor, def: tplNameDefault,
               presets: ["#FFFFFF","#F1F5F9","#111827","#1E293B","#1D4ED8","#7C3AED","#0D9488","#DC2626","#F59E0B","#EC4899","#059669","#0891B2"] },
             { label: "Background", value: customBg,        set: setCustomBg,        def: "#FFFFFF",
               presets: ["#FFFFFF","#F8FAFC","#F0F9FF","#FFF7ED","#F5F3FF","#FDF4FF","#F0FDF4","#FFFBF5","#0F172A","#111827","#1C1917","#0C0A09"] },
@@ -8955,31 +8990,58 @@ Skills: ${skills || "Various professional skills"}`;
       </div>
 
       {/* Live Preview */}
-      <div className="builder-preview-wrap" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
-        <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 16px", flexShrink: 0, background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)" }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text2)" }}>Live Preview</span>
-            <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
-            <div className="badge badge-gray" style={{ fontSize: 10 }}>{tpl?.name || "Classic"} Cover Letter</div>
-          </div>
-          <button className="btn btn-secondary btn-sm" onClick={handleExportCLPDF} disabled={exportingCLPDF}>
-            <Icon.Download /> {exportingCLPDF ? "Generating…" : "Export PDF"}
-          </button>
-        </div>
-        <div style={{ flex: 1, overflow: "auto" }}>
-          <div style={{ position: "relative" }}>
-            <div id="cover-letter-preview-root">
-              <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId}
-                customAccent={customAccent} customBg={customBg} customText={customText}
-                customMuted={customMuted} customNameColor={customNameColor}
-                hiddenFields={hiddenFields} />
+      <div className="builder-preview-wrap cl-preview-wrap" style={{ flex: 1, overflow: "auto", display: "flex", flexDirection: "column" }}>
+        <div className="no-print" style={{ flexShrink: 0, background: "var(--c-surface2)", borderBottom: "1px solid var(--c-border)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 16px" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--c-text2)" }}>Live Preview</span>
+              <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
+              <div className="badge badge-gray" style={{ fontSize: 10 }}>{tpl?.name || "Classic"} Cover Letter</div>
             </div>
-            <PageBreakOverlay
-              targetSelector="#cover-letter-preview-root"
-              margins={{ top: 40, bottom: 40, left: 48, right: 48 }}
-              deps={JSON.stringify(coverLetter) + templateId + customAccent + customBg + customText + customMuted + customNameColor}
-            />
+            <button className="btn btn-secondary btn-sm" onClick={handleExportCLPDF} disabled={exportingCLPDF}>
+              <Icon.Download /> {exportingCLPDF ? "Generating…" : "Export PDF"}
+            </button>
           </div>
+          {/* Margin controls — same layout controls as the resume Live Preview toolbar. */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", gap: "10px 20px", alignItems: "center",
+            padding: "8px 16px", borderTop: "1px solid var(--c-border)",
+          }}>
+            {[
+              ["Top", clMarginTop, updateClMarginTop],
+              ["Bottom", clMarginBottom, updateClMarginBottom],
+              ["Left", clMarginLeft, updateClMarginLeft],
+              ["Right", clMarginRight, updateClMarginRight],
+            ].map(([label, val, onChange]) => (
+              <div key={label} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--c-text3)", whiteSpace: "nowrap" }}>{label} margin</span>
+                <input
+                  type="range" min={0} max={80} step={4} value={val}
+                  onChange={e => onChange(Number(e.target.value))}
+                  title={`${label} page margin`}
+                  style={{ width: 70 }}
+                />
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--c-primary)", width: 26, textAlign: "right" }}>{val}px</span>
+              </div>
+            ))}
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--c-text3)", cursor: "pointer" }} title="Keep top/bottom equal">
+              <input type="checkbox" checked={clLinkTB} onChange={() => setClLinkTB(v => !v)} style={{ margin: 0 }} /> Link T/B
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--c-text3)", cursor: "pointer" }} title="Keep left/right equal">
+              <input type="checkbox" checked={clLinkLR} onChange={() => setClLinkLR(v => !v)} style={{ margin: 0 }} /> Link L/R
+            </label>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflow: "auto", padding: "24px", background: "var(--c-surface2)" }}>
+          <PaginatedResumePreview
+            margins={{ top: clMarginTop, bottom: clMarginBottom, left: clMarginLeft, right: clMarginRight }}
+            onPageCountChange={setClPageCount}
+          >
+            <CoverLetterPreview cl={coverLetter} personal={resume?.personal} templateId={templateId}
+              customAccent={customAccent} customBg={customBg} customText={customText}
+              customMuted={customMuted} customNameColor={customNameColor}
+              hiddenFields={hiddenFields} />
+          </PaginatedResumePreview>
         </div>
       </div>
     </div>
