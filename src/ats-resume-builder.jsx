@@ -60,7 +60,15 @@ function collectBreakSafeBoundaries(el, canvasScale, pageContentHpx) {
 // background-color, so the exported PDF page can be filled edge-to-edge with
 // it instead of leaving white margins around a colored template. Returns an
 // [r, g, b] triplet since that's what jsPDF's setFillColor needs.
-function findEffectiveBackgroundColor(el) {
+// `boundToSelf` stops the walk at `el` itself instead of climbing into real
+// ancestors — needed when `el` is a template root rendered inline in the live
+// app (not an isolated export copy), since its actual parent chain is app
+// chrome (e.g. the page's own surface color), not more of the document.
+// Templates with a genuinely transparent root (e.g. a colored accent strip
+// next to a plain white content pane, with no background on the shared
+// parent) should fall back to white, not inherit whatever UI happens to be
+// behind them on screen.
+function findEffectiveBackgroundColor(el, boundToSelf = false) {
   let node = el;
   while (node && node instanceof Element) {
     const bg = getComputedStyle(node).backgroundColor;
@@ -68,6 +76,7 @@ function findEffectiveBackgroundColor(el) {
     if (m && (m[4] === undefined || parseFloat(m[4]) > 0)) {
       return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
     }
+    if (boundToSelf) break;
     node = node.parentElement;
   }
   return [255, 255, 255];
@@ -247,7 +256,7 @@ function PaginatedResumePreview({ margins, pageOverrides, onPageCountChange, hig
       const el = measureRef.current?.querySelector(".resume-preview") || measureRef.current?.firstElementChild;
       if (!el || containerWidthPx === 0) { setBreaks([]); setTotalHpx(0); onPageCountChange?.(1); return; }
       setPageWidthPx(containerWidthPx);
-      const [bgR, bgG, bgB] = findEffectiveBackgroundColor(el);
+      const [bgR, bgG, bgB] = findEffectiveBackgroundColor(el, true);
       setPageBg(`rgb(${bgR}, ${bgG}, ${bgB})`);
       const PAGE_W_MM = 210, PAGE_H_MM = 297, PX_PER_MM = 96 / 25.4;
       const contentWmm = PAGE_W_MM - (mLeft + mRight) / PX_PER_MM;
@@ -8555,8 +8564,11 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
   const handleExportCLPDF = async () => {
     // Must be the full-height off-screen copy (data-export-source), not one
     // of the visible per-page boxes — those are clipped to a single page's
-    // slice and would export as one incomplete page.
-    const el = document.querySelector(".cl-preview-wrap [data-export-source] > div");
+    // slice and would export as one incomplete page. The measurer wrapper's
+    // own child is the template's actual root (the one with a real
+    // background) — one level deeper than the wrapper itself, which is
+    // transparent and would export/color-sample as blank.
+    const el = document.querySelector(".cl-preview-wrap [data-export-source] > div")?.firstElementChild;
     if (!el) return;
     setExportingCLPDF(true);
     try {
