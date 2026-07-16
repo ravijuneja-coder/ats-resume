@@ -14,7 +14,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
 
 // ─── PDF EXPORT (client-side render, no browser print dialog) ────────────────
 // Renders `el` to canvas and slices it into A4 pages, so the exported PDF has
@@ -544,7 +544,9 @@ const RAVI_RESUME = {
   ],
 };
 
-const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter", PRIVACY: "privacy", TERMS: "terms", CONTACT: "contact" };
+const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter", PRIVACY: "privacy", TERMS: "terms", CONTACT: "contact", ADMIN: "admin" };
+
+const ADMIN_EMAILS = ["ravijuneja1986@gmail.com"];
 
 // ─── SKILL SUGGESTIONS DB ────────────────────────────────────────────────────
 
@@ -2497,6 +2499,7 @@ function UserMenu({ user, setUser, setPage }) {
               { label: "Dashboard", icon: <Icon.LayoutTemplate />, action: () => { setPage(PAGES.DASHBOARD); setOpen(false); } },
               { label: "Open Builder", icon: <Icon.Zap />, action: () => { setPage(PAGES.BUILDER); setOpen(false); } },
               { label: "Templates", icon: <Icon.FileText />, action: () => { setPage(PAGES.TEMPLATES); setOpen(false); } },
+              ...(ADMIN_EMAILS.includes(user.email) ? [{ label: "Feedback (Admin)", icon: <Icon.Star />, action: () => { setPage(PAGES.ADMIN); setOpen(false); } }] : []),
             ].map((item, i) => (
               <button key={i} onClick={item.action} className="sidebar-item" style={{ width: "100%", fontSize: 14 }}>
                 {item.icon} {item.label}
@@ -2619,6 +2622,9 @@ function Navbar({ page, setPage, dark, setDark, user, setUser }) {
           {user ? (
             <>
               <button className="sidebar-item" onClick={() => { setPage(PAGES.DASHBOARD); setMobileOpen(false); }}>Dashboard</button>
+              {ADMIN_EMAILS.includes(user.email) && (
+                <button className="sidebar-item" onClick={() => { setPage(PAGES.ADMIN); setMobileOpen(false); }}>Feedback (Admin)</button>
+              )}
               <button className="sidebar-item" onClick={() => { setUser(null); setPage(PAGES.HOME); setMobileOpen(false); }}>Sign out</button>
             </>
           ) : (
@@ -3100,6 +3106,164 @@ function LaunchOfferModal({ setPage }) {
               .launch-offer-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(37, 99, 235, 0.45); }
               .launch-offer-cta:active { transform: translateY(0); }
             `}</style>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── FEEDBACK MODAL ─────────────────────────────────────────────────────────────
+
+const FEEDBACK_RATINGS = [
+  { value: 1, label: "Very Poor" },
+  { value: 2, label: "Poor" },
+  { value: 3, label: "Good" },
+  { value: 4, label: "Very Good" },
+  { value: 5, label: "Excellent" },
+];
+
+function FeedbackModal({ open, onClose, user, docType }) {
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (open) { setRating(0); setHoverRating(0); setSubmitting(false); setSubmitted(false); }
+  }, [open]);
+
+  const submit = async () => {
+    if (!rating || submitting) return;
+    setSubmitting(true);
+    try {
+      const ref = doc(collection(db, "feedback"));
+      await setDoc(ref, {
+        uid: user?.uid || null,
+        email: user?.email || null,
+        docType: docType || "resume",
+        rating,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // Non-critical — don't block the user's flow on a feedback-write failure.
+    } finally {
+      setSubmitting(false);
+      setSubmitted(true);
+    }
+  };
+
+  const activeRating = hoverRating || rating;
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="feedback-title"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          style={{
+            position: "fixed", inset: 0, zIndex: 2000,
+            background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+          }}
+        >
+          <motion.div
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.9, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 10 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            style={{
+              position: "relative", width: "100%", maxWidth: 420,
+              background: "#fff", borderRadius: 20, boxShadow: "0 24px 64px rgba(15, 23, 42, 0.35)",
+              padding: "32px 28px 28px", textAlign: "center",
+            }}
+          >
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                position: "absolute", top: 16, right: 16, width: 28, height: 28, borderRadius: "50%",
+                border: "none", background: "#F1F5F9", color: "#334155", fontSize: 16, lineHeight: 1,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              ×
+            </button>
+
+            {submitted ? (
+              <div style={{ padding: "12px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🙌</div>
+                <h2 className="font-display" style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: "0 0 8px" }}>
+                  Thanks for the feedback!
+                </h2>
+                <p style={{ fontSize: 14, color: "#475569", margin: 0 }}>
+                  It helps us keep improving ATS Resume Pilot.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 34, marginBottom: 8 }}>🎉</div>
+                <h2 id="feedback-title" className="font-display" style={{ fontSize: 20, fontWeight: 800, color: "#0F172A", margin: "0 0 8px" }}>
+                  Thank you for using ATS Resume Pilot
+                </h2>
+                <p style={{ fontSize: 14.5, color: "#475569", margin: "0 0 20px" }}>
+                  How would you rate the quality of your generated {docType === "cover letter" ? "cover letter" : "resume"}?
+                </p>
+
+                <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setRating(n)}
+                      onMouseEnter={() => setHoverRating(n)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      aria-label={FEEDBACK_RATINGS[n - 1].label}
+                      style={{
+                        border: "none", background: "transparent", cursor: "pointer", padding: 2,
+                        color: n <= activeRating ? "#F59E0B" : "#E2E8F0",
+                        transition: "color 0.15s ease, transform 0.15s ease",
+                        transform: n <= activeRating ? "scale(1.08)" : "scale(1)",
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 32, height: 32 }}>
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ height: 20, marginBottom: 20 }}>
+                  {activeRating > 0 && (
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "#334155" }}>
+                      {FEEDBACK_RATINGS[activeRating - 1].label}
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  onClick={submit}
+                  disabled={!rating || submitting}
+                  className="feedback-cta"
+                  style={{
+                    width: "100%", border: "none", borderRadius: 12, padding: "12px 20px",
+                    fontSize: 15, fontWeight: 700, color: "#fff",
+                    cursor: rating ? "pointer" : "not-allowed",
+                    background: rating ? "linear-gradient(135deg, #2563EB, #1E40AF)" : "#CBD5E1",
+                    boxShadow: rating ? "0 8px 20px rgba(37, 99, 235, 0.35)" : "none",
+                    transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  }}
+                >
+                  {submitting ? "Submitting…" : "Submit Feedback"}
+                </button>
+              </>
+            )}
           </motion.div>
         </motion.div>
       )}
@@ -4044,6 +4208,108 @@ function ContactPage({ setPage, user }) {
   );
 }
 
+// ─── ADMIN FEEDBACK PAGE ────────────────────────────────────────────────────────
+
+function AdminFeedbackPage({ setPage, user }) {
+  const [items, setItems] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const q = query(collection(db, "feedback"), orderBy("createdAt", "desc"));
+        const snap = await getDocs(q);
+        setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        setError("Couldn't load feedback. " + (err?.message || ""));
+        setItems([]);
+      }
+    })();
+  }, []);
+
+  if (!ADMIN_EMAILS.includes(user?.email)) {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
+        <div>
+          <h1 className="font-display" style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>Not authorized</h1>
+          <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px" }}>This page is only available to admins.</p>
+          <button className="btn btn-primary btn-sm" onClick={() => setPage(PAGES.HOME)}>Back to home</button>
+        </div>
+      </div>
+    );
+  }
+
+  const avg = items?.length ? (items.reduce((s, f) => s + (f.rating || 0), 0) / items.length) : 0;
+  const counts = [1, 2, 3, 4, 5].map(n => items?.filter(f => f.rating === n).length || 0);
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "48px 24px 80px" }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.HOME)} style={{ marginBottom: 24 }}>
+          ← Back to home
+        </button>
+
+        <h1 className="font-display" style={{ fontSize: 28, fontWeight: 800, margin: "0 0 24px" }}>
+          User Feedback
+        </h1>
+
+        {items === null ? (
+          <p className="app-text2" style={{ fontSize: 14 }}>Loading…</p>
+        ) : error ? (
+          <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#DC2626" }}>{error}</div>
+        ) : items.length === 0 ? (
+          <p className="app-text2" style={{ fontSize: 14 }}>No feedback submitted yet.</p>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 24, alignItems: "center", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 14, padding: 24, marginBottom: 28 }}>
+              <div style={{ textAlign: "center" }}>
+                <div className="font-display" style={{ fontSize: 40, fontWeight: 800, color: "#F59E0B", lineHeight: 1 }}>{avg.toFixed(1)}</div>
+                <div className="app-text3" style={{ fontSize: 12 }}>{items.length} response{items.length === 1 ? "" : "s"}</div>
+              </div>
+              <div>
+                {[5, 4, 3, 2, 1].map(n => {
+                  const c = counts[n - 1];
+                  const pct = items.length ? Math.round((c / items.length) * 100) : 0;
+                  return (
+                    <div key={n} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12.5, width: 14 }}>{n}</span>
+                      <div style={{ flex: 1, height: 8, borderRadius: 999, background: "var(--c-border)", overflow: "hidden" }}>
+                        <div style={{ width: `${pct}%`, height: "100%", background: "#F59E0B" }} />
+                      </div>
+                      <span className="app-text3" style={{ fontSize: 12, width: 28, textAlign: "right" }}>{c}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {items.map(f => (
+                <div key={f.id} style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 16 }}>
+                  <div style={{ color: "#F59E0B", display: "flex", flexShrink: 0 }}>
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <svg key={n} viewBox="0 0 24 24" fill={n <= f.rating ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}>
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    ))}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.email || "Anonymous"}</div>
+                    <div className="app-text3" style={{ fontSize: 12 }}>{f.docType === "cover letter" ? "Cover letter" : "Resume"}</div>
+                  </div>
+                  <div className="app-text3" style={{ fontSize: 12, flexShrink: 0 }}>
+                    {f.createdAt ? new Date(f.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── AUTH PAGES ───────────────────────────────────────────────────────────────
 
 function AuthPage({ mode, setPage, setUser, dark, setDark }) {
@@ -4781,6 +5047,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   const removeExp = (id) => setResume({ ...resume, experience: resume.experience.filter(e => e.id !== id) });
 
   const [exportingPDF, setExportingPDF] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const handleExportPDF = async () => {
     if (!premium && !FREE_TEMPLATES.includes(template)) { onNeedUpgrade?.("pdf_export"); return; }
@@ -4793,12 +5060,15 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
     try {
       const name = (resume?.personal?.name || "resume").trim().replace(/\s+/g, "_");
       await exportElementToPDF(el, `${name}.pdf`, { top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight }, pageOverrides);
+      setShowFeedback(true);
     } finally {
       setExportingPDF(false);
     }
   };
 
   return (
+    <>
+    <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} user={user} docType="resume" />
     <div className="builder-layout" style={{ display: "flex", height: "calc(100vh - 58px)", overflow: "hidden" }}>
       {/* Sidebar */}
       <div className="builder-sidebar app-surface" style={{ width: 220, borderRight: "1px solid var(--c-border)", padding: "16px 12px", display: "flex", flexDirection: "column", gap: 4, flexShrink: 0, overflowY: "auto" }}>
@@ -5611,6 +5881,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -8239,7 +8510,7 @@ function CoverLetterPreview({ cl = {}, personal = {}, templateId = "cl-classic",
 
 // ─── COVER LETTER BUILDER PAGE ────────────────────────────────────────────────
 
-function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateId = "cl-classic", onTemplateChange }) {
+function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateId = "cl-classic", onTemplateChange, user }) {
   const [section, setSection] = useState("recipient");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [hiddenFields, setHiddenFields] = useState(new Set());
@@ -8248,6 +8519,7 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
   const [aiError, setAiError] = useState("");
   const [jd, setJd] = useState("");
   const [exportingCLPDF, setExportingCLPDF] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const update = (field, val) => setCoverLetter(prev => ({ ...prev, [field]: val }));
 
   const handleExportCLPDF = async () => {
@@ -8257,6 +8529,7 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
     try {
       const name = (coverLetter?.senderName || resume?.personal?.name || "cover_letter").trim().replace(/\s+/g, "_");
       await exportElementToPDF(el, `${name}_cover_letter.pdf`);
+      setShowFeedback(true);
     } finally {
       setExportingCLPDF(false);
     }
@@ -8356,6 +8629,8 @@ Skills: ${skills || "Various professional skills"}`;
   const tpl = COVER_LETTER_TEMPLATES.find(t => t.id === templateId);
 
   return (
+    <>
+    <FeedbackModal open={showFeedback} onClose={() => setShowFeedback(false)} user={user} docType="cover letter" />
     <div className="builder-layout" style={{ display: "flex", height: "calc(100vh - 58px)", overflow: "hidden" }}>
       {/* Sidebar */}
       <div className="builder-sidebar app-surface" style={{ width: 220, borderRight: "1px solid var(--c-border)", padding: "16px 12px", display: "flex", flexDirection: "column", gap: 4, flexShrink: 0, overflowY: "auto" }}>
@@ -8708,6 +8983,7 @@ Skills: ${skills || "Various professional skills"}`;
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -8905,7 +9181,7 @@ export default function App() {
           currentTemplate={selectedTemplate} user={user}
           onSelectCoverLetterTemplate={setCoverLetterTemplate} />;
       case PAGES.COVER_LETTER: return user
-        ? <CoverLetterBuilderPage coverLetter={coverLetter} setCoverLetter={setCoverLetter} resume={resume} templateId={coverLetterTemplate} onTemplateChange={setCoverLetterTemplate} />
+        ? <CoverLetterBuilderPage coverLetter={coverLetter} setCoverLetter={setCoverLetter} resume={resume} templateId={coverLetterTemplate} onTemplateChange={setCoverLetterTemplate} user={user} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       case PAGES.PRICING:
       case PAGES.SUBSCRIPTION: return user
@@ -8914,6 +9190,9 @@ export default function App() {
       case PAGES.PRIVACY: return <PrivacyPage setPage={setPage} />;
       case PAGES.TERMS: return <TermsPage setPage={setPage} />;
       case PAGES.CONTACT: return <ContactPage setPage={setPage} user={user} />;
+      case PAGES.ADMIN: return user
+        ? <AdminFeedbackPage setPage={setPage} user={user} />
+        : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
       default: return <HomePage setPage={setPage} user={user} />;
     }
   };
