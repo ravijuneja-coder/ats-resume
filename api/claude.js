@@ -42,7 +42,15 @@ export default async function handler(req, res) {
 
     const data = await anthropicRes.json().catch(() => ({}));
     if (!anthropicRes.ok) {
-      res.status(anthropicRes.status).json({ error: data.error?.message || `API error ${anthropicRes.status}` });
+      // Don't leak Anthropic's raw error text (it can reference the API key
+      // or account billing state) to the client. Map the cases a user could
+      // actually hit to a plain message; anything else falls back generic.
+      const rawMessage = data.error?.message || "";
+      let userMessage = "AI features are temporarily unavailable. Please try again later.";
+      if (anthropicRes.status === 429 || /rate.?limit/i.test(rawMessage)) {
+        userMessage = "AI features are getting a lot of requests right now. Please try again in a moment.";
+      }
+      res.status(anthropicRes.status).json({ error: userMessage });
       return;
     }
     res.status(200).json(data);

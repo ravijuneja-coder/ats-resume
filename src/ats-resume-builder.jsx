@@ -13,6 +13,7 @@ import {
   GoogleAuthProvider,
   sendPasswordResetEmail,
   updateProfile,
+  getAdditionalUserInfo,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
 
@@ -614,6 +615,17 @@ function useLocalStorage(key, initial) {
   return [val, setVal];
 }
 
+// ─── ANALYTICS ──────────────────────────────────────────────────────────────
+
+// Fires a GA4 custom event via the gtag.js loader in index.html. No-ops
+// safely if gtag hasn't loaded (blocked by an ad-blocker, offline, etc.) so
+// analytics can never break the feature it's attached to.
+function trackEvent(name, params = {}) {
+  try {
+    window.gtag?.("event", name, params);
+  } catch {}
+}
+
 // ─── API HELPER ───────────────────────────────────────────────────────────────
 
 async function callClaude(prompt, systemPrompt = "") {
@@ -628,7 +640,7 @@ async function callClaude(prompt, systemPrompt = "") {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `API error ${res.status}`);
+    throw new Error(err.error || "AI features are temporarily unavailable. Please try again later.");
   }
   const data = await res.json();
   return data.content?.[0]?.text || "";
@@ -691,7 +703,7 @@ async function parseResumeWithClaude(file) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `API error ${res.status}`);
+    throw new Error(err.error || "AI features are temporarily unavailable. Please try again later.");
   }
   const data = await res.json();
   const raw = data.content?.[0]?.text || "";
@@ -1014,29 +1026,6 @@ function useCountUp(target, { duration = 1200, decimals = 0, trigger = true } = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger, target, duration, reduceMotion]);
   return decimals > 0 ? value.toFixed(decimals) : Math.round(value);
-}
-
-// Inline stat number that counts up from 0 once it scrolls into view — for
-// dropping into headings like "Trusted by <StatCounter target={50000} />+".
-function StatCounter({ target, decimals = 0, suffix = "", prefix = "", duration = 1400 }) {
-  const ref = useRef(null);
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setInView(true); io.disconnect(); }
-    }, { threshold: 0.4 });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  const value = useCountUp(target, { duration, decimals, trigger: inView });
-  const formatted = decimals > 0 ? value : Number(value).toLocaleString();
-  return (
-    <span ref={ref} className="font-display">
-      {prefix}{formatted}{suffix}
-    </span>
-  );
 }
 
 // Small glassy floating badge for the hero mockup. Enters with a fade+scale
@@ -1734,9 +1723,6 @@ const styles = `
   @media (max-width: 768px) {
     /* Features grid: 1 col on mobile */
     .features-grid { grid-template-columns: 1fr !important; }
-
-    /* Testimonials: narrower cards */
-    .testimonials-row > div { width: calc(80vw) !important; min-width: 260px !important; }
 
     /* Dashboard grid: stack */
     .dashboard-main { grid-template-columns: 1fr !important; }
@@ -2801,9 +2787,6 @@ function AtsScoreDemo() {
         <p className="app-text2" style={{ fontSize: 17, maxWidth: 560, margin: "0 auto 8px" }}>
           Our AI analyzes your resume against real ATS rules and optimizes it to help you pass screening and get more interview calls.
         </p>
-        <p className="app-text3" style={{ fontSize: 13, margin: 0 }}>
-          Based on analysis of <StatCounter target={50000} suffix="+" /> real resumes
-        </p>
       </Reveal>
 
       <Reveal stagger={0.12} className="ats-demo-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 16, maxWidth: 1200, margin: "0 auto" }}>
@@ -3300,25 +3283,12 @@ function HomePage({ setPage, user }) {
   const [homeDocType, setHomeDocType] = useState("resume");
   const [homeTemplatesExpanded, setHomeTemplatesExpanded] = useState(false);
   const features = [
-    { icon: <Icon.Target />, title: "ATS Optimization", desc: "Real-time scoring against 98% of ATS systems used by Fortune 500 companies", featured: true },
+    { icon: <Icon.Target />, title: "ATS Optimization", desc: "Real-time scoring against the ATS rules recruiters actually screen with", featured: true },
     { icon: <Icon.Sparkles />, title: "AI-Powered Writing", desc: "Generate professional summaries, rewrite bullets, and get keyword suggestions instantly", featured: true },
     { icon: <Icon.Eye />, title: "Live Preview", desc: "See exactly how your resume looks as you type — no refresh, no surprises" },
     { icon: <Icon.Download />, title: "One-Click Export", desc: "Download ATS-safe PDF or DOCX in seconds, print-ready and perfectly formatted" },
     { icon: <Icon.LayoutTemplate />, title: "Pro Templates", desc: "Dozens of recruiter-approved templates designed by HR professionals" },
     { icon: <Icon.TrendingUp />, title: "Job Match Score", desc: "Paste any job description and get an instant compatibility score with fix suggestions" },
-  ];
-
-  const testimonials = [
-    { name: "Priya S.", role: "Product Manager @ Google", text: "Got 3x more callbacks after optimizing with ATS Resume Pilot. The ATS score feature is a game-changer.", rating: 5 },
-    { name: "Marcus T.", role: "SWE @ Stripe", text: "The AI bullet rewriter saved me hours. My resume went from generic to outstanding in 20 minutes.", rating: 5 },
-    { name: "Ana L.", role: "Data Scientist @ Meta", text: "Finally a resume builder that actually explains what ATS looks for. Landed my dream job!", rating: 5 },
-    { name: "James K.", role: "Frontend Engineer @ Netflix", text: "Switched from another builder and immediately noticed the difference. Got an interview at my dream company within two weeks.", rating: 5 },
-    { name: "Sofia R.", role: "UX Designer @ Airbnb", text: "The templates are stunning and the ATS tips are genuinely useful. I felt so much more confident applying.", rating: 5 },
-    { name: "David W.", role: "Backend Engineer @ Shopify", text: "The job description matcher is brilliant. It told me exactly which keywords I was missing and my callback rate jumped.", rating: 5 },
-    { name: "Meera P.", role: "ML Engineer @ OpenAI", text: "I used to spend hours tweaking my resume. ATS Resume Pilot cut that down to 20 minutes and the result was way better.", rating: 5 },
-    { name: "Tyler N.", role: "DevOps Engineer @ AWS", text: "Clean UI, smart AI suggestions, and the ATS score gives real peace of mind before hitting submit.", rating: 5 },
-    { name: "Isabelle F.", role: "Product Designer @ Figma", text: "Love that it tells you WHY your score is low, not just that it is. Actionable feedback every step of the way.", rating: 5 },
-    { name: "Kevin O.", role: "Full-Stack Dev @ Coinbase", text: "Three offers in a month after rebuilding my resume here. The AI summary generator alone is worth it.", rating: 5 },
   ];
 
   const reduceMotion = useReducedMotion();
@@ -3387,7 +3357,7 @@ function HomePage({ setPage, user }) {
           </RevealItem>
 
           <RevealItem as={motion.div} className="app-text2" style={{ marginTop: 20, fontSize: 13, fontWeight: 500 }}>
-            ✓ No credit card required &nbsp;·&nbsp; ✓ <StatCounter target={50000} suffix="+" /> resumes created &nbsp;·&nbsp; ✓ <StatCounter target={4.9} decimals={1} />★ rating
+            ✓ No credit card required &nbsp;·&nbsp; ✓ Free to get started
           </RevealItem>
         </motion.div>
 
@@ -3522,11 +3492,6 @@ function HomePage({ setPage, user }) {
             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>AI Suggestions Applied</span>
           </HeroFloatBadge>
 
-          <HeroFloatBadge className="hero-chip" reduceMotion={reduceMotion} delay={1.2} floatDelay={1.4} floatDuration={5.9} rotate={2}
-            style={{ bottom: -16, right: "12%" }}>
-            <span style={{ fontSize: 14 }}>👥</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--c-text)" }}>50K+ Resumes Created</span>
-          </HeroFloatBadge>
           </motion.div>
         </motion.div>
 
@@ -3536,28 +3501,6 @@ function HomePage({ setPage, user }) {
             70%  { transform: scale(1.9); opacity: 0; }
             100% { transform: scale(1.9); opacity: 0; }
           }
-        `}</style>
-      </section>
-
-      {/* Trust logo strip */}
-      <section aria-label="Trusted by professionals worldwide" style={{ padding: "40px 24px", borderTop: "1px solid var(--c-border)", borderBottom: "1px solid var(--c-border)" }}>
-        <p className="app-text3" style={{ textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 28px" }}>
-          Trusted by professionals worldwide
-        </p>
-        <Reveal as={motion.div} stagger={0.05} className="trust-logo-row" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 48, flexWrap: "wrap", maxWidth: 960, margin: "0 auto" }}>
-          {["Google", "Microsoft", "Amazon", "Adobe", "Meta", "IBM", "Oracle", "Spotify"].map(name => (
-            <RevealItem as={motion.span} key={name} className="trust-logo" style={{
-              fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 18,
-              color: "var(--c-text3)", opacity: 0.7, filter: "grayscale(1)",
-              transition: "opacity 0.2s, filter 0.2s", cursor: "default", userSelect: "none",
-            }}>
-              {name}
-            </RevealItem>
-          ))}
-        </Reveal>
-        <style>{`
-          .trust-logo:hover { opacity: 1 !important; filter: grayscale(0) !important; }
-          @media (max-width: 768px) { .trust-logo-row { gap: 28px !important; } .trust-logo { font-size: 15px !important; } }
         `}</style>
       </section>
 
@@ -3827,42 +3770,6 @@ function HomePage({ setPage, user }) {
       </section>
         );
       })()}
-
-      {/* Testimonials */}
-      <section style={{ padding: "80px 0" }}>
-        <Reveal style={{ textAlign: "center", marginBottom: 48, padding: "0 24px" }}>
-          <h2 className="font-display" style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 800, margin: "0 0 12px" }}>
-            Trusted by <StatCounter target={50000} suffix="+" /> job seekers
-          </h2>
-        </Reveal>
-        <Reveal stagger={0.06} amount={0.1} className="testimonials-row" style={{
-          display: "flex", gap: 16, overflowX: "auto", scrollbarWidth: "none",
-          paddingLeft: 24, paddingRight: 24, paddingBottom: 8,
-          WebkitOverflowScrolling: "touch",
-          scrollSnapType: "x mandatory",
-        }}>
-          {testimonials.map((t, i) => (
-            <RevealItem key={i} className="card testimonial-card" whileHover={{ y: -6 }} transition={{ duration: 0.25, ease: EASE_OUT }} style={{
-              padding: 24, flexShrink: 0,
-              width: "calc(20% - 13px)",
-              minWidth: 240,
-              scrollSnapAlign: "start",
-            }}>
-              <div style={{ display: "flex", gap: 2, marginBottom: 12, color: "#F59E0B" }}>
-                {Array(t.rating).fill(0).map((_, j) => <Icon.Star key={j} />)}
-              </div>
-              <p className="app-text2" style={{ fontSize: 14, lineHeight: 1.7, margin: "0 0 16px" }}>"{t.text}"</p>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
-                <div className="app-text3" style={{ fontSize: 12 }}>{t.role}</div>
-              </div>
-            </RevealItem>
-          ))}
-        </Reveal>
-        <style>{`
-          .testimonial-card:hover { box-shadow: 0 12px 32px var(--c-shadow), 0 0 0 1px rgba(26,86,219,0.1) !important; }
-        `}</style>
-      </section>
 
       {/* FAQ */}
       <FaqSection />
@@ -4369,6 +4276,7 @@ function AuthPage({ mode, setPage, setUser, dark, setDark }) {
         // into app state directly rather than waiting on a listener that
         // already ran (with a null displayName) right after account creation.
         setUser(prev => ({ ...prev, name: form.name }));
+        trackEvent("sign_up", { method: "email" });
       }
       setPage(PAGES.DASHBOARD);
     } catch (err) {
@@ -4394,7 +4302,8 @@ function AuthPage({ mode, setPage, setUser, dark, setDark }) {
   const googleAuth = async () => {
     setLoading(true); setError("");
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+      if (getAdditionalUserInfo(cred)?.isNewUser) trackEvent("sign_up", { method: "google" });
       setPage(PAGES.DASHBOARD);
     } catch (err) {
       setError(friendlyAuthError(err));
@@ -4685,20 +4594,6 @@ function AuthPage({ mode, setPage, setUser, dark, setDark }) {
             <p className="app-text2" style={{ fontSize: 14, lineHeight: 1.6, margin: "0 0 20px" }}>
               Every resume is scored against real ATS rules, then rewritten to pass — free, no credit card required.
             </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: 24 }}>
-              <div>
-                <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)" }}><StatCounter target={50000} suffix="+" /></div>
-                <div className="app-text3" style={{ fontSize: 11 }}>Resumes created</div>
-              </div>
-              <div>
-                <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)" }}>95%</div>
-                <div className="app-text3" style={{ fontSize: 11 }}>ATS pass rate</div>
-              </div>
-              <div>
-                <div className="font-display" style={{ fontSize: 18, fontWeight: 800, color: "var(--c-text)" }}><StatCounter target={4.9} decimals={1} />★</div>
-                <div className="app-text3" style={{ fontSize: 11 }}>Average rating</div>
-              </div>
-            </div>
           </motion.div>
         </div>
       </div>
@@ -4948,8 +4843,9 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
       const parsed = await parseResumeWithClaude(file);
       setResume(parsed);
       setSection("personal");
+      trackEvent("ai_cv_import");
     } catch (err) {
-      setImportError(err.message || "Failed to import CV. Please try again.");
+      setImportError(err.message || "AI features are temporarily unavailable. Please try again later.");
     }
     setImporting(false);
     e.target.value = "";
@@ -5002,8 +4898,9 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
       }
       const result = await callClaude(prompt);
       setAiText(result);
+      trackEvent("ai_resume_generate", { type });
     } catch (e) {
-      setAiText("Error calling AI. Please check your connection.");
+      setAiText(e.message || "AI features are temporarily unavailable. Please try again later.");
     }
     setAiLoading(false);
   };
@@ -5080,6 +4977,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
     try {
       const name = (resume?.personal?.name || "resume").trim().replace(/\s+/g, "_");
       await exportElementToPDF(el, `${name}.pdf`, { top: printMarginTop, bottom: printMarginBottom, left: printMarginLeft, right: printMarginRight }, pageOverrides);
+      trackEvent("resume_export", { template });
       setShowFeedback(true);
     } finally {
       setExportingPDF(false);
@@ -8574,6 +8472,7 @@ function CoverLetterBuilderPage({ coverLetter, setCoverLetter, resume, templateI
     try {
       const name = (coverLetter?.senderName || resume?.personal?.name || "cover_letter").trim().replace(/\s+/g, "_");
       await exportElementToPDF(el, `${name}_cover_letter.pdf`, { top: clMarginTop, bottom: clMarginBottom, left: clMarginLeft, right: clMarginRight });
+      trackEvent("cover_letter_export", { template: templateId });
       setShowFeedback(true);
     } finally {
       setExportingCLPDF(false);
@@ -8642,8 +8541,9 @@ Skills: ${skills || "Various professional skills"}`;
         );
         update("closing", text.trim());
       }
+      trackEvent("ai_cover_letter_generate", { field });
     } catch (err) {
-      setAiError(err.message || "AI generation failed. Check your API key.");
+      setAiError(err.message || "AI features are temporarily unavailable. Please try again later.");
       setTimeout(() => setAiError(""), 6000);
     } finally {
       setAiLoading(false);
