@@ -4165,20 +4165,33 @@ function ContactPage({ setPage, user }) {
   const [form, setForm] = useState({ name: user?.name || "", email: user?.email || "", subject: "", message: "" });
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
       setError("Please fill in your name, email, and message.");
       return;
     }
     setError("");
-    const subject = encodeURIComponent(form.subject.trim() || "Message from ATS Resume Pilot contact form");
-    const body = encodeURIComponent(
-      `${form.message}\n\n—\n${form.name}\n${form.email}`
-    );
-    window.location.href = `mailto:support@atsresumepilot.com?subject=${subject}&body=${body}`;
-    setSent(true);
+    setSending(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Couldn't send your message. Please try again later.");
+        setSending(false);
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError("Couldn't send your message. Please check your connection and try again.");
+    }
+    setSending(false);
   };
 
   return (
@@ -4213,9 +4226,9 @@ function ContactPage({ setPage, user }) {
             style={{ textAlign: "center", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 14, padding: "36px 24px" }}
           >
             <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
-            <h2 className="font-display" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Thanks — your message is ready to send!</h2>
+            <h2 className="font-display" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Thanks — your message is on its way!</h2>
             <p className="app-text2" style={{ fontSize: 14, margin: "0 0 20px" }}>
-              We opened your email app with everything filled in. Just hit send and we'll get back to you soon.
+              We've received your message and will get back to you soon.
             </p>
             <button className="btn btn-ghost btn-sm" onClick={() => setSent(false)}>Send another message</button>
           </motion.div>
@@ -4256,9 +4269,9 @@ function ContactPage({ setPage, user }) {
               <textarea className="input" placeholder="Tell us what's on your mind…" rows={6} value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} />
             </div>
 
-            <motion.button type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "11px", fontSize: 15, fontWeight: 600 }}
+            <motion.button type="submit" className="btn btn-primary" disabled={sending} style={{ width: "100%", justifyContent: "center", padding: "11px", fontSize: 15, fontWeight: 600 }}
               whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} transition={{ duration: 0.15 }}>
-              Send message
+              {sending ? "Sending…" : "Send message"}
             </motion.button>
 
             <p className="app-text3" style={{ fontSize: 12.5, textAlign: "center", margin: "16px 0 0" }}>
