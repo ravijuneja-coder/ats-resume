@@ -728,6 +728,27 @@ async function parseResumeWithClaude(file) {
   };
 }
 
+// Turns "Jan 2022" / "2022" / "Present" / "" into a comparable number (higher = more recent).
+function dateSortValue(v) {
+  if (!v) return -1;
+  if (v === "Present") return Infinity;
+  const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const parts = v.trim().split(" ");
+  if (parts.length === 2 && MONTHS.includes(parts[0])) {
+    return Number(parts[1]) * 12 + MONTHS.indexOf(parts[0]);
+  }
+  const year = Number(parts[parts.length - 1]);
+  return Number.isFinite(year) ? year * 12 : -1;
+}
+
+function sortExperienceByDate(experience) {
+  return [...experience].sort((a, b) => {
+    const endDiff = dateSortValue(b.end) - dateSortValue(a.end);
+    if (endDiff !== 0) return endDiff;
+    return dateSortValue(b.start) - dateSortValue(a.start);
+  });
+}
+
 // ─── RESUME STATS ─────────────────────────────────────────────────────────────
 
 function computeWordCount(resume) {
@@ -859,6 +880,13 @@ const Icon = {
   Trash: () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
       <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/>
+    </svg>
+  ),
+  GripVertical: () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 16, height: 16, flexShrink: 0 }}>
+      <circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/>
+      <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+      <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
     </svg>
   ),
   Moon: () => (
@@ -1503,6 +1531,17 @@ const styles = `
   .logo-btn:hover { background: transparent; }
   .btn-danger { background: #FEF2F2; color: var(--c-danger); border: 1px solid #FECACA; }
   .btn-danger:hover { background: #FEE2E2; }
+  .btn-export-highlight {
+    background: var(--c-accent); color: #fff; border: none;
+    box-shadow: 0 0 0 0 var(--c-glow);
+    animation: export-pulse 2.2s ease-in-out infinite;
+  }
+  .btn-export-highlight:hover { filter: brightness(1.1); transform: translateY(-1px); animation-play-state: paused; }
+  .btn-export-highlight:disabled { animation: none; opacity: 0.7; cursor: default; }
+  @keyframes export-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--c-glow); }
+    50% { box-shadow: 0 0 0 6px transparent; }
+  }
   .btn-sm { padding: 6px 12px; font-size: 13px; }
   .btn-lg { padding: 12px 28px; font-size: 15px; border-radius: 10px; }
   .btn-xl { padding: 15px 36px; font-size: 16px; border-radius: 12px; font-weight: 600; }
@@ -4832,6 +4871,46 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   useEffect(() => {
     if (marginPageSel >= pageCount) setMarginPageSel(-1);
   }, [pageCount, marginPageSel]);
+  const [expDragIdx, setExpDragIdx] = useState(null);
+  const [expOverIdx, setExpOverIdx] = useState(null);
+  const [expCollapsed, setExpCollapsed] = useState({});
+  const toggleExpCollapsed = (id) => setExpCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
+  const [eduCollapsed, setEduCollapsed] = useState({});
+  const toggleEduCollapsed = (id) => setEduCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
+  const [eduDragIdx, setEduDragIdx] = useState(null);
+  const [eduOverIdx, setEduOverIdx] = useState(null);
+  const moveEdu = (fromIdx, toIdx) => {
+    setResume(prev => {
+      const next = [...prev.education];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return { ...prev, education: next };
+    });
+  };
+  const [certCollapsed, setCertCollapsed] = useState({});
+  const toggleCertCollapsed = (id) => setCertCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
+  const [certDragIdx, setCertDragIdx] = useState(null);
+  const [certOverIdx, setCertOverIdx] = useState(null);
+  const moveCert = (fromIdx, toIdx) => {
+    setResume(prev => {
+      const next = [...prev.certifications];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return { ...prev, certifications: next };
+    });
+  };
+  const [projCollapsed, setProjCollapsed] = useState({});
+  const toggleProjCollapsed = (id) => setProjCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
+  const [projDragIdx, setProjDragIdx] = useState(null);
+  const [projOverIdx, setProjOverIdx] = useState(null);
+  const moveProj = (fromIdx, toIdx) => {
+    setResume(prev => {
+      const next = [...prev.projects];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return { ...prev, projects: next };
+    });
+  };
   const [importError, setImportError] = useState("");
   const importRef = useRef(null);
 
@@ -4962,6 +5041,24 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
   };
 
   const removeExp = (id) => setResume({ ...resume, experience: resume.experience.filter(e => e.id !== id) });
+
+  const moveExp = (fromIdx, toIdx) => {
+    setResume(prev => {
+      const next = [...prev.experience];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return { ...prev, experience: next };
+    });
+  };
+
+  // Auto-sort experience by date (latest first) once, when this page mounts.
+  // Manual drag-and-drop reordering afterwards is left untouched.
+  const sortedOnMountRef = useRef(false);
+  useEffect(() => {
+    if (sortedOnMountRef.current) return;
+    sortedOnMountRef.current = true;
+    setResume(prev => ({ ...prev, experience: sortExperienceByDate(prev.experience) }));
+  }, []);
 
   const [exportingPDF, setExportingPDF] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -5159,7 +5256,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
           );
         })()}
 
-        <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={handleExportPDF} disabled={exportingPDF}>
+        <button className="btn btn-primary btn-export-highlight btn-sm" style={{ justifyContent: "center" }} onClick={handleExportPDF} disabled={exportingPDF}>
           <Icon.Download /> {exportingPDF ? "Generating…" : "Export PDF"}
         </button>
       </div>
@@ -5333,50 +5430,88 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Experience</h2>
-                  <button className="btn btn-secondary btn-sm" onClick={addExperience}><Icon.Plus /> Add</button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {resume.experience.length > 1 && (
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          const allCollapsed = resume.experience.every(exp => expCollapsed[exp.id]);
+                          setExpCollapsed(Object.fromEntries(resume.experience.map(exp => [exp.id, !allCollapsed])));
+                        }}>
+                        {resume.experience.every(exp => expCollapsed[exp.id]) ? "Expand all" : "Collapse all"}
+                      </button>
+                    )}
+                    <button className="btn btn-secondary btn-sm" onClick={addExperience}><Icon.Plus /> Add</button>
+                  </div>
                 </div>
                 {resume.experience.map((exp, ei) => (
-                  <div key={exp.id} className="card" style={{ padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                      <span className="font-display" style={{ fontWeight: 600, fontSize: 14 }}>Position {ei + 1}</span>
-                      <button className="btn btn-ghost btn-sm" onClick={() => removeExp(exp.id)} style={{ color: "var(--c-danger)" }}><Icon.Trash /></button>
+                  <div key={exp.id} className="card"
+                    draggable
+                    onDragStart={() => setExpDragIdx(ei)}
+                    onDragOver={e => { e.preventDefault(); if (expOverIdx !== ei) setExpOverIdx(ei); }}
+                    onDrop={e => {
+                      e.preventDefault();
+                      if (expDragIdx !== null && expDragIdx !== ei) moveExp(expDragIdx, ei);
+                      setExpDragIdx(null); setExpOverIdx(null);
+                    }}
+                    onDragEnd={() => { setExpDragIdx(null); setExpOverIdx(null); }}
+                    style={{
+                      padding: 16,
+                      opacity: expDragIdx === ei ? 0.5 : 1,
+                      outline: expOverIdx === ei && expDragIdx !== null && expDragIdx !== ei ? "2px dashed var(--c-accent)" : "none",
+                      outlineOffset: 2,
+                    }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: expCollapsed[exp.id] ? 0 : 12, cursor: "pointer" }}
+                      onClick={() => toggleExpCollapsed(exp.id)}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <span title="Drag to reorder" onClick={e => e.stopPropagation()} style={{ cursor: "grab", color: "var(--c-text3)", display: "flex" }}><Icon.GripVertical /></span>
+                        <span style={{ display: "inline-flex", transform: expCollapsed[exp.id] ? "rotate(-90deg)" : "none", transition: "transform 0.15s", color: "var(--c-text3)" }}><Icon.ChevronDown /></span>
+                        <span className="font-display" style={{ fontWeight: 600, fontSize: 14, flexShrink: 0 }}>Position {ei + 1}</span>
+                        {expCollapsed[exp.id] && (exp.role || exp.company) && (
+                          <span style={{ fontSize: 13, color: "var(--c-text3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            — {exp.role}{exp.role && exp.company ? " @ " : ""}{exp.company}
+                          </span>
+                        )}
+                      </span>
+                      <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); removeExp(exp.id); }} style={{ color: "var(--c-danger)" }}><Icon.Trash /></button>
                     </div>
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {[
-                        { key: "role", label: "Job Title", placeholder: "Senior Engineer" },
-                        { key: "company", label: "Company", placeholder: "Stripe, Inc." },
-                        { key: "location", label: "Location", placeholder: "San Francisco, CA" },
-                      ].map(f => (
-                        <div key={f.key}>
-                          <label className="label">{f.label}</label>
-                          <input className="input" placeholder={f.placeholder} value={exp[f.key] || ""}
-                            onChange={e => updateExp(exp.id, f.key, e.target.value)} />
-                        </div>
-                      ))}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <div>
-                          <label className="label">Start</label>
-                          <MonthYearPicker value={exp.start || ""} onChange={v => updateExp(exp.id, "start", v)} placeholder="Jan 2022" />
-                        </div>
-                        <div>
-                          <label className="label">End</label>
-                          <MonthYearPicker value={exp.end || ""} onChange={v => updateExp(exp.id, "end", v)} allowPresent placeholder="Present" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="label">Bullet Points</label>
-                        {exp.bullets.map((bullet, bi) => (
-                          <div key={bi} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                            <textarea className="input" rows={2} style={{ fontSize: 13 }}
-                              placeholder="Led team of 5 engineers to deliver feature X, resulting in 30% improvement in Y…"
-                              value={bullet}
-                              onChange={e => updateExpBullet(exp.id, bi, e.target.value)} />
-                            <button className="btn btn-ghost btn-sm" onClick={() => removeExpBullet(exp.id, bi)} style={{ flexShrink: 0 }}><Icon.Trash /></button>
+                    {!expCollapsed[exp.id] && (
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {[
+                          { key: "role", label: "Job Title", placeholder: "Senior Engineer" },
+                          { key: "company", label: "Company", placeholder: "Stripe, Inc." },
+                          { key: "location", label: "Location", placeholder: "San Francisco, CA" },
+                        ].map(f => (
+                          <div key={f.key}>
+                            <label className="label">{f.label}</label>
+                            <input className="input" placeholder={f.placeholder} value={exp[f.key] || ""}
+                              onChange={e => updateExp(exp.id, f.key, e.target.value)} />
                           </div>
                         ))}
-                        <button className="btn btn-ghost btn-sm" onClick={() => addExpBullet(exp.id)}><Icon.Plus /> Add bullet</button>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <div>
+                            <label className="label">Start</label>
+                            <MonthYearPicker value={exp.start || ""} onChange={v => updateExp(exp.id, "start", v)} placeholder="Jan 2022" />
+                          </div>
+                          <div>
+                            <label className="label">End</label>
+                            <MonthYearPicker value={exp.end || ""} onChange={v => updateExp(exp.id, "end", v)} allowPresent placeholder="Present" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="label">Bullet Points</label>
+                          {exp.bullets.map((bullet, bi) => (
+                            <div key={bi} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                              <textarea className="input" rows={2} style={{ fontSize: 13 }}
+                                placeholder="Led team of 5 engineers to deliver feature X, resulting in 30% improvement in Y…"
+                                value={bullet}
+                                onChange={e => updateExpBullet(exp.id, bi, e.target.value)} />
+                              <button className="btn btn-ghost btn-sm" onClick={() => removeExpBullet(exp.id, bi)} style={{ flexShrink: 0 }}><Icon.Trash /></button>
+                            </div>
+                          ))}
+                          <button className="btn btn-ghost btn-sm" onClick={() => addExpBullet(exp.id)}><Icon.Plus /> Add bullet</button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -5451,108 +5586,251 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
             {/* Education */}
             {section === "education" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Education</h2>
-                {resume.education.map(edu => (
-                  <div key={edu.id} className="card" style={{ padding: 16 }}>
-                    {[
-                      { key: "school", label: "Institution" },
-                      { key: "degree", label: "Degree" },
-                      { key: "gpa", label: "GPA (optional)" },
-                    ].map(f => (
-                      <div key={f.key} style={{ marginBottom: 10 }}>
-                        <label className="label">{f.label}</label>
-                        <input className="input" value={edu[f.key] || ""}
-                          onChange={e => setResume({
-                            ...resume,
-                            education: resume.education.map(ed => ed.id === edu.id ? { ...ed, [f.key]: e.target.value } : ed)
-                          })} />
-                      </div>
-                    ))}
-                    <div style={{ marginBottom: 10 }}>
-                      <label className="label">Year</label>
-                      <MonthYearPicker value={edu.year || ""} onChange={v => setResume({ ...resume, education: resume.education.map(ed => ed.id === edu.id ? { ...ed, year: v } : ed) })} placeholder="2022" />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Education</h2>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {resume.education.length > 1 && (
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          const allCollapsed = resume.education.every(edu => eduCollapsed[edu.id]);
+                          setEduCollapsed(Object.fromEntries(resume.education.map(edu => [edu.id, !allCollapsed])));
+                        }}>
+                        {resume.education.every(edu => eduCollapsed[edu.id]) ? "Expand all" : "Collapse all"}
+                      </button>
+                    )}
+                    <button className="btn btn-secondary btn-sm"
+                      onClick={() => setResume({ ...resume, education: [...resume.education, { id: Date.now(), school: "", degree: "", year: "", gpa: "" }] })}>
+                      <Icon.Plus /> Add
+                    </button>
+                  </div>
+                </div>
+                {resume.education.map((edu, edi) => (
+                  <div key={edu.id} className="card"
+                    draggable
+                    onDragStart={() => setEduDragIdx(edi)}
+                    onDragOver={e => { e.preventDefault(); if (eduOverIdx !== edi) setEduOverIdx(edi); }}
+                    onDrop={e => {
+                      e.preventDefault();
+                      if (eduDragIdx !== null && eduDragIdx !== edi) moveEdu(eduDragIdx, edi);
+                      setEduDragIdx(null); setEduOverIdx(null);
+                    }}
+                    onDragEnd={() => { setEduDragIdx(null); setEduOverIdx(null); }}
+                    style={{
+                      padding: 16,
+                      opacity: eduDragIdx === edi ? 0.5 : 1,
+                      outline: eduOverIdx === edi && eduDragIdx !== null && eduDragIdx !== edi ? "2px dashed var(--c-accent)" : "none",
+                      outlineOffset: 2,
+                    }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: eduCollapsed[edu.id] ? 0 : 12, cursor: "pointer" }}
+                      onClick={() => toggleEduCollapsed(edu.id)}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <span title="Drag to reorder" onClick={e => e.stopPropagation()} style={{ cursor: "grab", color: "var(--c-text3)", display: "flex" }}><Icon.GripVertical /></span>
+                        <span style={{ display: "inline-flex", transform: eduCollapsed[edu.id] ? "rotate(-90deg)" : "none", transition: "transform 0.15s", color: "var(--c-text3)" }}><Icon.ChevronDown /></span>
+                        <span className="font-display" style={{ fontWeight: 600, fontSize: 14, flexShrink: 0 }}>Education {edi + 1}</span>
+                        {eduCollapsed[edu.id] && (edu.degree || edu.school) && (
+                          <span style={{ fontSize: 13, color: "var(--c-text3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            — {edu.degree}{edu.degree && edu.school ? " @ " : ""}{edu.school}
+                          </span>
+                        )}
+                      </span>
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={e => { e.stopPropagation(); setResume({ ...resume, education: resume.education.filter(ed => ed.id !== edu.id) }); }}
+                        style={{ color: "var(--c-danger)" }}>
+                        <Icon.Trash />
+                      </button>
                     </div>
+                    {!eduCollapsed[edu.id] && (
+                      <>
+                        {[
+                          { key: "school", label: "Institution" },
+                          { key: "degree", label: "Degree" },
+                          { key: "gpa", label: "GPA (optional)" },
+                        ].map(f => (
+                          <div key={f.key} style={{ marginBottom: 10 }}>
+                            <label className="label">{f.label}</label>
+                            <input className="input" value={edu[f.key] || ""}
+                              onChange={e => setResume({
+                                ...resume,
+                                education: resume.education.map(ed => ed.id === edu.id ? { ...ed, [f.key]: e.target.value } : ed)
+                              })} />
+                          </div>
+                        ))}
+                        <div style={{ marginBottom: 10 }}>
+                          <label className="label">Year</label>
+                          <MonthYearPicker value={edu.year || ""} onChange={v => setResume({ ...resume, education: resume.education.map(ed => ed.id === edu.id ? { ...ed, year: v } : ed) })} placeholder="2022" />
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
-                <button className="btn btn-secondary btn-sm" onClick={() => setResume({ ...resume, education: [...resume.education, { id: Date.now(), school: "", degree: "", year: "", gpa: "" }] })}>
-                  <Icon.Plus /> Add Education
-                </button>
               </div>
             )}
 
             {/* Certifications */}
             {section === "certifications" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Certifications</h2>
-                {resume.certifications.map(cert => (
-                  <div key={cert.id} className="card" style={{ padding: 16 }}>
-                    {[{ key: "name", label: "Name" }, { key: "issuer", label: "Issuer" }].map(f => (
-                      <div key={f.key} style={{ marginBottom: 10 }}>
-                        <label className="label">{f.label}</label>
-                        <input className="input" value={cert[f.key] || ""}
-                          onChange={e => setResume({
-                            ...resume,
-                            certifications: resume.certifications.map(c => c.id === cert.id ? { ...c, [f.key]: e.target.value } : c)
-                          })} />
-                      </div>
-                    ))}
-                    <div style={{ marginBottom: 10 }}>
-                      <label className="label">Year</label>
-                      <MonthYearPicker value={cert.year || ""} onChange={v => setResume({ ...resume, certifications: resume.certifications.map(c => c.id === cert.id ? { ...c, year: v } : c) })} placeholder="2022" />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Certifications</h2>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {resume.certifications.length > 1 && (
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          const allCollapsed = resume.certifications.every(cert => certCollapsed[cert.id]);
+                          setCertCollapsed(Object.fromEntries(resume.certifications.map(cert => [cert.id, !allCollapsed])));
+                        }}>
+                        {resume.certifications.every(cert => certCollapsed[cert.id]) ? "Expand all" : "Collapse all"}
+                      </button>
+                    )}
+                    <button className="btn btn-secondary btn-sm"
+                      onClick={() => setResume({ ...resume, certifications: [...resume.certifications, { id: Date.now(), name: "", issuer: "", year: "" }] })}>
+                      <Icon.Plus /> Add
+                    </button>
+                  </div>
+                </div>
+                {resume.certifications.map((cert, ci) => (
+                  <div key={cert.id} className="card"
+                    draggable
+                    onDragStart={() => setCertDragIdx(ci)}
+                    onDragOver={e => { e.preventDefault(); if (certOverIdx !== ci) setCertOverIdx(ci); }}
+                    onDrop={e => {
+                      e.preventDefault();
+                      if (certDragIdx !== null && certDragIdx !== ci) moveCert(certDragIdx, ci);
+                      setCertDragIdx(null); setCertOverIdx(null);
+                    }}
+                    onDragEnd={() => { setCertDragIdx(null); setCertOverIdx(null); }}
+                    style={{
+                      padding: 16,
+                      opacity: certDragIdx === ci ? 0.5 : 1,
+                      outline: certOverIdx === ci && certDragIdx !== null && certDragIdx !== ci ? "2px dashed var(--c-accent)" : "none",
+                      outlineOffset: 2,
+                    }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: certCollapsed[cert.id] ? 0 : 12, cursor: "pointer" }}
+                      onClick={() => toggleCertCollapsed(cert.id)}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <span title="Drag to reorder" onClick={e => e.stopPropagation()} style={{ cursor: "grab", color: "var(--c-text3)", display: "flex" }}><Icon.GripVertical /></span>
+                        <span style={{ display: "inline-flex", transform: certCollapsed[cert.id] ? "rotate(-90deg)" : "none", transition: "transform 0.15s", color: "var(--c-text3)" }}><Icon.ChevronDown /></span>
+                        <span className="font-display" style={{ fontWeight: 600, fontSize: 14, flexShrink: 0 }}>Certification {ci + 1}</span>
+                        {certCollapsed[cert.id] && (cert.name || cert.issuer) && (
+                          <span style={{ fontSize: 13, color: "var(--c-text3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            — {cert.name}{cert.name && cert.issuer ? " @ " : ""}{cert.issuer}
+                          </span>
+                        )}
+                      </span>
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={e => { e.stopPropagation(); setResume({ ...resume, certifications: resume.certifications.filter(c => c.id !== cert.id) }); }}
+                        style={{ color: "var(--c-danger)" }}>
+                        <Icon.Trash />
+                      </button>
                     </div>
+                    {!certCollapsed[cert.id] && (
+                      <>
+                        {[{ key: "name", label: "Name" }, { key: "issuer", label: "Issuer" }].map(f => (
+                          <div key={f.key} style={{ marginBottom: 10 }}>
+                            <label className="label">{f.label}</label>
+                            <input className="input" value={cert[f.key] || ""}
+                              onChange={e => setResume({
+                                ...resume,
+                                certifications: resume.certifications.map(c => c.id === cert.id ? { ...c, [f.key]: e.target.value } : c)
+                              })} />
+                          </div>
+                        ))}
+                        <div style={{ marginBottom: 10 }}>
+                          <label className="label">Year</label>
+                          <MonthYearPicker value={cert.year || ""} onChange={v => setResume({ ...resume, certifications: resume.certifications.map(c => c.id === cert.id ? { ...c, year: v } : c) })} placeholder="2022" />
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
-                <button className="btn btn-secondary btn-sm"
-                  onClick={() => setResume({ ...resume, certifications: [...resume.certifications, { id: Date.now(), name: "", issuer: "", year: "" }] })}>
-                  <Icon.Plus /> Add Certification
-                </button>
               </div>
             )}
 
             {/* Projects */}
             {section === "projects" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Projects</h2>
-                {resume.projects.map(proj => (
-                  <div key={proj.id} className="card" style={{ padding: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                      <span className="font-display" style={{ fontWeight: 600, fontSize: 14 }}>Project</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Projects</h2>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {resume.projects.length > 1 && (
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          const allCollapsed = resume.projects.every(proj => projCollapsed[proj.id]);
+                          setProjCollapsed(Object.fromEntries(resume.projects.map(proj => [proj.id, !allCollapsed])));
+                        }}>
+                        {resume.projects.every(proj => projCollapsed[proj.id]) ? "Expand all" : "Collapse all"}
+                      </button>
+                    )}
+                    <button className="btn btn-secondary btn-sm"
+                      onClick={() => setResume({ ...resume, projects: [...resume.projects, { id: Date.now(), name: "", desc: "", start: "", end: "", url: "" }] })}>
+                      <Icon.Plus /> Add
+                    </button>
+                  </div>
+                </div>
+                {resume.projects.map((proj, pi) => (
+                  <div key={proj.id} className="card"
+                    draggable
+                    onDragStart={() => setProjDragIdx(pi)}
+                    onDragOver={e => { e.preventDefault(); if (projOverIdx !== pi) setProjOverIdx(pi); }}
+                    onDrop={e => {
+                      e.preventDefault();
+                      if (projDragIdx !== null && projDragIdx !== pi) moveProj(projDragIdx, pi);
+                      setProjDragIdx(null); setProjOverIdx(null);
+                    }}
+                    onDragEnd={() => { setProjDragIdx(null); setProjOverIdx(null); }}
+                    style={{
+                      padding: 16,
+                      opacity: projDragIdx === pi ? 0.5 : 1,
+                      outline: projOverIdx === pi && projDragIdx !== null && projDragIdx !== pi ? "2px dashed var(--c-accent)" : "none",
+                      outlineOffset: 2,
+                    }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: projCollapsed[proj.id] ? 0 : 10, cursor: "pointer" }}
+                      onClick={() => toggleProjCollapsed(proj.id)}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                        <span title="Drag to reorder" onClick={e => e.stopPropagation()} style={{ cursor: "grab", color: "var(--c-text3)", display: "flex" }}><Icon.GripVertical /></span>
+                        <span style={{ display: "inline-flex", transform: projCollapsed[proj.id] ? "rotate(-90deg)" : "none", transition: "transform 0.15s", color: "var(--c-text3)" }}><Icon.ChevronDown /></span>
+                        <span className="font-display" style={{ fontWeight: 600, fontSize: 14, flexShrink: 0 }}>Project {pi + 1}</span>
+                        {projCollapsed[proj.id] && proj.name && (
+                          <span style={{ fontSize: 13, color: "var(--c-text3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            — {proj.name}
+                          </span>
+                        )}
+                      </span>
                       <button className="btn btn-ghost btn-sm" style={{ color: "var(--c-danger)" }}
-                        onClick={() => setResume({ ...resume, projects: resume.projects.filter(p => p.id !== proj.id) })}>
+                        onClick={e => { e.stopPropagation(); setResume({ ...resume, projects: resume.projects.filter(p => p.id !== proj.id) }); }}>
                         <Icon.Trash />
                       </button>
                     </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label className="label">Project Name</label>
-                      <input className="input" placeholder="My Awesome Project" value={proj.name || ""}
-                        onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, name: e.target.value } : p) })} />
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                      <div>
-                        <label className="label">Start Date</label>
-                        <MonthYearPicker value={proj.start || ""} onChange={v => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, start: v } : p) })} placeholder="Jan 2023" />
-                      </div>
-                      <div>
-                        <label className="label">End Date</label>
-                        <MonthYearPicker value={proj.end || ""} onChange={v => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, end: v } : p) })} allowPresent placeholder="Present" />
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: 10 }}>
-                      <label className="label">URL <span className="app-text3" style={{ fontWeight: 400 }}>(optional)</span></label>
-                      <input className="input" placeholder="github.com/you/project" value={proj.url || ""}
-                        onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, url: e.target.value } : p) })} />
-                    </div>
-                    <div>
-                      <label className="label">Description</label>
-                      <textarea className="input" rows={3} placeholder="What did you build? What technologies? What was the impact?" value={proj.desc || ""}
-                        onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, desc: e.target.value } : p) })} />
-                    </div>
+                    {!projCollapsed[proj.id] && (
+                      <>
+                        <div style={{ marginBottom: 10 }}>
+                          <label className="label">Project Name</label>
+                          <input className="input" placeholder="My Awesome Project" value={proj.name || ""}
+                            onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, name: e.target.value } : p) })} />
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                          <div>
+                            <label className="label">Start Date</label>
+                            <MonthYearPicker value={proj.start || ""} onChange={v => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, start: v } : p) })} placeholder="Jan 2023" />
+                          </div>
+                          <div>
+                            <label className="label">End Date</label>
+                            <MonthYearPicker value={proj.end || ""} onChange={v => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, end: v } : p) })} allowPresent placeholder="Present" />
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <label className="label">URL <span className="app-text3" style={{ fontWeight: 400 }}>(optional)</span></label>
+                          <input className="input" placeholder="github.com/you/project" value={proj.url || ""}
+                            onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, url: e.target.value } : p) })} />
+                        </div>
+                        <div>
+                          <label className="label">Description</label>
+                          <textarea className="input" rows={3} placeholder="What did you build? What technologies? What was the impact?" value={proj.desc || ""}
+                            onChange={e => setResume({ ...resume, projects: resume.projects.map(p => p.id === proj.id ? { ...p, desc: e.target.value } : p) })} />
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
-                <button className="btn btn-secondary btn-sm"
-                  onClick={() => setResume({ ...resume, projects: [...resume.projects, { id: Date.now(), name: "", desc: "", start: "", end: "", url: "" }] })}>
-                  <Icon.Plus /> Add Project
-                </button>
               </div>
             )}
 
@@ -5675,7 +5953,7 @@ function BuilderPage({ resume, setResume, template = "clarity", onTemplateChange
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} disabled={exportingPDF}>
+              <button className="btn btn-export-highlight btn-sm" onClick={handleExportPDF} disabled={exportingPDF}>
                 <Icon.Download /> {exportingPDF ? "Generating…" : "Export PDF"}
               </button>
             </div>
@@ -8701,7 +8979,7 @@ Skills: ${skills || "Various professional skills"}`;
           );
         })()}
 
-        <button className="btn btn-primary btn-sm" style={{ justifyContent: "center" }} onClick={handleExportCLPDF} disabled={exportingCLPDF}>
+        <button className="btn btn-primary btn-export-highlight btn-sm" style={{ justifyContent: "center" }} onClick={handleExportCLPDF} disabled={exportingCLPDF}>
           <Icon.Download /> {exportingCLPDF ? "Generating…" : "Export PDF"}
         </button>
       </div>
@@ -8910,7 +9188,7 @@ Skills: ${skills || "Various professional skills"}`;
               <div className="badge badge-green" style={{ fontSize: 10 }}>ATS Safe</div>
               <div className="badge badge-gray" style={{ fontSize: 10 }}>{tpl?.name || "Classic"} Cover Letter</div>
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={handleExportCLPDF} disabled={exportingCLPDF}>
+            <button className="btn btn-export-highlight btn-sm" onClick={handleExportCLPDF} disabled={exportingCLPDF}>
               <Icon.Download /> {exportingCLPDF ? "Generating…" : "Export PDF"}
             </button>
           </div>
