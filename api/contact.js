@@ -1,6 +1,9 @@
-// Vercel serverless function — sends the contact form as an email via Resend
-// so the API key stays server-side. The client sends { name, email, subject,
-// message } and this forwards it to Resend, addressed to our support inbox.
+// Vercel serverless function — sends the contact form as an email over SMTP
+// through the site's own mailbox, so no third-party email API is needed.
+// The client sends { name, email, subject, message } and this relays it to
+// support@atsresumepilot.com via the SMTP credentials configured below.
+
+import nodemailer from "nodemailer";
 
 const MAX_FIELD_LENGTH = 5000;
 
@@ -10,8 +13,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, CONTACT_TO_EMAIL } = process.env;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     res.status(500).json({ error: "Server is not configured to send email." });
     return;
   }
@@ -32,27 +35,23 @@ export default async function handler(req, res) {
 
   const escapeHtml = (s) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  try {
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        from: "ATS Resume Pilot <contact@atsresumepilot.com>",
-        to: ["support@atsresumepilot.com"],
-        reply_to: email.trim(),
-        subject: `[Contact form] ${subject?.trim() || "New message from ATS Resume Pilot"}`,
-        text: `From: ${name.trim()} <${email.trim()}>\n\n${message.trim()}`,
-        html: `<p><strong>From:</strong> ${escapeHtml(name.trim())} &lt;${escapeHtml(email.trim())}&gt;</p><p>${escapeHtml(message.trim()).replace(/\n/g, "<br>")}</p>`,
-      }),
-    });
+  const port = Number(SMTP_PORT) || 587;
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port,
+    secure: port === 465, // 465 = implicit TLS; 587/others = STARTTLS
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
 
-    if (!resendRes.ok) {
-      res.status(502).json({ error: "Couldn't send your message. Please try again later." });
-      return;
-    }
+  try {
+    await transporter.sendMail({
+      from: `"ATS Resume Pilot" <${SMTP_USER}>`,
+      to: CONTACT_TO_EMAIL || "support@atsresumepilot.com",
+      replyTo: email.trim(),
+      subject: `[Contact form] ${subject?.trim() || "New message from ATS Resume Pilot"}`,
+      text: `From: ${name.trim()} <${email.trim()}>\n\n${message.trim()}`,
+      html: `<p><strong>From:</strong> ${escapeHtml(name.trim())} &lt;${escapeHtml(email.trim())}&gt;</p><p>${escapeHtml(message.trim()).replace(/\n/g, "<br>")}</p>`,
+    });
     res.status(200).json({ ok: true });
   } catch (err) {
     res.status(502).json({ error: "Couldn't send your message. Please try again later." });
