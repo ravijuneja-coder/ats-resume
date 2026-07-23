@@ -44,7 +44,15 @@ export default async function handler(req, res) {
   });
 
   try {
-    await transporter.sendMail({
+    await transporter.verify();
+  } catch (err) {
+    console.error("SMTP verify failed:", err?.message, err?.code, err?.response);
+    res.status(502).json({ error: "Couldn't send your message. Please try again later." });
+    return;
+  }
+
+  try {
+    const info = await transporter.sendMail({
       from: `"ATS Resume Pilot" <${SMTP_USER}>`,
       to: CONTACT_TO_EMAIL || "support@atsresumepilot.com",
       replyTo: email.trim(),
@@ -52,8 +60,16 @@ export default async function handler(req, res) {
       text: `From: ${name.trim()} <${email.trim()}>\n\n${message.trim()}`,
       html: `<p><strong>From:</strong> ${escapeHtml(name.trim())} &lt;${escapeHtml(email.trim())}&gt;</p><p>${escapeHtml(message.trim()).replace(/\n/g, "<br>")}</p>`,
     });
+    console.log("Contact email sent:", info.messageId, info.response, "accepted:", info.accepted, "rejected:", info.rejected);
+    if (!info.accepted?.length) {
+      // sendMail() resolved but the server didn't actually accept the
+      // recipient — surface this as a failure instead of a false "sent".
+      res.status(502).json({ error: "Couldn't send your message. Please try again later." });
+      return;
+    }
     res.status(200).json({ ok: true });
   } catch (err) {
+    console.error("SMTP sendMail failed:", err?.message, err?.code, err?.response);
     res.status(502).json({ error: "Couldn't send your message. Please try again later." });
   }
 }
