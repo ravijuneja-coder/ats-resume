@@ -4007,7 +4007,7 @@ function PrivacyPage({ setPage }) {
       <LegalH2>Contact</LegalH2>
       <LegalP>
         Questions about this policy or your data? Reach out at{" "}
-        <a href="mailto:privacy@atsresumepilot.com" style={{ color: "var(--c-accent)" }}>privacy@atsresumepilot.com</a>.
+        <a href="mailto:support@atsresumepilot.com" style={{ color: "var(--c-accent)" }}>support@atsresumepilot.com</a>.
       </LegalP>
     </LegalPageShell>
   );
