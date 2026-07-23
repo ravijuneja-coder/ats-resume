@@ -4385,7 +4385,7 @@ function AdminFeedbackPage({ setPage, user }) {
 
 // ─── AUTH PAGES ───────────────────────────────────────────────────────────────
 
-function AuthPage({ mode, setPage, setUser, dark, setDark }) {
+function AuthPage({ mode, setPage, setUser }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const isLogin = mode === "login";
@@ -4424,11 +4424,6 @@ function AuthPage({ mode, setPage, setUser, dark, setDark }) {
           >
             ← Back to home
           </motion.button>
-          {setDark && (
-            <button className="btn btn-ghost btn-sm" onClick={() => setDark(!dark)} aria-label="Toggle theme">
-              {dark ? <Icon.Sun /> : <Icon.Moon />}
-            </button>
-          )}
         </div>
 
         <div className="card fade-in" style={{ width: "100%", maxWidth: 420, padding: "40px 36px", boxShadow: "0 24px 60px var(--c-shadow)", border: "1px solid var(--c-border)", overflow: "hidden" }}>
@@ -9359,8 +9354,8 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case PAGES.HOME: return <HomePage setPage={setPage} user={user} />;
-      case PAGES.LOGIN: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="login" setPage={setPage} setUser={setUser} dark={dark} setDark={setDark} />;
-      case PAGES.REGISTER: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="register" setPage={setPage} setUser={setUser} dark={dark} setDark={setDark} />;
+      case PAGES.LOGIN: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
+      case PAGES.REGISTER: return user ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} /> : <AuthPage mode="register" setPage={setPage} setUser={setUser} />;
       case PAGES.DASHBOARD: return user
         ? <DashboardPage setPage={setPage} user={user} resume={resume} setResume={setResume} template={selectedTemplate} coverLetter={coverLetter} coverLetterTemplate={coverLetterTemplate} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
