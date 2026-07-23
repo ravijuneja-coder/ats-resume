@@ -2565,8 +2565,13 @@ function UserMenu({ user, setUser, setPage }) {
 
 function BetaBanner({ setPage }) {
   const ref = useRef(null);
+  const [dismissed, setDismissed] = useLocalStorage("ats-beta-banner-dismissed", false);
 
   useEffect(() => {
+    if (dismissed) {
+      document.documentElement.style.setProperty("--banner-h", "0px");
+      return;
+    }
     const setHeight = () => {
       const h = ref.current?.getBoundingClientRect().height || 0;
       document.documentElement.style.setProperty("--banner-h", `${h}px`);
@@ -2577,13 +2582,15 @@ function BetaBanner({ setPage }) {
       window.removeEventListener("resize", setHeight);
       document.documentElement.style.setProperty("--banner-h", "0px");
     };
-  }, []);
+  }, [dismissed]);
+
+  if (dismissed) return null;
 
   return (
     <div ref={ref} style={{
       position: "sticky", top: 0, zIndex: 60,
       background: "linear-gradient(90deg, #2563EB, #1E40AF)", color: "#fff",
-      padding: "9px 16px", textAlign: "center", fontSize: 13.5, fontWeight: 500,
+      padding: "9px 40px", textAlign: "center", fontSize: 13.5, fontWeight: 500,
       lineHeight: 1.5,
     }}>
       🚀 We're in Beta! ATS Resume Pilot is currently under testing. If you experience any issues or have
@@ -2596,6 +2603,22 @@ function BetaBanner({ setPage }) {
         Contact Us
       </a>
       . Thank you for helping us improve.
+      <button
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss beta banner"
+        style={{
+          position: "absolute", top: "50%", right: 12, transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer",
+          color: "#fff", opacity: 0.8, padding: 4, lineHeight: 1,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+        onMouseEnter={e => e.currentTarget.style.opacity = 1}
+        onMouseLeave={e => e.currentTarget.style.opacity = 0.8}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
     </div>
   );
 }
