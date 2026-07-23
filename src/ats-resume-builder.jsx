@@ -3910,7 +3910,7 @@ function HomePage({ setPage, user }) {
         </Reveal>
 
         <div style={{ borderTop: "1px solid var(--c-border)", paddingTop: 20, maxWidth: 1100, margin: "0 auto" }}>
-          <div className="app-text3" style={{ fontSize: 13, textAlign: "center" }}>© 2025 ATS Resume Pilot. Made with ♥ for job seekers everywhere.</div>
+          <div className="app-text3" style={{ fontSize: 13, textAlign: "center" }}>© {new Date().getFullYear()} ATS Resume Pilot. Made with ♥ for job seekers everywhere.</div>
         </div>
         <style>{`
           .footer-link:hover { color: var(--c-accent) !important; }
