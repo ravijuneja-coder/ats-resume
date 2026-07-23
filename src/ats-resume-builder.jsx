@@ -3852,7 +3852,7 @@ function HomePage({ setPage, user }) {
 
       {/* Footer */}
       <footer className="app-surface" style={{ borderTop: "1px solid var(--c-border)", padding: "56px 24px 28px" }}>
-        <Reveal stagger={0.08} className="footer-grid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 32, maxWidth: 1100, margin: "0 auto 40px" }}>
+        <Reveal stagger={0.08} className="footer-grid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 32, maxWidth: 1100, margin: "0 auto 40px" }}>
           {/* Brand column */}
           <RevealItem>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -3872,15 +3872,7 @@ function HomePage({ setPage, user }) {
             </div>
           </RevealItem>
 
-          {/* Resources */}
-          <RevealItem as={motion.nav} aria-label="Resources">
-            <div className="app-text3" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Resources</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Blog</a>
-              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Career Tips</a>
-              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>ATS Guide</a>
-            </div>
-          </RevealItem>
+          {/* Resources — hidden until Blog/Career Tips/ATS Guide pages exist */}
 
           {/* Company */}
           <RevealItem as={motion.nav} aria-label="Company">
