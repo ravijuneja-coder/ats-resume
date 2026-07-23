@@ -565,7 +565,7 @@ const RAVI_RESUME = {
   ],
 };
 
-const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter", PRIVACY: "privacy", TERMS: "terms", CONTACT: "contact", ADMIN: "admin" };
+const PAGES = { HOME: "home", LOGIN: "login", REGISTER: "register", DASHBOARD: "dashboard", BUILDER: "builder", TEMPLATES: "templates", PRICING: "pricing", SUBSCRIPTION: "subscription", COVER_LETTER: "coverletter", PRIVACY: "privacy", TERMS: "terms", CONTACT: "contact", ABOUT: "about", ADMIN: "admin" };
 
 const ADMIN_EMAILS = ["ravijuneja1986@gmail.com"];
 
@@ -3878,7 +3878,7 @@ function HomePage({ setPage, user }) {
           <RevealItem as={motion.nav} aria-label="Company">
             <div className="app-text3" style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>Company</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <a href="#" className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>About</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.ABOUT); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>About</a>
               <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.CONTACT); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Contact</a>
               <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.PRIVACY); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Privacy Policy</a>
               <a href="#" onClick={(e) => { e.preventDefault(); setPage(PAGES.TERMS); }} className="footer-link footer-anim-link app-text2" style={{ fontSize: 14, textDecoration: "none" }}>Terms</a>
@@ -4050,6 +4050,89 @@ function TermsPage({ setPage }) {
         <a href="mailto:support@atsresumepilot.com" style={{ color: "var(--c-accent)" }}>support@atsresumepilot.com</a>.
       </LegalP>
     </LegalPageShell>
+  );
+}
+
+// ─── ABOUT PAGE ─────────────────────────────────────────────────────────────────
+
+function AboutPage({ setPage, user }) {
+  const values = [
+    {
+      icon: "🎯",
+      title: "Built to pass the bots",
+      body: "Applicant tracking systems reject well-qualified candidates over formatting alone. Every template we ship is built to parse cleanly, so your experience gets in front of a human.",
+    },
+    {
+      icon: "⚡",
+      title: "AI that saves time, not replaces judgment",
+      body: "Our AI tools draft summaries, tighten bullet points, and match your resume against a job description — but you stay in control of every word that goes out.",
+    },
+    {
+      icon: "🌱",
+      title: "Still early, still improving",
+      body: "ATS Resume Pilot is in beta. We're actively shipping based on what people tell us they need — if something's missing or broken, we want to hear about it.",
+    },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "48px 24px 80px" }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => setPage(PAGES.HOME)} style={{ marginBottom: 24 }}>
+          ← Back to home
+        </button>
+
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <motion.div
+            style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg, var(--c-accent) 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#fff", fontSize: 22 }}
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.1, ease: EASE_OUT }}
+          >
+            👋
+          </motion.div>
+          <h1 className="font-display" style={{ fontSize: 30, fontWeight: 800, margin: "0 0 8px" }}>
+            About ATS Resume Pilot
+          </h1>
+          <p className="app-text2" style={{ fontSize: 15, margin: 0, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
+            We're building the fastest way to go from blank page to an ATS-safe, genuinely good resume.
+          </p>
+        </div>
+
+        <div className="app-text2" style={{ fontSize: 15, lineHeight: 1.75, marginBottom: 40 }}>
+          <p style={{ margin: "0 0 14px" }}>
+            Job hunting is stressful enough without fighting your own resume. Most applicant tracking
+            systems can't reliably read the fancy two-column templates and graphics that "modern" resume
+            builders love to push — so a strong candidate gets filtered out before a person ever sees
+            their application.
+          </p>
+          <p style={{ margin: 0 }}>
+            ATS Resume Pilot exists to fix that: clean, ATS-safe templates, AI help where it actually
+            saves you time, and a builder that gets out of your way so you can focus on telling your
+            story well.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 40 }}>
+          {values.map(v => (
+            <div key={v.title} style={{ display: "flex", gap: 16, background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 14, padding: 20 }}>
+              <div style={{ fontSize: 24, flexShrink: 0 }}>{v.icon}</div>
+              <div>
+                <h2 className="font-display" style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px" }}>{v.title}</h2>
+                <p className="app-text2" style={{ fontSize: 14, lineHeight: 1.6, margin: 0 }}>{v.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: "center", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 14, padding: "32px 24px" }}>
+          <h2 className="font-display" style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px" }}>Have thoughts or feedback?</h2>
+          <p className="app-text2" style={{ fontSize: 14, margin: "0 0 18px" }}>
+            We read everything that comes in — good, bad, or "you should really add this feature."
+          </p>
+          <button className="btn btn-primary btn-sm" onClick={() => setPage(PAGES.CONTACT)}>Get in touch</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -9434,6 +9517,7 @@ export default function App() {
       case PAGES.PRIVACY: return <PrivacyPage setPage={setPage} />;
       case PAGES.TERMS: return <TermsPage setPage={setPage} />;
       case PAGES.CONTACT: return <ContactPage setPage={setPage} user={user} />;
+      case PAGES.ABOUT: return <AboutPage setPage={setPage} user={user} />;
       case PAGES.ADMIN: return user
         ? <AdminFeedbackPage setPage={setPage} user={user} />
         : <AuthPage mode="login" setPage={setPage} setUser={setUser} />;
